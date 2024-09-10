@@ -32,9 +32,16 @@ class Course
     #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'courses')]
     private Collection $users;
 
+    /**
+     * @var Collection<int, Variation>
+     */
+    #[ORM\OneToMany(targetEntity: Variation::class, mappedBy: 'course', orphanRemoval: true)]
+    private Collection $variations;
+
     public function __construct()
     {
         $this->users = new ArrayCollection();
+        $this->variations = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -100,6 +107,36 @@ class Course
     {
         if ($this->users->removeElement($user)) {
             $user->removeCourse($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Variation>
+     */
+    public function getVariations(): Collection
+    {
+        return $this->variations;
+    }
+
+    public function addVariation(Variation $variation): static
+    {
+        if (!$this->variations->contains($variation)) {
+            $this->variations->add($variation);
+            $variation->setCourse($this);
+        }
+
+        return $this;
+    }
+
+    public function removeVariation(Variation $variation): static
+    {
+        if ($this->variations->removeElement($variation)) {
+            // set the owning side to null (unless already changed)
+            if ($variation->getCourse() === $this) {
+                $variation->setCourse(null);
+            }
         }
 
         return $this;
