@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\VariationRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: VariationRepository::class)]
@@ -26,8 +28,15 @@ class Variation
     #[ORM\OneToOne(cascade: ['persist', 'remove'])]
     private ?PGN $PGN = null;
 
+    /**
+     * @var Collection<int, Move>
+     */
+    #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'variation', orphanRemoval: true)]
+    private Collection $moves;
+
     public function __construct()
     {
+        $this->moves = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -79,6 +88,36 @@ class Variation
     public function setPGN(?PGN $PGN): static
     {
         $this->PGN = $PGN;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Move>
+     */
+    public function getMoves(): Collection
+    {
+        return $this->moves;
+    }
+
+    public function addMove(Move $move): static
+    {
+        if (!$this->moves->contains($move)) {
+            $this->moves->add($move);
+            $move->setVariation($this);
+        }
+
+        return $this;
+    }
+
+    public function removeMove(Move $move): static
+    {
+        if ($this->moves->removeElement($move)) {
+            // set the owning side to null (unless already changed)
+            if ($move->getVariation() === $this) {
+                $move->setVariation(null);
+            }
+        }
 
         return $this;
     }
