@@ -2,7 +2,7 @@
 
 namespace App\Entity;
 
-use App\Enum\CourseType;
+use App\Enum\CourseAspect;
 use App\Repository\CourseRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -23,8 +23,8 @@ class Course
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
-    #[ORM\Column(enumType: CourseType::class)]
-    private ?CourseType $type = null;
+    #[ORM\Column(enumType: CourseAspect::class)]
+    private ?CourseAspect $aspect = null;
 
     /**
      * @var Collection<int, User>
@@ -73,14 +73,14 @@ class Course
         return $this;
     }
 
-    public function getType(): ?CourseType
+    public function getAspect(): ?CourseAspect
     {
-        return $this->type;
+        return $this->aspect;
     }
 
-    public function setType(CourseType $type): static
+    public function setAspect(CourseAspect $aspect): static
     {
-        $this->type = $type;
+        $this->aspect = $aspect;
 
         return $this;
     }

@@ -2,7 +2,7 @@
 
 namespace App\Enum;
 
-enum CourseType: string
+enum CourseAspect: string
 {
     case Opening = 'opening';
     case Endgame = 'endgame';
