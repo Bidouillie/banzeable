@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\User;
 use App\Form\UserType;
+use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,11 +14,20 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/admin/user')]
 class UserController extends AbstractController
 {
-    #[Route('/index', name: 'app_admin_user')]
-    public function index(): Response
+    #[Route('/index', name: 'app_admin_user', methods: ['GET'])]
+    public function index(UserRepository $repo): Response
     {
+        $users = $repo->findAll();
         return $this->render('admin/user/index.html.twig', [
-            'controller_name' => 'UserController',
+            'users' => $users,
+        ]);
+    }
+
+    #[Route('/{id}', name: 'app_admin_user_show', requirements: ['id' => '\d+'], methods: ['GET'])]
+    public function show(?User $user): Response
+    {
+        return $this->render('admin/user/show.html.twig', [
+            'user' => $user,
         ]);
     }
 
