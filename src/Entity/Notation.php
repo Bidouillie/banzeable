@@ -6,6 +6,7 @@ use App\Repository\NotationRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: NotationRepository::class)]
+#[ORM\UniqueConstraint(columns: ["FEN", "text"])]
 class Notation
 {
     #[ORM\Id]
@@ -17,7 +18,7 @@ class Notation
     private ?string $FEN = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $notation = null;
+    private ?string $text = null;
 
     public function getId(): ?int
     {
@@ -36,14 +37,14 @@ class Notation
         return $this;
     }
 
-    public function getNotation(): ?string
+    public function getText(): ?string
     {
-        return $this->notation;
+        return $this->text;
     }
 
-    public function setNotation(string $notation): static
+    public function setText(string $text): static
     {
-        $this->notation = $notation;
+        $this->text = $text;
 
         return $this;
     }

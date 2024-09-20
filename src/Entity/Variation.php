@@ -3,12 +3,14 @@
 namespace App\Entity;
 
 use App\Repository\VariationRepository;
+use Chess\FenToBoardFactory;
+use Chess\Variant\Classical\Board;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: VariationRepository::class)]
-class Variation
+class Variation extends PGNBase
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -18,25 +20,67 @@ class Variation
     #[ORM\Column(length: 255)]
     private ?string $name = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $FEN = null;
-
     #[ORM\ManyToOne(inversedBy: 'variations')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Course $course = null;
 
-    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
-    private ?PGN $PGN = null;
-
     /**
      * @var Collection<int, Move>
      */
-    #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'variation', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'variation', cascade: ['persist'], orphanRemoval: true)]
     private Collection $moves;
+
+    private ?string $PGN = null;
 
     public function __construct()
     {
         $this->moves = new ArrayCollection();
+    }
+
+    public function getPGN(): ?string
+    {
+        return $this->PGN;
+    }
+
+    public function setPGN(string $PGN): static
+    {
+        $lines = max(explode("\n", $PGN), explode(PHP_EOL, $PGN));
+
+        $tags = [];
+        $tagsKeyValue = [];
+        $movetext = null;
+        $resulttext = null;
+
+        foreach($lines as $line) {
+            $line = trim($line);
+            $matchesTag = preg_match('/^\[([a-zA-Z]+) "(.+)"\]$/', $line, $matches);
+            if ($matchesTag) {
+                $tags[] = $line;
+                $tagsKeyValue[$matches[1]] = $matches[2];
+            } else {
+                $moveRegex = '[RNBQK]?[a-h]?[1-8]?x?[a-h][1-8](=[RNBQ])?(\+|#)?|O-O(-O)?';
+                $matchesMovetext = preg_match("/^(([1-9][0-9]*\. ($moveRegex) ($moveRegex) )+)((0|1\/2|1)-(0|1\/2|1)|\*)$/", $line, $matches);
+    
+                if ($matchesMovetext) {
+                    $movetext = $matches[1];
+                    $resulttext = $matches[1];
+                }
+            }
+        }
+
+        if (!isset($movetext)) {
+            throw new \Exception("Missing Movetext", 1);
+        }
+
+        $this->PGN = implode(PHP_EOL, array_merge($tags, [$movetext . $resulttext]));
+
+        $this->setTags($tagsKeyValue);
+
+        $moves = trim(preg_replace('/[1-9][0-9]*\. /', '', $movetext));
+
+        $this->setMoves($moves);
+
+        return $this;
     }
 
     public function getId(): ?int
@@ -56,18 +100,6 @@ class Variation
         return $this;
     }
 
-    public function getFEN(): ?string
-    {
-        return $this->FEN;
-    }
-
-    public function setFEN(?string $FEN): static
-    {
-        $this->FEN = $FEN;
-
-        return $this;
-    }
-
     public function getCourse(): ?Course
     {
         return $this->course;
@@ -80,24 +112,37 @@ class Variation
         return $this;
     }
 
-    public function getPGN(): ?PGN
-    {
-        return $this->PGN;
-    }
-
-    public function setPGN(?PGN $PGN): static
-    {
-        $this->PGN = $PGN;
-
-        return $this;
-    }
-
     /**
      * @return Collection<int, Move>
      */
     public function getMoves(): Collection
     {
         return $this->moves;
+    }
+
+    public function setMoves(string $moves): static
+    {
+        $board = $this->getFEN() ? FenToBoardFactory::create($this->getFEN()) : new Board();
+
+        $moveCount = 0;
+        foreach(explode(' ', $moves) as $moveText) {
+            $move = new Move();
+            $notation = new Notation();
+
+            $notation->setFEN($board->toFen());
+            $notation->setText($moveText);
+
+            $move->setPosition($moveCount);
+            $move->setNotation($notation);
+
+            $this->addMove($move);
+
+            $board->play($board->turn, $move->getNotation()->getText());
+
+            $moveCount++;
+        }
+
+        return $this;
     }
 
     public function addMove(Move $move): static

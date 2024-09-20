@@ -23,9 +23,9 @@ class Move
     #[ORM\JoinColumn(nullable: false)]
     private ?Variation $variation = null;
 
-    #[ORM\ManyToOne]
+    #[ORM\ManyToOne(cascade: ['persist'])]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Notation $move = null;
+    private ?Notation $notation = null;
 
     /**
      * @var Collection<int, Notation>
@@ -67,14 +67,14 @@ class Move
         return $this;
     }
 
-    public function getMove(): ?Notation
+    public function getNotation(): ?Notation
     {
-        return $this->move;
+        return $this->notation;
     }
 
-    public function setMove(?Notation $move): static
+    public function setNotation(?Notation $notation): static
     {
-        $this->move = $move;
+        $this->notation = $notation;
 
         return $this;
     }
