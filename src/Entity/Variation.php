@@ -124,7 +124,6 @@ class Variation extends PGNBase
     {
         $board = $this->getFEN() ? FenToBoardFactory::create($this->getFEN()) : new Board();
 
-        $moveCount = 0;
         foreach(explode(' ', $moves) as $moveText) {
             $move = new Move();
             $notation = new Notation();
@@ -132,14 +131,11 @@ class Variation extends PGNBase
             $notation->setFEN($board->toFen());
             $notation->setText($moveText);
 
-            $move->setPosition($moveCount);
             $move->setNotation($notation);
 
             $this->addMove($move);
 
             $board->play($board->turn, $move->getNotation()->getText());
-
-            $moveCount++;
         }
 
         return $this;

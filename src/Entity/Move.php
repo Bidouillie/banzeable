@@ -16,9 +16,6 @@ class Move
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(type: Types::SMALLINT)]
-    private ?int $position = null;
-
     #[ORM\ManyToOne(inversedBy: 'moves')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Variation $variation = null;
@@ -41,18 +38,6 @@ class Move
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getPosition(): ?int
-    {
-        return $this->position;
-    }
-
-    public function setPosition(int $position): static
-    {
-        $this->position = $position;
-
-        return $this;
     }
 
     public function getVariation(): ?Variation
