@@ -1,0 +1,56 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Variation{% endblock %}
+
+{% block body %}
+<style>
+    .example-wrapper {
+        margin: 1em auto;
+        max-width: 800px;
+        width: 95%;
+        font: 18px/1.5 sans-serif;
+    }
+
+    .example-wrapper code {
+        background: #F5F5F5;
+        padding: 2px 6px;
+    }
+</style>
+
+<div class="example-wrapper">
+    <h1>Variation</h1>
+
+    {% if variation is not null %}
+    <div class="card mb-1 m-auto">
+        <div class="card-body">
+            <div class="card-title d-flex justify-content-between">
+                <h4 class="mb-1">{{ variation.name }}</h4>
+                <small class="text-muted">ID : {{ variation.id }}</small>
+            </div>
+            <div class="d-flex justify-content-between card-text">
+                <ul class="list-group list-group-flush">
+                    {% if variation.event is not null %}
+                    <li class="list-group-item">Event : {{ variation.event }}</li>
+                    {% endif %}
+                    {% if variation.site is not null %}
+                    <li class="list-group-item">Site : {{ variation.site }}</li>
+                    {% endif %}
+                </ul>
+                {% if variation.result is not null %}
+                <p><small>Result : {{ variation.result }}</small></p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-footer">
+            {{ form_start(delete_form) }}
+            <button type="submit" class="btn btn-danger">Delete</button>
+            {{ form_row(delete_form._token) }}
+            {{ form_end(delete_form, {'render_rest': false}) }}
+        </div>
+    </div>
+    {% else %}
+    <div>Variation not found</div>
+    {% endif %}
+
+</div>
+{% endblock %}

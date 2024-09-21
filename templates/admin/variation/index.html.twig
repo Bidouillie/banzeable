@@ -9,12 +9,21 @@
 </style>
 
 <div class="example-wrapper">
-    <h1>Hello {{ controller_name }}! ✅</h1>
+    <h1>Variations</h1>
 
-    This friendly message is coming from:
     <ul>
-        <li>Your controller at <code>C:/Users/boule/VSCodeProjects/banzeable/src/Controller/Admin/VariationController.php</code></li>
-        <li>Your template at <code>C:/Users/boule/VSCodeProjects/banzeable/templates/admin/variation/index.html.twig</code></li>
+        {% for variation in variations %}
+        <div class="card mb-1">
+            <div class="card-body">
+                <div class="card-title d-flex justify-content-between">
+                    <a href="{{ path('app_admin_variation_show', {id: variation.id}) }}" class="stretched-link link-dark">
+                        <h4 class="mb-1">{{ variation.name }}</h4>
+                    </a>
+                    <small class="text-muted">Identifiant : {{ variation.id }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </ul>
 </div>
 {% endblock %}

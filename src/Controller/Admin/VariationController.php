@@ -3,8 +3,10 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Variation;
+use App\Form\VariationDeletionType;
 use App\Form\VariationFromPGNType;
 use App\Repository\NotationRepository;
+use App\Repository\VariationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -15,10 +17,30 @@ use Symfony\Component\Routing\Attribute\Route;
 class VariationController extends AbstractController
 {
     #[Route('/index', name: 'app_admin_variation')]
-    public function index(): Response
+    public function index(VariationRepository $repo): Response
     {
+        $variations = $repo->findAll();
         return $this->render('admin/variation/index.html.twig', [
-            'controller_name' => 'VariationController',
+            'variations' => $variations,
+        ]);
+    }
+
+    #[Route('/{id}', name: 'app_admin_variation_show', requirements: ['id' => '\d+'], methods: ['GET', 'DELETE'])]
+    public function show(?Variation $variation, Request $request, EntityManagerInterface $em): Response
+    {
+        $deleteForm = $this->createForm(VariationDeletionType::class, $variation);
+
+        $deleteForm->handleRequest($request);
+        
+        if ($deleteForm->isSubmitted() && $deleteForm->isValid()) {
+            $em->remove($variation);
+            $em->flush();
+            return $this->redirectToRoute('app_admin_variation');
+        }
+
+        return $this->render('admin/variation/show.html.twig', [
+            'variation' => $variation,
+            'delete_form' => $deleteForm,
         ]);
     }
 
