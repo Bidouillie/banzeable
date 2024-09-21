@@ -16,6 +16,14 @@ class NotationRepository extends ServiceEntityRepository
         parent::__construct($registry, Notation::class);
     }
 
+    public function findByFEN(array $FENs) {
+        $qb = $this->createQueryBuilder('a')
+            ->andWhere('a.FEN IN (:FENs)')
+            ->setParameter('FENs', $FENs);
+            
+        return $qb->getQuery()->getResult();
+    }
+
     //    /**
     //     * @return Notation[] Returns an array of Notation objects
     //     */
