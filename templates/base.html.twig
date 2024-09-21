@@ -14,17 +14,41 @@
 </head>
 
 <body>
-    <nav id="navbar-example2" class="navbar navbar-light bg-light px-3">
-        <a class="navbar-brand" href="#">Banzeable</a>
-        <ul class="nav nav-pills">
-            <li class="nav-item">
-                <a class="nav-link" href="#">Catalogue</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">Se connecter</a>
-            </li>
-        </ul>
+
+    <nav id="navbar-example2" class="navbar navbar-expand-lg bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Banzeable</a>
+            <div class="collapse navbar-collapse" id="navbarScroll">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/course/new">Course</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/user/index">Users</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/user/new">User</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/variation/index">Variations</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/variation/new">Variation</a>
+                    </li>
+                    <!--li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            Users
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/admin/user/index">Index</a></li>
+                            <li><a class="dropdown-item" href="/admin/user/new">Create</a></li>
+                        </ul>
+                    </li-->
+                </ul>
+            </div>
+        </div>
     </nav>
+
     {% block body %}{% endblock %}
 </body>
 
