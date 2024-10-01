@@ -35,4 +35,21 @@ return [
         'version' => '5.3.3',
         'type' => 'css',
     ],
+    'cm-chessboard' => [
+        'version' => '8.7.4',
+    ],
+    'cm-chessboard/src/extensions/markers/Markers.js' => [
+        'version' => '8.7.4',
+    ],
+    'cm-chessboard/assets/chessboard.css' => [
+        'version' => '8.7.4',
+        'type' => 'css',
+    ],
+    'cm-chessboard/assets/extensions/markers/markers.css' => [
+        'version' => '8.7.4',
+        'type' => 'css',
+    ],
+    'chess.js' => [
+        'version' => '1.0.0-beta.8',
+    ],
 ];
