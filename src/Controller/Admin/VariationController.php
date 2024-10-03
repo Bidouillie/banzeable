@@ -12,6 +12,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Serializer\SerializerInterface;
 
 #[Route('/admin/variation')]
 class VariationController extends AbstractController
@@ -26,8 +27,9 @@ class VariationController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_admin_variation_show', requirements: ['id' => '\d+'], methods: ['GET', 'DELETE'])]
-    public function show(?Variation $variation, Request $request, EntityManagerInterface $em): Response
+    public function show(?Variation $variation, Request $request, EntityManagerInterface $em, SerializerInterface $serializer): Response
     {
+
         $deleteForm = $this->createForm(VariationDeletionType::class, $variation);
 
         $deleteForm->handleRequest($request);
@@ -40,6 +42,7 @@ class VariationController extends AbstractController
 
         return $this->render('admin/variation/show.html.twig', [
             'variation' => $variation,
+            'variation_encoded' => $serializer->serialize($variation, 'json', ['groups' => ['move', 'notation']]),
             'delete_form' => $deleteForm,
         ]);
     }

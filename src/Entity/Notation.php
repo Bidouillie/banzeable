@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Repository\NotationRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation as Serializer;
 
 #[ORM\Entity(repositoryClass: NotationRepository::class)]
 #[ORM\UniqueConstraint(columns: ["FEN", "text"])]
@@ -18,6 +19,7 @@ class Notation
     private ?string $FEN = null;
 
     #[ORM\Column(length: 255)]
+    #[Serializer\Groups(groups: ['Default'])]
     private ?string $text = null;
 
     public function getId(): ?int

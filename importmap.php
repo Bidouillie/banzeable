@@ -16,6 +16,14 @@ return [
         'path' => './assets/app.js',
         'entrypoint' => true,
     ],
+    'playableboard' => [
+        'path' => './assets/playableboard.js',
+        'entrypoint' => true,
+    ],
+    'variationboard' => [
+        'path' => './assets/variationboard.js',
+        'entrypoint' => true,
+    ],
     '@hotwired/stimulus' => [
         'version' => '3.2.2',
     ],

@@ -1,5 +1,7 @@
 {% extends 'base.html.twig' %}
 
+{% block importmap %}{{ importmap(['app', 'playableboard']) }}{% endblock %}
+
 {% block title %}Hello TestController!{% endblock %}
 
 {% block body %}
@@ -11,6 +13,6 @@
 <div class="example-wrapper">
     <h1>Hello {{ controller_name }}! ✅</h1>
 
-    <div id="myBoard" style="width: 400px"></div>
+    <div id="board" style="width: 400px"></div>
 </div>
 {% endblock %}

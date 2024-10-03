@@ -8,6 +8,7 @@ use Chess\Variant\Classical\Board;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation as Serializer;
 
 #[ORM\Entity(repositoryClass: VariationRepository::class)]
 class Variation extends PGNBase
@@ -22,12 +23,14 @@ class Variation extends PGNBase
 
     #[ORM\ManyToOne(inversedBy: 'variations')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Serializer\Groups(groups: ['course'])]
     private ?Course $course = null;
 
     /**
      * @var Collection<int, Move>
      */
     #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'variation', cascade: ['persist'], orphanRemoval: true)]
+    #[Serializer\Groups(['move'])]
     private Collection $moves;
 
     private ?string $PGN = null;
@@ -35,6 +38,12 @@ class Variation extends PGNBase
     public function __construct()
     {
         $this->moves = new ArrayCollection();
+    }
+
+    public function getFEN(): ?string
+    {
+        $moves = $this->getMoves();
+        return empty($moves) ? parent::getFEN() : $moves->first()->getNotation()->getFEN();
     }
 
     public function getPGN(): ?string

@@ -1,5 +1,7 @@
 {% extends 'base.html.twig' %}
 
+{% block importmap %}{{ importmap(['app', 'variationboard']) }}{% endblock %}
+
 {% block title %}Variation{% endblock %}
 
 {% block body %}
@@ -48,9 +50,14 @@
             {{ form_end(delete_form, {'render_rest': false}) }}
         </div>
     </div>
-    {% else %}
-    <div>Variation not found</div>
-    {% endif %}
+    <div class="card mb-1 m-auto">
 
-</div>
-{% endblock %}
+        <div id="board" style="width: 400px"></div>
+        <div class="js-variation" data-variation="{{ variation_encoded }}">
+        </div>
+        {% else %}
+        <div>Variation not found</div>
+        {% endif %}
+
+    </div>
+    {% endblock %}

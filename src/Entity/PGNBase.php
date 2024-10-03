@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation as Serializer;
 
 #[ORM\MappedSuperclass]
 class PGNBase
@@ -31,7 +32,9 @@ class PGNBase
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $result = null;
 
+    //TODO Set FEN when creating Variation or remove field
     #[ORM\Column(length: 255, nullable: true)]
+    #[Serializer\Groups(groups: ['Default'])]
     private ?string $FEN = null;
 
     protected function setTags(array $tags): void {

@@ -5,8 +5,8 @@ namespace App\Entity;
 use App\Repository\MoveRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation as Serializer;
 
 #[ORM\Entity(repositoryClass: MoveRepository::class)]
 class Move
@@ -18,10 +18,12 @@ class Move
 
     #[ORM\ManyToOne(inversedBy: 'moves')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Serializer\Groups(['variation'])]
     private ?Variation $variation = null;
 
     #[ORM\ManyToOne(cascade: ['persist'])]
     #[ORM\JoinColumn(nullable: false)]
+    #[Serializer\Groups(groups: ['notation'])]
     private ?Notation $notation = null;
 
     /**
