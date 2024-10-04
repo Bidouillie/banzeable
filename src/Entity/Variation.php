@@ -21,6 +21,10 @@ class Variation extends PGNBase
     #[ORM\Column(length: 255)]
     private ?string $name = null;
 
+    #[ORM\Column]
+    #[Serializer\Groups(groups: ['Default'])]
+    private ?bool $blackOrientation = null;
+
     #[ORM\ManyToOne(inversedBy: 'variations')]
     #[ORM\JoinColumn(nullable: false)]
     #[Serializer\Groups(groups: ['course'])]
@@ -43,7 +47,7 @@ class Variation extends PGNBase
     public function getFEN(): ?string
     {
         $moves = $this->getMoves();
-        return empty($moves) ? parent::getFEN() : $moves->first()->getNotation()->getFEN();
+        return count($moves) > 0 ? $moves->first()->getNotation()->getFEN() : parent::getFEN();
     }
 
     public function getPGN(): ?string
@@ -105,6 +109,18 @@ class Variation extends PGNBase
     public function setName(string $name): static
     {
         $this->name = $name;
+
+        return $this;
+    }
+
+    public function isBlackOrientation(): ?bool
+    {
+        return $this->blackOrientation;
+    }
+
+    public function setBlackOrientation(bool $blackOrientation): static
+    {
+        $this->blackOrientation = $blackOrientation;
 
         return $this;
     }

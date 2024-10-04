@@ -2,7 +2,7 @@
 import './vendor/cm-chessboard/assets/chessboard.css';
 import './vendor/cm-chessboard/assets/extensions/markers/markers.css';
 
-import { Chessboard } from 'cm-chessboard'
+import { Chessboard, COLOR } from 'cm-chessboard'
 import { Markers } from 'cm-chessboard/src/extensions/markers/Markers.js';
 import { Chess } from 'chess.js';
 
@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     board = new Chessboard(document.getElementById('board'), {
         position: variation.FEN,
+        orientation: variation.blackOrientation ? COLOR.black : COLOR.white,
         assetsUrl: '/cm-chessboard/assets/',
         extensions: [{ class: Markers }],
         style: {
