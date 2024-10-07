@@ -11,6 +11,9 @@ import 'bootstrap';
 
 import './vendor/bootstrap/dist/css/bootstrap.min.css';
 
+import './styles/startbootstrap-shop-homepage-gh-pages/styles.css';
+import './styles/startbootstrap-shop-item-gh-pages/styles.css';
+
 import './styles/app.css';
 
 console.log('This log comes from assets/app.js - welcome to AssetMapper! 🎉');

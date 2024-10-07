@@ -28,6 +28,12 @@ class Course
     #[ORM\Column(enumType: CourseAspect::class)]
     private ?CourseAspect $aspect = null;
 
+    #[ORM\Column(type: Types::SMALLINT, nullable: true)]
+    private ?int $rating = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?float $price = null;
+
     /**
      * @var Collection<int, User>
      */
@@ -83,6 +89,30 @@ class Course
     public function setAspect(CourseAspect $aspect): static
     {
         $this->aspect = $aspect;
+
+        return $this;
+    }
+
+    public function getRating(): ?int
+    {
+        return $this->rating;
+    }
+
+    public function setRating(?int $rating): static
+    {
+        $this->rating = $rating;
+
+        return $this;
+    }
+
+    public function getPrice(): ?float
+    {
+        return $this->price;
+    }
+
+    public function setPrice(?float $price): static
+    {
+        $this->price = $price;
 
         return $this;
     }

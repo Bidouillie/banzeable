@@ -21,6 +21,8 @@ class CourseType extends AbstractType
             ->add('aspect', EnumType::class, [
                 'class' => CourseAspect::class,
             ])
+            ->add('rating')
+            ->add('price')
             ->add('users', EntityType::class, [
                 'class' => User::class,
                 'choice_label' => 'firstname',
