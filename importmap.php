@@ -39,10 +39,6 @@ return [
     '@popperjs/core' => [
         'version' => '2.11.8',
     ],
-    'bootstrap/dist/css/bootstrap.min.css' => [
-        'version' => '5.3.3',
-        'type' => 'css',
-    ],
     'cm-chessboard' => [
         'version' => '8.7.4',
     ],

@@ -1,0 +1,14 @@
+@import '../../vendor/thomaspark/bootswatch/dist/sandstone/variables';
+@import '../../vendor/twbs/bootstrap/scss/bootstrap';
+@import '../../vendor/thomaspark/bootswatch/dist/sandstone/bootswatch';
+
+// flatly
+// minty
+// lux
+// cerulean
+// slate
+// solar
+
+@include color-mode(dark) {
+    // color: $body-bg-dark;
+}

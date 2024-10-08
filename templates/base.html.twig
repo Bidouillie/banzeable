@@ -5,50 +5,62 @@
     <meta charset="UTF-8">
     <title>{% block title %}Welcome!{% endblock %}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-    {% block stylesheets %}
-    {% endblock %}
 
     {% block javascripts %}
     {% block importmap %}{{ importmap('app') }}{% endblock %}
+    {% endblock %}
+    
+    {% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('styles/app.scss') }}">
     {% endblock %}
 </head>
 
 <body>
 
-    <nav id="navbar-example2" class="navbar navbar-expand-lg bg-light">
-        <div class="container-fluid">
+    {% if not (app.request.attributes.get('_route') starts with 'app_admin') %}
+    {% set admin = false %}
+    {% set menu = [{name: "Courses", route: 'app_course'}, {name: "Test", route: 'app_test'}] %}
+    {% else %}
+    {% set admin = true %}
+    {% set menu = [{name: "Courses", routes: [{name: "List", route: 'app_admin_course'}, {name: "New", route: 'app_admin_course_new'}]}, {name: "Users", routes: [{name: "List", route: 'app_admin_user'}, {name: "New", route: 'app_admin_user_new'}]}, {name: "Variations", routes: [{name: "List", route: 'app_admin_variation'}, {name: "New", route: 'app_admin_variation_new'}]}, {name: "Test", route: 'app_test'}] %}
+    {% endif %}
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-light px-3 mb-3">
+        <div class="collapse navbar-collapse w-100">
             <a class="navbar-brand" href="#">Banzeable</a>
-            <div class="collapse navbar-collapse" id="navbarScroll">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/course/new">Course</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/user/index">Users</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/user/new">User</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/variation/index">Variations</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/variation/new">Variation</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/test">Test</a>
-                    </li>
-                    <!--li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            Users
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="/admin/user/index">Index</a></li>
-                            <li><a class="dropdown-item" href="/admin/user/new">Create</a></li>
-                        </ul>
-                    </li-->
-                </ul>
-            </div>
+            <ul class="navbar-nav me-auto">
+                {% for menu_item in menu %}
+                {% if menu_item.routes is defined %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false">
+                        {{ menu_item.name }}
+                    </a>
+                    <ul class="dropdown-menu">
+                        {% for dropdown_item in menu_item.routes %}
+                        <li><a class="dropdown-item {% if app.request.attributes.get('_route') == dropdown_item.route %}active{% endif %}" href="{{ path(dropdown_item.route) }}">{{ dropdown_item.name }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link {% if app.request.attributes.get('_route') == menu_item.route %}active{% endif %}" href="{{ path(menu_item.route) }}">{{ menu_item.name }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="collapse navbar-collapse w-100">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false">
+                        {% if admin %}Admin{% else %}Front{% endif %}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item {% if not(admin) %}active{% endif %}" href="{{ path('app_course') }}">Front</a></li>
+                        <li><a class="dropdown-item {% if admin %}active{% endif %}" href="{{ path('app_admin_course') }}">Admin</a></li>
+                    </ul>
+                </li>
+            </ul>
         </div>
     </nav>
 

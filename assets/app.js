@@ -9,8 +9,6 @@ import 'bootstrap';
  * which should already be in your base.html.twig.
  */
 
-import './vendor/bootstrap/dist/css/bootstrap.min.css';
-
 import './styles/startbootstrap-shop-homepage-gh-pages/styles.css';
 import './styles/startbootstrap-shop-item-gh-pages/styles.css';
 
