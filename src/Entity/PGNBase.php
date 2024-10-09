@@ -32,7 +32,7 @@ class PGNBase
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $result = null;
 
-    //TODO Set FEN when creating Variation or remove field
+    // TODO Set FEN when creating Variation or remove field
     #[ORM\Column(length: 255, nullable: true)]
     #[Serializer\Groups(groups: ['Default'])]
     private ?string $FEN = null;
