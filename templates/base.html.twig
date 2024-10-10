@@ -9,7 +9,7 @@
     {% block javascripts %}
     {% block importmap %}{{ importmap('app') }}{% endblock %}
     {% endblock %}
-    
+
     {% block stylesheets %}
     <link rel="stylesheet" href="{{ asset('styles/app.scss') }}">
     {% endblock %}
@@ -56,8 +56,18 @@
                         {% if admin %}Admin{% else %}Front{% endif %}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item {% if not(admin) %}active{% endif %}" href="{{ path('app_course') }}">Front</a></li>
-                        <li><a class="dropdown-item {% if admin %}active{% endif %}" href="{{ path('app_admin_course') }}">Admin</a></li>
+                        {% if admin %}
+                        <li><a class="dropdown-item" href="{{ path('app_course') }}">Front</a></li>
+                        {% endif %}
+                        {% if not(admin) %}
+                        <li><a class="dropdown-item" href="{{ path('app_admin_course') }}">Admin</a></li>
+                        {% endif %}
+                        {% if app.user %}
+                        <li><a class="dropdown-item" href="{{ path('app_logout') }}">Logout</a></li>
+                        {% else %}
+                        <li><a class="dropdown-item {% if app.request.attributes.get('_route') == 'app_register' %}active{% endif %}" href="{{ path('app_register') }}">Register</a></li>
+                        <li><a class="dropdown-item {% if app.request.attributes.get('_route') == 'app_login' %}active{% endif %}" href="{{ path('app_login') }}">Login</a></li>
+                        {% endif %}
                     </ul>
                 </li>
             </ul>

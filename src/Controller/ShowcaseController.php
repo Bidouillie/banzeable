@@ -8,7 +8,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class ShowcaseController extends AbstractController
 {
-    #[Route('/showcase', name: 'app_showcase')]
+    #[Route('/', name: 'app_showcase')]
     public function index(): Response
     {
         return $this->render('showcase/index.html.twig', [
