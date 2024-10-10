@@ -20,13 +20,19 @@
 <div class="example-wrapper">
     <h1>Add user</h1>
 
+    {{ form_errors(form) }}
+
     {{ form_start(form) }}
-    {{ form_row(form.email, {label: 'Email'}) }}
-    {{ form_row(form.password, {label: 'Password'}) }}
-    {{ form_row(form.firstname, {label: 'Firstname'}) }}
-    {{ form_row(form.surname, {label: 'Surname'}) }}
-    {{ form_row(form.certification, {label: 'Certification'}) }}
+    {{ form_row(form.email) }}
+    {{ form_row(form.roles) }}
+    {{ form_row(form.plainPassword, {
+    label: 'Password'
+    }) }}
+    {{ form_row(form.firstname) }}
+    {{ form_row(form.surname) }}
+
     <button type="submit" class="btn btn-primary">Submit</button>
+
     {{ form_row(form._token) }}
     {{ form_end(form, {'render_rest': false}) }}
 </div>
