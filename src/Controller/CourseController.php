@@ -7,6 +7,7 @@ use App\Repository\CourseRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/course')]
 class CourseController extends AbstractController
@@ -21,6 +22,7 @@ class CourseController extends AbstractController
         ]);
     }
 
+    #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/{id}', name: 'app_course_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(?Course $course): Response
     {
