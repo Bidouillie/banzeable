@@ -1,0 +1,31 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Studies{% endblock %}
+
+{% block body %}
+
+<section class="py-5">
+    <div class="container px-4 px-lg-5 mt-5">
+        {% for course in studies %}
+        <div class="card mb-3">
+            <div class="row align-items-stretch p-2">
+                <div class="col-md-2">
+                    <img src="https://dummyimage.com/100x100/dee2e6/6c757d.jpg" alt="..." />
+                </div>
+                <div class="col-md-6">
+                    <div class="card-body p-2">
+                        <h5 class="card-title">{{ course.name }}</h5>
+                    </div>
+                </div>
+                <div class="col-md-4 d-flex flex-column-reverse align-items-end">
+                    <div class="card-footer p-2 border-top-0 bg-transparent">
+                        <a class="btn btn-primary mt-auto" href="{{ path('app_course_show', {id: course.id}) }}">Show</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+{% endblock %}

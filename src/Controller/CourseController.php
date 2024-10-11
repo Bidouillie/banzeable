@@ -28,6 +28,22 @@ class CourseController extends AbstractController
     }
 
     #[IsGranted('IS_AUTHENTICATED')]
+    #[Route('/studies', name: 'app_studies')]
+    public function studies(Security $security): Response
+    {
+        /**
+         * @var User $user
+         */
+        $user = $security->getUser();
+
+        $studies = $user->getStudies();
+
+        return $this->render('course/studies.html.twig', [
+            'studies' => $studies,
+        ]);
+    }
+
+    #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/{id}', name: 'app_course_show', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function show(Request $request, Security $security, ?Course $course, EntityManagerInterface $em): Response
     {
