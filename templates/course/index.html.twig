@@ -17,7 +17,7 @@
                         <div class="text-center">
                             <!-- Product name-->
                             <h5 class="fw-bolder">{{ course.name }}</h5>
-                            {% for index, user in course.users %}
+                            {% for index, user in course.owners %}
                             {% if index == 0 %}by {% else %} & {% endif %}{{user.firstname|title}}
                             {% endfor %}
                         </div>

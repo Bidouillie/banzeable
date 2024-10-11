@@ -53,6 +53,12 @@ class UserType extends AbstractType
                 'multiple' => true,
                 'required' => false,
             ])
+            ->add('studies', EntityType::class, [
+                'class' => Course::class,
+                'choice_label' => 'id',
+                'multiple' => true,
+                'required' => false,
+            ])
         ;
     }
 

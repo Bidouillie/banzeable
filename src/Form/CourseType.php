@@ -23,7 +23,13 @@ class CourseType extends AbstractType
             ])
             ->add('rating')
             ->add('price')
-            ->add('users', EntityType::class, [
+            ->add('owners', EntityType::class, [
+                'class' => User::class,
+                'choice_label' => 'firstname',
+                'multiple' => true,
+                'by_reference' => false,
+            ])
+            ->add('students', EntityType::class, [
                 'class' => User::class,
                 'choice_label' => 'firstname',
                 'multiple' => true,

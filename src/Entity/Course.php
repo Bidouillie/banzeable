@@ -38,7 +38,13 @@ class Course
      * @var Collection<int, User>
      */
     #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'courses')]
-    private Collection $users;
+    private Collection $owners;
+
+    /**
+     * @var Collection<int, User>
+     */
+    #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'studies')]
+    private Collection $students;
 
     /**
      * @var Collection<int, Variation>
@@ -48,7 +54,7 @@ class Course
 
     public function __construct()
     {
-        $this->users = new ArrayCollection();
+        $this->owners = new ArrayCollection();
         $this->variations = new ArrayCollection();
     }
 
@@ -120,25 +126,52 @@ class Course
     /**
      * @return Collection<int, User>
      */
-    public function getUsers(): Collection
+    public function getOwners(): Collection
     {
-        return $this->users;
+        return $this->owners;
     }
 
-    public function addUser(User $user): static
+    public function addOwner(User $user): static
     {
-        if (!$this->users->contains($user)) {
-            $this->users->add($user);
+        if (!$this->owners->contains($user)) {
+            $this->owners->add($user);
             $user->addCourse($this);
         }
 
         return $this;
     }
 
-    public function removeUser(User $user): static
+    public function removeOwner(User $user): static
     {
-        if ($this->users->removeElement($user)) {
+        if ($this->owners->removeElement($user)) {
             $user->removeCourse($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    public function getStudents(): Collection
+    {
+        return $this->students;
+    }
+
+    public function addStudent(User $user): static
+    {
+        if (!$this->students->contains($user)) {
+            $this->students->add($user);
+            $user->addStudy($this);
+        }
+
+        return $this;
+    }
+
+    public function removeStudent(User $user): static
+    {
+        if ($this->students->removeElement($user)) {
+            $user->removeStudy($this);
         }
 
         return $this;

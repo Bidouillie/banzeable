@@ -47,12 +47,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Course>
      */
-    #[ORM\ManyToMany(targetEntity: Course::class, inversedBy: 'users')]
+    #[ORM\ManyToMany(targetEntity: Course::class, inversedBy: 'owners')]
     private Collection $courses;
+
+    /**
+     * @var Collection<int, Course>
+     */
+    #[ORM\JoinTable(name: 'studies')]
+    #[ORM\ManyToMany(targetEntity: Course::class, inversedBy: 'students')]
+    private Collection $studies;
 
     public function __construct()
     {
         $this->courses = new ArrayCollection();
+        $this->studies = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -174,6 +182,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function removeCourse(Course $course): static
     {
         $this->courses->removeElement($course);
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Course>
+     */
+    public function getStudies(): Collection
+    {
+        return $this->studies;
+    }
+
+    public function addStudy(Course $course): static
+    {
+        if (!$this->studies->contains($course)) {
+            $this->studies->add($course);
+        }
+
+        return $this;
+    }
+
+    public function removeStudy(Course $course): static
+    {
+        $this->studies->removeElement($course);
 
         return $this;
     }
