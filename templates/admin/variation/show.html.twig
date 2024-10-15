@@ -53,11 +53,11 @@
     <div class="card mb-1 m-auto">
 
         <div id="board" style="width: 400px"></div>
-        <div class="js-variation" data-variation="{{ variation_encoded }}">
-        </div>
-        {% else %}
-        <div>Variation not found</div>
-        {% endif %}
-
+        <div class="js-variation" data-variation="{{ variation_encoded }}"></div>
     </div>
-    {% endblock %}
+    {% else %}
+    <div>Variation not found</div>
+    {% endif %}
+
+</div>
+{% endblock %}
