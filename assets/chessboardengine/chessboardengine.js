@@ -14,7 +14,10 @@ export class ChessboardEngine {
     // moves to be played
     #sanMoves = [];
 
-    // function called after a move has been played
+    /**
+     * @callback movePlayedCallback
+     * @param {{'moveValidation': boolean, 'lastMove': boolean}} event
+     */
     #movePlayedCallback;
 
     // number of miliseconds to wait for next move, or false if no auto mode
@@ -59,6 +62,11 @@ export class ChessboardEngine {
         } while (moveObject !== null);
     }
 
+    /**
+     * @param {movePlayedCallback} moveHandler
+     * @param {number | false} autoNext 
+     * @param {'analysis' | 'variation'} mode 
+     */
     enablePlayableMove(moveHandler, autoNext = false, mode = 'analysis') {
 
         if (mode !== 'analysis' && mode !== 'variation') {
@@ -157,7 +165,7 @@ export class ChessboardEngine {
 
                     if (this.#movePlayedCallback) {
                         // Fire an move event
-                        this.#movePlayedCallback(moveValidation);
+                        this.#movePlayedCallback({ moveValidation, 'lastMove': this.#sanMoves.length < 2 });
                     }
                 }
 

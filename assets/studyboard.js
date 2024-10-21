@@ -1,6 +1,6 @@
 
 import { ChessboardEngine } from './chessboardengine/chessboardengine.js'
-import { toast } from './toast.js';
+import { ToastMaker } from './toast.js';
 
 let board;
 
@@ -12,11 +12,15 @@ document.addEventListener('DOMContentLoaded', function () {
         return move.notation.text;
     }), variation.blackOrientation ? 'b' : 'w');
 
-    board.enablePlayableMove((variationMove) => {
-        if (variationMove) {
-            toast('Good move', 'success');
+    board.enablePlayableMove((event) => {
+        if (event.moveValidation) {
+            if (event.lastMove) {
+                ToastMaker.toast('Good move, variation is over!', 'success', 3000);
+            } else {
+                ToastMaker.toast('Good move', 'success');
+            }
         } else {
-            toast('Wrong move', 'danger');
+            ToastMaker.toast('Wrong move', 'danger', 2000);
         }
     }, 1000, 'variation');
 
