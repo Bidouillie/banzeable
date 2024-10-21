@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Serializer\SerializerInterface;
 
 class CourseController extends AbstractController
 {
@@ -79,12 +80,16 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/study/{id}', name: 'app_study', requirements: ['id' => '\d+'])]
-    public function study(?Course $course): Response
+    public function study(?Course $course, SerializerInterface $serializer): Response
     {
         $this->denyAccessUnlessGranted('course.studies', $course);
 
+        $variation = $course->getVariations()->first();
+
         return $this->render('course/study.html.twig', [
             'course' => $course,
+            'selected_variation' => $variation,
+            'variation_encoded' => $serializer->serialize($variation, 'json', ['groups' => ['move', 'notation']]),
         ]);
     }
 }
