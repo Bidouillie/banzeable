@@ -4,9 +4,11 @@ namespace App\Controller;
 
 use App\Entity\Course;
 use App\Entity\User;
+use App\Entity\Variation;
 use App\Form\StudyToggleType;
 use App\Repository\CourseRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -80,11 +82,12 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/study/{id}', name: 'app_study', requirements: ['id' => '\d+'])]
-    public function study(?Course $course, SerializerInterface $serializer): Response
+    #[Route('/study/{id}/{id_variation}', name: 'app_study_variation', requirements: ['id' => '\d+', 'id_variation' => '\d+'])]
+    public function study(#[MapEntity(id: 'id')] ?Course $course, #[MapEntity(id: 'id_variation')] ?Variation $variation, SerializerInterface $serializer): Response
     {
         $this->denyAccessUnlessGranted('course.studies', $course);
 
-        $variation = $course->getVariations()->first();
+        $variation = $variation ?? $course->getVariations()->first();
 
         return $this->render('course/study.html.twig', [
             'course' => $course,
