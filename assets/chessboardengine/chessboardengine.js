@@ -30,7 +30,7 @@ export class ChessboardEngine {
     constructor(htmlElement, moves = [], orientation = 'w', fen = FEN.start) {
 
         if (orientation !== 'w' && orientation !== 'b') {
-            throw new Error("'Orientation should be 'w' (white) or 'b' (black)")
+            throw new Error("Orientation should be 'w' (white) or 'b' (black)")
         }
 
         this.#board = new Chessboard(htmlElement, {
@@ -70,7 +70,7 @@ export class ChessboardEngine {
     enablePlayableMove(moveHandler, autoNext = false, mode = 'analysis') {
 
         if (mode !== 'analysis' && mode !== 'variation') {
-            throw new Error("'Mode should be 'analysis' or 'variation'")
+            throw new Error("Mode should be 'analysis' or 'variation'")
         }
 
         this.#movePlayedCallback = moveHandler;
@@ -79,6 +79,7 @@ export class ChessboardEngine {
 
         if (this.orientation !== this.#chess.turn()) {
             this.#playMove(this.#sanMoves.pop());
+            this.#fireMoveEvent();
         }
 
         this.#enableMoveInput(mode === 'analysis' ? null : this.#board.getOrientation());
@@ -105,6 +106,30 @@ export class ChessboardEngine {
 
     nextMove() {
         this.#playMove(this.#sanMoves.pop());
+    }
+
+    gotoMove(index) {
+
+        if (index < 0) {
+            throw new Error("Index should be greater than or equal to 0");
+        }
+        switch (true) {
+            case index > this.#chess.history().length:
+                // TODO check case infinite loop
+                do {
+                    this.#playMove(this.#sanMoves.pop());
+                } while (index > this.#chess.history().length);
+                break;
+            case index < this.#chess.history().length:
+                // TODO check case infinite loop
+                do {
+                    const move = this.#undoMove();
+                    if (move) {
+                        this.#sanMoves.push(move);
+                    }
+                } while (index < this.#chess.history().length);
+                break;
+        }
     }
 
     #inputHandler(event) {
@@ -163,13 +188,16 @@ export class ChessboardEngine {
                         moveValidation = this.#validateOrUndoMove(lastMove.san);
                     }
 
-                    if (this.#movePlayedCallback) {
-                        // Fire an move event
-                        this.#movePlayedCallback({ moveValidation, 'lastMove': this.#sanMoves.length < 2 });
-                    }
+                    this.#fireMoveEvent({ moveValidation, 'lastMove': this.#sanMoves.length < 2 });
                 }
 
                 break;
+        }
+    }
+
+    #fireMoveEvent(event) {
+        if (this.#movePlayedCallback) {
+            this.#movePlayedCallback({ index: this.#chess.history().length, ...event });
         }
     }
 
@@ -264,6 +292,7 @@ export class ChessboardEngine {
             if (this.#autoNext !== false) {
                 setTimeout(() => {
                     this.#playMove(this.#sanMoves.pop());
+                    this.#fireMoveEvent();
                     this.#enableMoveInput(this.#board.getOrientation());
                 }, this.#autoNext);
             }
@@ -272,6 +301,7 @@ export class ChessboardEngine {
             if (this.#autoNext !== false) {
                 setTimeout(() => {
                     this.#undoMove();
+                    this.#fireMoveEvent();
                     this.#enableMoveInput(this.#board.getOrientation());
                 }, this.#autoNext);
             }

@@ -6,23 +6,34 @@
 
 {% block body %}
 
-<section class="py-5">
-    <div class="container px-3 px-lg-4 mt-5">
-        <div class="row">
-            <div class="col-md-3">
-                <div class="list-group">
-                    {% for variation in course.variations %}
-                    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if variation.id == selected_variation.id %}active{% endif %}" href="{{ path('app_study_variation', {id: course.id, id_variation: variation.id}) }}">
-                        {{ variation.name }}
-                        <span class="badge bg-primary rounded-pill">1</span>
-                    </a>
-                    {% endfor %}
+<section>
+    <div class="container px-4 px-lg-5">
+        <div class="tw-grid tw-grid-cols-11 tw-gap-7" style="grid-template-rows:80vh">
+            <div class="tw-col-span-3">
+                <div class="card h-100 text-bg-secondary">
+                    <div class="card-body tw-overflow-y-auto">
+                        <div class="tw-grid tw-grid-cols-10 tw-gap-3" id="moves">
+                            {% for key in selected_variation.moves|keys %}
+
+                            {% if not(key % 2) %}
+                            <div class="tw-col-span-2 d-flex align-items-center">
+                                {{ ((key + 1) / 2)|round(0, 'ceil') }}.
+                            </div>
+                            {% endif %}
+                            <div class="tw-col-span-4">
+                                <button type="button" data-move-index="{{key + 1}}" class="btn btn-secondary btn-lg btn-normal-case w-100">
+                                    {{ selected_variation.moves[key].notation.text }}
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-9">
+            <div class="tw-col-span-5">
                 <div class="d-flex flex-column">
-                    <div class="card m-auto">
-                        <div id="board" style="width: 400px"></div>
+                    <div class="card">
+                        <div id="board"></div>
                         <div class="js-variation" data-variation="{{ variation_encoded }}"></div>
                     </div>
                     <div class="progress mt-3">
@@ -30,6 +41,16 @@
                     </div>
                 </div>
             </div>
+            <!--div class="tw-col-span-3">
+                <div class="list-group">
+                    {% for variation in course.variations %}
+                    <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if variation.id == selected_variation.id %}active{% endif %}" href="{{ path('app_study_variation', {id: course.id, id_variation: variation.id}) }}">
+                        {{ variation.name }}
+                        <span class="badge rounded-pill bg-primary"></span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div-->
         </div>
     </div>
 </section>

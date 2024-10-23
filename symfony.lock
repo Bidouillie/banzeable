@@ -279,6 +279,9 @@
     "symfonycasts/sass-bundle": {
         "version": "v0.7.0"
     },
+    "symfonycasts/tailwind-bundle": {
+        "version": "v0.6.0"
+    },
     "twig/extra-bundle": {
         "version": "v3.12.0"
     }

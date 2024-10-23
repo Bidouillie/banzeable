@@ -1,4 +1,7 @@
 workers:
-    # ...
     sass:
         cmd: ['symfony', 'console', 'sass:build', '--watch']
+    tailwind:
+        depends_on:
+            - sass
+        cmd: ['symfony', 'console', 'tailwind:build', '--watch']

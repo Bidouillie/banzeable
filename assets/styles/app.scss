@@ -12,3 +12,8 @@
 @include color-mode(dark) {
     // color: $body-bg-dark;
 }
+
+.btn.btn-normal-case {
+    font-size: var(--bs-body-font-size);
+    text-transform: none;
+}

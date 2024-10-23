@@ -7,6 +7,7 @@ export class ToastMaker {
 
     static toast(text, type = 'primary', delay = 1000) {
 
+        // TODO bug when toast is disappearing 
         if (this.#toast) {
             this.#toast.dispose();
         }
