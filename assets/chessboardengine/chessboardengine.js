@@ -16,7 +16,7 @@ export class ChessboardEngine {
 
     /**
      * @callback movePlayedCallback
-     * @param {{'moveValidation': boolean, 'lastMove': boolean}} event
+     * @param {{index: number, 'moveValidation': ?boolean, 'lastMove': ?boolean}} event
      */
     #movePlayedCallback;
 
@@ -78,8 +78,9 @@ export class ChessboardEngine {
         this.#autoNext = autoNext;
 
         if (this.orientation !== this.#chess.turn()) {
-            this.#playMove(this.#sanMoves.pop());
-            this.#fireMoveEvent();
+            if (this.#playMove(this.#sanMoves.pop())) {
+                this.#fireMoveEvent();
+            }
         }
 
         this.#enableMoveInput(mode === 'analysis' ? null : this.#board.getOrientation());
@@ -101,11 +102,13 @@ export class ChessboardEngine {
         const move = this.#undoMove();
         if (move) {
             this.#sanMoves.push(move);
+            return true;
         }
+        return false;
     }
 
     nextMove() {
-        this.#playMove(this.#sanMoves.pop());
+        return this.#playMove(this.#sanMoves.pop());
     }
 
     gotoMove(index) {
@@ -116,9 +119,10 @@ export class ChessboardEngine {
         switch (true) {
             case index > this.#chess.history().length:
                 // TODO check case infinite loop
+                let movePlayed;
                 do {
-                    this.#playMove(this.#sanMoves.pop());
-                } while (index > this.#chess.history().length);
+                    movePlayed = this.#playMove(this.#sanMoves.pop());
+                } while (movePlayed && index > this.#chess.history().length);
                 break;
             case index < this.#chess.history().length:
                 // TODO check case infinite loop
@@ -127,7 +131,7 @@ export class ChessboardEngine {
                     if (move) {
                         this.#sanMoves.push(move);
                     }
-                } while (index < this.#chess.history().length);
+                } while (move && index < this.#chess.history().length);
                 break;
         }
     }
@@ -183,12 +187,11 @@ export class ChessboardEngine {
                         this.#board.setPiece(lastMove.to, lastMove.color + lastMove.promotion);
                     }
 
-                    let moveValidation;
                     if (this.#sanMoves.length > 0) {
-                        moveValidation = this.#validateOrUndoMove(lastMove.san);
+                        this.#validateOrUndoMove(lastMove.san);
+                    } else {
+                        this.#fireMoveEvent({ 'lastMove': this.#sanMoves.length < 2 });
                     }
-
-                    this.#fireMoveEvent({ moveValidation, 'lastMove': this.#sanMoves.length < 2 });
                 }
 
                 break;
@@ -235,7 +238,9 @@ export class ChessboardEngine {
                     this.#board.setPiece(move.to, move.color + move.promotion);
                     break;
             }
+            return true;
         }
+        return false;
     }
 
     #undoMove() {
@@ -289,23 +294,26 @@ export class ChessboardEngine {
 
         if (notation === this.#sanMoves.slice(-1)[0]) {
             this.#sanMoves.pop();
+            this.#fireMoveEvent({ 'moveValidation': true, 'lastMove': this.#sanMoves.length < 2 });
             if (this.#autoNext !== false) {
                 setTimeout(() => {
-                    this.#playMove(this.#sanMoves.pop());
-                    this.#fireMoveEvent();
-                    this.#enableMoveInput(this.#board.getOrientation());
+                    if (this.#playMove(this.#sanMoves.pop())) {
+                        this.#fireMoveEvent();
+                        this.#enableMoveInput(this.#board.getOrientation());
+                    }
                 }, this.#autoNext);
             }
-            return true;
         } else {
+            // TODO stop moves to be sure that the last move played is the incorrect one
+            this.#fireMoveEvent({ 'moveValidation': false, 'lastMove': this.#sanMoves.length < 2 });
             if (this.#autoNext !== false) {
                 setTimeout(() => {
-                    this.#undoMove();
-                    this.#fireMoveEvent();
-                    this.#enableMoveInput(this.#board.getOrientation());
+                    if (this.#undoMove()) {
+                        this.#fireMoveEvent();
+                        this.#enableMoveInput(this.#board.getOrientation());
+                    }
                 }, this.#autoNext);
             }
-            return false;
         }
     }
 }

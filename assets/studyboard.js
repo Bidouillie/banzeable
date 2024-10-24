@@ -88,12 +88,14 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('keydown', (event) => {
         switch (event.key) {
             case 'ArrowLeft':
-                board.previousMove();
-                updateMoveIndex(moveIndex - 1);
+                if (board.previousMove()) {
+                    updateMoveIndex(moveIndex - 1);
+                }
                 break;
             case 'ArrowRight':
-                board.nextMove();
-                updateMoveIndex(moveIndex + 1);
+                if (board.nextMove()) {
+                    updateMoveIndex(moveIndex + 1);
+                }
                 break;
         }
     });
