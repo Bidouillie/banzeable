@@ -14,11 +14,15 @@ export class ChessboardEngine {
     // moves to be played
     #sanMoves = [];
 
+    #mode;
+
     /**
      * @callback movePlayedCallback
      * @param {{index: number, 'moveValidation': ?boolean, 'lastMove': ?boolean}} event
      */
     #movePlayedCallback;
+
+    #halfMovesProgress = 0;
 
     // number of miliseconds to wait for next move, or false if no auto mode
     #autoNext;
@@ -64,8 +68,8 @@ export class ChessboardEngine {
 
     /**
      * @param {movePlayedCallback} moveHandler
-     * @param {number | false} autoNext 
-     * @param {'analysis' | 'variation'} mode 
+     * @param {number | false} autoNext
+     * @param {'analysis' | 'variation'} mode
      */
     enablePlayableMove(moveHandler, autoNext = false, mode = 'analysis') {
 
@@ -73,23 +77,26 @@ export class ChessboardEngine {
             throw new Error("Mode should be 'analysis' or 'variation'")
         }
 
+        this.#mode = mode;
+
         this.#movePlayedCallback = moveHandler;
 
         this.#autoNext = autoNext;
 
         if (this.orientation !== this.#chess.turn()) {
             if (this.#playMove(this.#sanMoves.pop())) {
+                this.#halfMovesProgress++;
                 this.#fireMoveEvent();
             }
         }
 
-        this.#enableMoveInput(mode === 'analysis' ? null : this.#board.getOrientation());
+        this.#enableMoveInput();
     }
 
-    #enableMoveInput(color = null) {
+    #enableMoveInput() {
         this.#board.enableMoveInput((event) => {
             return this.#inputHandler(event);
-        }, color);
+        }, this.#mode === 'analysis' ? null : this.#board.getOrientation());
     }
 
     disablePlayableMove() {
@@ -102,13 +109,26 @@ export class ChessboardEngine {
         const move = this.#undoMove();
         if (move) {
             this.#sanMoves.push(move);
+            this.#board.disableMoveInput();
             return true;
         }
         return false;
     }
 
     nextMove() {
-        return this.#playMove(this.#sanMoves.pop());
+        const movePlayed = this.#playMove(this.#sanMoves.pop());
+        if (movePlayed && this.#chess.history().length === this.#halfMovesProgress) {
+            this.#enableMoveInput();
+        } else {
+            this.#board.disableMoveInput();
+        }
+        return movePlayed;
+    }
+
+    gotoEnd() {
+        const index = this.#mode === 'variation' ? this.#halfMovesProgress : this.#chess.history().length + this.#sanMoves.length;
+        this.gotoMove(index);
+        return index;
     }
 
     gotoMove(index) {
@@ -118,22 +138,29 @@ export class ChessboardEngine {
         }
         switch (true) {
             case index > this.#chess.history().length:
-                // TODO check case infinite loop
                 let movePlayed;
                 do {
                     movePlayed = this.#playMove(this.#sanMoves.pop());
                 } while (movePlayed && index > this.#chess.history().length);
                 break;
             case index < this.#chess.history().length:
-                // TODO check case infinite loop
+                let move;
                 do {
-                    const move = this.#undoMove();
+                    move = this.#undoMove();
                     if (move) {
                         this.#sanMoves.push(move);
                     }
                 } while (move && index < this.#chess.history().length);
                 break;
+            default:
+                return false;
         }
+        if (index === this.#halfMovesProgress) {
+            this.#enableMoveInput();
+        } else {
+            this.#board.disableMoveInput();
+        }
+        return true;
     }
 
     #inputHandler(event) {
@@ -294,12 +321,14 @@ export class ChessboardEngine {
 
         if (notation === this.#sanMoves.slice(-1)[0]) {
             this.#sanMoves.pop();
+            this.#halfMovesProgress++;
             this.#fireMoveEvent({ 'moveValidation': true, 'lastMove': this.#sanMoves.length < 2 });
             if (this.#autoNext !== false) {
                 setTimeout(() => {
                     if (this.#playMove(this.#sanMoves.pop())) {
+                        this.#halfMovesProgress++;
                         this.#fireMoveEvent();
-                        this.#enableMoveInput(this.#board.getOrientation());
+                        this.#enableMoveInput();
                     }
                 }, this.#autoNext);
             }
@@ -310,7 +339,7 @@ export class ChessboardEngine {
                 setTimeout(() => {
                     if (this.#undoMove()) {
                         this.#fireMoveEvent();
-                        this.#enableMoveInput(this.#board.getOrientation());
+                        this.#enableMoveInput();
                     }
                 }, this.#autoNext);
             }
