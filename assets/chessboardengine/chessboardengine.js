@@ -18,7 +18,7 @@ export class ChessboardEngine {
 
     /**
      * @callback movePlayedCallback
-     * @param {{index: number, 'moveValidation': ?boolean, 'lastMove': ?boolean}} event
+     * @param {{index: number, moveValidation: ?boolean, lastMove: ?boolean}} event
      */
     #movePlayedCallback;
 

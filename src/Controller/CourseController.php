@@ -65,6 +65,37 @@ class CourseController extends AbstractController
     }
 
     #[IsGranted('IS_AUTHENTICATED')]
+    #[Route('/my_courses', name: 'app_my_courses')]
+    public function my_courses(Security $security): Response
+    {
+        /**
+         * @var User $user
+         */
+        $user = $security->getUser();
+
+        $courses = $user->getCourses();
+
+        return $this->render('course/my_courses.html.twig', [
+            'courses' => $courses,
+        ]);
+    }
+
+    #[IsGranted('IS_AUTHENTICATED')]
+    #[Route('/course/{id}/build', name: 'app_course_build', requirements: ['id' => '\d+'])]
+    public function build(#[MapEntity(id: 'id')] ?Course $course, #[MapEntity(id: 'id_variation')] ?Variation $variation, SerializerInterface $serializer): Response
+    {
+        $this->denyAccessUnlessGranted('course.owns', $course);
+
+        $variation = $variation ?? $course->getVariations()->first();
+
+        return $this->render('course/study.html.twig', [
+            'course' => $course,
+            'selected_variation' => $variation,
+            'variation_encoded' => $serializer->serialize($variation, 'json', ['groups' => ['move', 'notation']]),
+        ]);
+    }
+
+    #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/studies', name: 'app_studies')]
     public function studies(Security $security): Response
     {

@@ -19,7 +19,7 @@
 
     {% if not (app.request.attributes.get('_route') starts with 'app_admin') %}
     {% set admin = false %}
-    {% set menu = [{name: "Courses", routes: [{name: "Browse", route: 'app_course'}, {name: "Studies", route: 'app_studies'}]}, {name: "Test", route: 'app_test'}] %}
+    {% set menu = [{name: "Courses", routes: [{name: "Browse", route: 'app_course'}, {name: "My courses", route: 'app_my_courses'}, {name: "Studies", route: 'app_studies'}]}, {name: "Test", route: 'app_test'}] %}
     {% else %}
     {% set admin = true %}
     {% set menu = [{name: "Courses", routes: [{name: "List", route: 'app_admin_course'}, {name: "New", route: 'app_admin_course_new'}]}, {name: "Users", routes: [{name: "List", route: 'app_admin_user'}, {name: "New", route: 'app_admin_user_new'}]}, {name: "Variations", routes: [{name: "List", route: 'app_admin_variation'}, {name: "New", route: 'app_admin_variation_new'}]}, {name: "Test", route: 'app_test'}] %}
