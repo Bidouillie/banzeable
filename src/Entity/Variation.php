@@ -30,6 +30,9 @@ class Variation extends PGNBase
     #[Serializer\Groups(groups: ['course'])]
     private ?Course $course = null;
 
+    #[ORM\ManyToOne]
+    private ?Chapter $chapter = null;
+
     /**
      * @var Collection<int, Move>
      */
@@ -133,6 +136,18 @@ class Variation extends PGNBase
     public function setCourse(?Course $course): static
     {
         $this->course = $course;
+
+        return $this;
+    }
+
+    public function getChapter(): ?Chapter
+    {
+        return $this->chapter;
+    }
+
+    public function setChapter(?Chapter $chapter): static
+    {
+        $this->chapter = $chapter;
 
         return $this;
     }
