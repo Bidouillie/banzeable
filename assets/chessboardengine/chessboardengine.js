@@ -4,15 +4,12 @@ import '../vendor/cm-chessboard/assets/extensions/markers/markers.css';
 
 import { Chessboard, COLOR, FEN, INPUT_EVENT_TYPE } from 'cm-chessboard'
 import { Markers } from 'cm-chessboard/src/extensions/markers/Markers.js';
-import { Chess } from 'chess.js';
+import { Chess } from '@jackstenglein/chess';
 
 export class ChessboardEngine {
 
     #chess = new Chess();
     #board;
-
-    // moves to be played
-    #sanMoves = [];
 
     #mode;
 
@@ -31,7 +28,7 @@ export class ChessboardEngine {
         return this.#board.getOrientation() === COLOR.white ? 'w' : 'b';
     }
 
-    constructor(htmlElement, moves = [], orientation = 'w', fen = FEN.start) {
+    constructor(htmlElement, orientation = 'w', moves = [], fen = FEN.start, PGN = null) {
 
         if (orientation !== 'w' && orientation !== 'b') {
             throw new Error("Orientation should be 'w' (white) or 'b' (black)")
@@ -50,20 +47,17 @@ export class ChessboardEngine {
             },
         });
 
-        if (true) {
-            this.#chess.load(fen);
-            for (let key in moves) {
-                this.#chess.move(moves[key]);
-            }
+        if (PGN) {
+            this.#chess.loadPgn(PGN);
         } else {
-            this.#chess.loadPgn();
+            this.#chess.load(fen);
         }
 
-        this.#sanMoves = this.#chess.history().slice().reverse();
-        let moveObject;
-        do {
-            moveObject = this.#chess.undo();
-        } while (moveObject !== null);
+        for (let key in moves) {
+            this.#chess.move(moves[key]);
+        }
+
+        this.#chess.seek(this.#chess.firstMove().previous);
     }
 
     /**
@@ -84,7 +78,7 @@ export class ChessboardEngine {
         this.#autoNext = autoNext;
 
         if (this.orientation !== this.#chess.turn()) {
-            if (this.#playMove(this.#sanMoves.pop())) {
+            if (this.#playMove(this.#chess.nextMove().san)) {
                 this.#halfMovesProgress++;
                 this.#fireMoveEvent();
             }
@@ -108,7 +102,6 @@ export class ChessboardEngine {
     previousMove() {
         const move = this.#undoMove();
         if (move) {
-            this.#sanMoves.push(move);
             this.#board.disableMoveInput();
             return true;
         }
@@ -116,17 +109,20 @@ export class ChessboardEngine {
     }
 
     nextMove() {
-        const movePlayed = this.#playMove(this.#sanMoves.pop());
-        if (movePlayed && this.#chess.history().length === this.#halfMovesProgress) {
-            this.#enableMoveInput();
-        } else {
-            this.#board.disableMoveInput();
+        const move = this.#chess.nextMove();
+        if (move) {
+            const movePlayed = this.#playMove(move.san);
+            if (movePlayed && move.ply === this.#halfMovesProgress) {
+                this.#enableMoveInput();
+            } else {
+                this.#board.disableMoveInput();
+            }
+            return movePlayed;
         }
-        return movePlayed;
     }
 
     gotoEnd() {
-        const index = this.#mode === 'variation' ? this.#halfMovesProgress : this.#chess.history().length + this.#sanMoves.length;
+        const index = this.#mode === 'variation' ? this.#halfMovesProgress : this.#chess.history().length;
         this.gotoMove(index);
         return index;
     }
@@ -136,21 +132,24 @@ export class ChessboardEngine {
         if (index < 0) {
             throw new Error("Index should be greater than or equal to 0");
         }
+
+        const currentMove = this.#chess.currentMove();
+        const currentIndex = currentMove ? currentMove.ply : 0;
         switch (true) {
-            case index > this.#chess.history().length:
-                let movePlayed;
+            case index > currentIndex:
+                let nextMove;
                 do {
-                    movePlayed = this.#playMove(this.#sanMoves.pop());
-                } while (movePlayed && index > this.#chess.history().length);
-                break;
-            case index < this.#chess.history().length:
-                let move;
-                do {
-                    move = this.#undoMove();
-                    if (move) {
-                        this.#sanMoves.push(move);
+                    nextMove = this.#chess.nextMove();
+                    if (nextMove) {
+                        this.#playMove(nextMove.san);
                     }
-                } while (move && index < this.#chess.history().length);
+                } while (nextMove && nextMove.ply < index);
+                break;
+            case index < currentIndex:
+                let previousMove;
+                do {
+                    previousMove = this.#undoMove();
+                } while (previousMove && previousMove.ply > index);
                 break;
             default:
                 return false;
@@ -170,16 +169,16 @@ export class ChessboardEngine {
                 return true;
             case INPUT_EVENT_TYPE.validateMoveInput:
 
-                try {
-                    const moveObject = { from: event.squareFrom, to: event.squareTo };
-                    if (event.piece.substring(1) === 'p' && (event.squareTo.substring(1) === '1' || event.squareTo.substring(1) === '8')) {
-                        // TODO Get promotion choice
-                        moveObject.promotion = 'q';
-                    }
-                    const move = this.#chess.move(moveObject);
+                const moveObject = { from: event.squareFrom, to: event.squareTo };
+                if (event.piece.substring(1) === 'p' && (event.squareTo.substring(1) === '1' || event.squareTo.substring(1) === '8')) {
+                    // TODO Get promotion choice
+                    moveObject.promotion = 'q';
+                }
+                const move = this.#chess.validateMove(moveObject);
 
-                    // Castling and en passant
+                if (move) {
                     switch (true) {
+                        // Castling
                         case move.flags.includes('k'):
                         case move.flags.includes('q'):
                             let from;
@@ -193,32 +192,30 @@ export class ChessboardEngine {
                             }
                             this.#board.movePiece(from, to, true);
                             break;
+                        // En passant
                         case move.flags.includes('e'):
                             this.#board.setPiece(move.to.substring(0, 1) + move.from.substring(1), null);
                             break;
+                        // Promotion
+                        case move.flags.includes('p'):
+                            this.#board.setPiece(move.to, move.color + move.promotion);
+                            break;
                     }
-                } catch (error) {
-                    if (!error.message.startsWith("Invalid move")) {
-                        console.log(error);
-                        throw error;
-                    }
-                    return false;
+
+                    this.#chess.move(move);
+                    return true;
                 }
-                return true;
+
+                return false;
             case INPUT_EVENT_TYPE.moveInputFinished:
 
                 if (event.legalMove) {
-                    // Board update in case of promotion
-                    const lastMove = this.#chess.history({ verbose: true }).at(-1);
-                    if (lastMove.flags.includes('p')) {
-                        this.#board.setPiece(lastMove.to, lastMove.color + lastMove.promotion);
-                    }
 
-                    if (this.#sanMoves.length > 0) {
-                        this.#validateOrUndoMove(lastMove.san);
-                    } else {
-                        this.#fireMoveEvent({ 'lastMove': this.#sanMoves.length < 2 });
-                    }
+                    const move = this.#chess.currentMove();
+
+                    const moveValidation = this.#validateOrUndoMove(move);
+
+                    this.#fireMoveEvent({ moveValidation, 'lastMove': moveValidation && move.ply === this.#chess.history().length });
                 }
 
                 break;
@@ -227,7 +224,7 @@ export class ChessboardEngine {
 
     #fireMoveEvent(event) {
         if (this.#movePlayedCallback) {
-            this.#movePlayedCallback({ index: this.#chess.history().length, ...event });
+            this.#movePlayedCallback({ index: this.#chess.currentMove().ply, ...event });
         }
     }
 
@@ -272,12 +269,14 @@ export class ChessboardEngine {
 
     #undoMove() {
 
-        /**
-         * Play chess move
-         */
-        const move = this.#chess.undo();
+        const move = this.#chess.currentMove();
 
         if (move) {
+
+            /**
+             * Play chess move
+             */
+            this.#chess.seek(move.previous);
 
             /**
              * Play board move
@@ -313,36 +312,37 @@ export class ChessboardEngine {
         }
     }
 
-    #validateOrUndoMove(notation) {
+    #validateOrUndoMove(move) {
 
         if (this.#autoNext !== false) {
             this.#board.disableMoveInput();
         }
 
-        if (notation === this.#sanMoves.slice(-1)[0]) {
-            this.#sanMoves.pop();
+        if (this.#chess.isMainline(move, move.previous)) {
             this.#halfMovesProgress++;
-            this.#fireMoveEvent({ 'moveValidation': true, 'lastMove': this.#sanMoves.length < 2 });
             if (this.#autoNext !== false) {
                 setTimeout(() => {
-                    if (this.#playMove(this.#sanMoves.pop())) {
+                    const move = this.#chess.nextMove();
+                    if (move && this.#playMove(move.san)) {
                         this.#halfMovesProgress++;
                         this.#fireMoveEvent();
                         this.#enableMoveInput();
                     }
                 }, this.#autoNext);
             }
-        } else {
-            // TODO stop moves to be sure that the last move played is the incorrect one
-            this.#fireMoveEvent({ 'moveValidation': false, 'lastMove': this.#sanMoves.length < 2 });
-            if (this.#autoNext !== false) {
-                setTimeout(() => {
-                    if (this.#undoMove()) {
-                        this.#fireMoveEvent();
-                        this.#enableMoveInput();
-                    }
-                }, this.#autoNext);
-            }
+            return true;
         }
+
+        // TODO stop moves to be sure that the last move played is the incorrect one
+        if (this.#autoNext !== false) {
+            setTimeout(() => {
+                if (this.#undoMove()) {
+                    this.#fireMoveEvent();
+                    this.#enableMoveInput();
+                }
+            }, this.#autoNext);
+        }
+
+        return false;
     }
 }

@@ -11,7 +11,7 @@ let board;
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    board = new ChessboardEngine(document.getElementById('board'), [], 'w', fen);
+    board = new ChessboardEngine(document.getElementById('board'), 'w', [], fen, PGN);
 
     board.enablePlayableMove();
 

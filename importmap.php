@@ -60,4 +60,13 @@ return [
     'chess.js' => [
         'version' => '1.0.0-beta.8',
     ],
+    'chess.mjs/src/Chess.js' => [
+        'version' => '1.4.0',
+    ],
+    '@jackstenglein/chess' => [
+        'version' => '2.2.8',
+    ],
+    '@jackstenglein/pgn-parser' => [
+        'version' => '2.0.8',
+    ],
 ];

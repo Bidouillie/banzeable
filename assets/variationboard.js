@@ -7,9 +7,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const variation = JSON.parse(document.querySelector('.js-variation').getAttribute('data-variation'));
     console.log(variation);
 
-    board = new ChessboardEngine(document.getElementById('board'), variation.moves.map((move) => {
+    board = new ChessboardEngine(document.getElementById('board'), variation.blackOrientation ? 'b' : 'w', variation.moves.map((move) => {
         return move.notation.text;
-    }), variation.blackOrientation ? 'b' : 'w');
+    }));
 
     document.addEventListener('keydown', (event) => {
         switch (event.key) {
