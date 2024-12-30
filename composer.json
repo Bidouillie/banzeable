@@ -39,7 +39,7 @@
         "symfony/string": "7.1.*",
         "symfony/translation": "7.1.*",
         "symfony/twig-bundle": "7.1.*",
-        "symfony/ux-turbo": "^2.19",
+        "symfony/ux-turbo": "^2.22",
         "symfony/validator": "7.1.*",
         "symfony/web-link": "7.1.*",
         "symfony/yaml": "7.1.*",
@@ -48,6 +48,7 @@
         "thomaspark/bootswatch": "^5.3",
         "twbs/bootstrap": "^5.3",
         "twig/extra-bundle": "^2.12|^3.0",
+        "twig/intl-extra": "^3.17",
         "twig/twig": "^2.12|^3.0"
     },
     "config": {
