@@ -558,16 +558,16 @@
         },
         {
             "name": "chesslablab/php-chess",
-            "version": "1.4.59",
+            "version": "1.4.87",
             "source": {
                 "type": "git",
                 "url": "https://github.com/chesslablab/php-chess.git",
-                "reference": "34a8fddc1c615bedf79fda0fda750b8030af7c91"
+                "reference": "449ba6e440e53f9dd7df2a568967ff4d064a1702"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/chesslablab/php-chess/zipball/34a8fddc1c615bedf79fda0fda750b8030af7c91",
-                "reference": "34a8fddc1c615bedf79fda0fda750b8030af7c91",
+                "url": "https://api.github.com/repos/chesslablab/php-chess/zipball/449ba6e440e53f9dd7df2a568967ff4d064a1702",
+                "reference": "449ba6e440e53f9dd7df2a568967ff4d064a1702",
                 "shasum": ""
             },
             "require": {
@@ -615,9 +615,9 @@
             ],
             "support": {
                 "issues": "https://github.com/chesslablab/php-chess/issues",
-                "source": "https://github.com/chesslablab/php-chess/tree/1.4.59"
+                "source": "https://github.com/chesslablab/php-chess/tree/1.4.87"
             },
-            "time": "2024-09-06T16:18:41+00:00"
+            "time": "2024-12-24T15:26:25+00:00"
         },
         {
             "name": "composer/semver",
