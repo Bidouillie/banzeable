@@ -3,10 +3,14 @@
 namespace App\Controller;
 
 use App\Entity\Course;
+use App\Entity\MovePopularity;
 use App\Entity\User;
 use App\Entity\Variation;
+use App\Form\BuildMoveType;
 use App\Form\StudyToggleType;
 use App\Repository\CourseRepository;
+use App\Repository\MovePopularityRepository;
+use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -16,6 +20,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 class CourseController extends AbstractController
 {
@@ -82,17 +88,120 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build', name: 'app_course_build', requirements: ['id' => '\d+'])]
-    public function build(#[MapEntity(id: 'id')] ?Course $course, #[MapEntity(id: 'id_variation')] ?Variation $variation, SerializerInterface $serializer): Response
+    public function build(#[MapEntity(id: 'id')] ?Course $course, SerializerInterface $serializer): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
-        $variation = $variation ?? $course->getVariations()->first();
-
-        return $this->render('course/study.html.twig', [
-            'course' => $course,
-            'selected_variation' => $variation,
-            'variation_encoded' => $serializer->serialize($variation, 'json', ['groups' => ['move', 'notation']]),
+        $form = $this->createForm(BuildMoveType::class, null, [
+            'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -']),
         ]);
+
+        return $this->render('course/build.html.twig', [
+            'course' => $course,
+            'form' => $form,
+        ]);
+    }
+
+    #[IsGranted('IS_AUTHENTICATED')]
+    #[Route('/course/{id}/build-moves/{fen}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, Request $request, MovePopularityRepository $repo, EntityManagerInterface $em, SerializerInterface $serializer, HttpClientInterface $client): Response
+    {
+        $this->denyAccessUnlessGranted('course.owns', $course);
+
+        if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
+            $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
+
+            $moves = $repo->findByFEN($fen);
+
+            if (count($moves) < 1) {
+
+                $response = $client->request('GET', 'https://explorer.lichess.ovh/lichess', [
+                    'query' => [
+                        'fen' => $fen,
+                        'variant' => 'standard',
+                        'speeds' => 'rapid',
+                        'ratings' => '1600,1800',
+                        'since' => '2020-12',
+                        'until' => '2024-12',
+                        'moves' => 4,
+                        'topGames' => 0,
+                    ],
+                ]);
+
+                if ($response->getStatusCode() === 200) {
+                    $content = $response->toArray();
+
+                    $date = new \DateTime();
+
+                    $movePopularity = new MovePopularity();
+                    $movePopularity->setVariant('standard');
+                    $movePopularity->setSpeeds('rapid');
+                    $movePopularity->setRatings('1600,1800');
+                    $movePopularity->setSince('2020-12');
+                    $movePopularity->setUntil('2024-12');
+                    $movePopularity->setFEN($fen);
+                    $movePopularity->setSan('-');
+                    $movePopularity->setDateCreated($date);
+                    $movePopularity->setWhite($content['white']);
+                    $movePopularity->setBlack($content['black']);
+                    $movePopularity->setDraws($content['draws']);
+
+                    $em->persist($movePopularity);
+
+                    $moves[] = $movePopularity;
+
+                    foreach ($content['moves'] as $move) {
+                        $movePopularity = new MovePopularity();
+                        $movePopularity->setVariant('standard');
+                        $movePopularity->setSpeeds('rapid');
+                        $movePopularity->setRatings('1600,1800');
+                        $movePopularity->setSince('2020-12');
+                        $movePopularity->setUntil('2024-12');
+                        $movePopularity->setFEN($fen);
+                        $movePopularity->setSan($move['san']);
+                        $movePopularity->setDateCreated($date);
+                        $movePopularity->setWhite($move['white']);
+                        $movePopularity->setBlack($move['black']);
+                        $movePopularity->setDraws($move['draws']);
+
+                        $em->persist($movePopularity);
+                        
+                        $moves[] = $movePopularity;
+                    }
+
+                    $em->flush();
+                }
+            }
+
+            $movesForms = [];
+
+            foreach ($moves as $move) {
+
+                if ($move->getSan() !== '-') {
+                    $board = FenToBoardFactory::create('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -');
+                    $board->play($board->turn, $move->getSan());
+
+                    $form = $this->createForm(BuildMoveType::class, null, [
+                        'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'fen' => $board->toFen()]),
+                    ]);
+
+                    $movesForms[] = [
+                        'move' => $move,
+                        'form' => $form->createView(),
+                    ];
+                } else {
+                    $games = $move->getWhite() + $move->getBlack() + $move->getDraws();
+                }
+            }
+
+            return $this->render('course/build_moves.html.twig', [
+                'course' => $course,
+                'fen' => $fen,
+                'myTurn' => ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn,
+                'games' => $games,
+                'movesForms' => $movesForms,
+            ]);
+        }
     }
 
     #[IsGranted('IS_AUTHENTICATED')]

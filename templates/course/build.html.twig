@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block importmap %}
+	{{ importmap(['app', 'playableboard']) }}
+{% endblock %}
+
+{% block title %}Hello CourseController!{% endblock %}
+
+{% block body %}
+
+	<section>
+		<div class="container px-4 px-lg-5">
+			<div class="tw-grid tw-grid-cols-11 tw-gap-7" style="grid-template-rows:80vh">
+				<div class="tw-col-span-5">
+					<div class="d-flex flex-column">
+						<div class="card">
+							<div id="board"></div>
+						</div>
+						<div class="progress mt-3">
+							<div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" style="width:0%"></div>
+						</div>
+					</div>
+				</div>
+				<div class="tw-col-span-6" id="course_build-moves_{{ course.id }}">
+					{{ form_start(form) }}
+                    <button type="submit" class="btn btn-primary">Start building</button>
+					{{ form_end(form) }}
+				</div>
+                {#<--div class="tw-col-span-3">
+                    <div class="list-group">
+                        {% for variation in course.variations %}
+                        <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if variation.id == selected_variation.id %}active{% endif %}" href="{{ path('app_study_variation', {id: course.id, id_variation: variation.id}) }}">
+                            {{ variation.name }}
+                            <span class="badge rounded-pill bg-primary"><i class="bi-alarm" style="font-size: 1rem;"></i></span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    <i class="bi-alarm"></i>
+                    <i class="bi-alarm" style="font-size: 2rem; color: cornflowerblue;"></i>
+                </div>#}
+			</div>
+		</div>
+	</section>
+
+{% endblock %}

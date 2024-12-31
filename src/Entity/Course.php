@@ -28,11 +28,20 @@ class Course
     #[ORM\Column(enumType: CourseAspect::class)]
     private ?CourseAspect $aspect = null;
 
+    #[ORM\Column(options: ['default' => false])]
+    private ?bool $blackOrientation = null;
+
     #[ORM\Column(type: Types::SMALLINT, nullable: true)]
     private ?int $rating = null;
 
     #[ORM\Column(nullable: true)]
     private ?float $price = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $PGN = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $coverage = null;
 
     /**
      * @var Collection<int, User>
@@ -99,6 +108,18 @@ class Course
         return $this;
     }
 
+    public function isBlackOrientation(): ?bool
+    {
+        return $this->blackOrientation;
+    }
+
+    public function setBlackOrientation(bool $blackOrientation): static
+    {
+        $this->blackOrientation = $blackOrientation;
+
+        return $this;
+    }
+
     public function getRating(): ?int
     {
         return $this->rating;
@@ -119,6 +140,30 @@ class Course
     public function setPrice(?float $price): static
     {
         $this->price = $price;
+
+        return $this;
+    }
+
+    public function getPGN(): ?string
+    {
+        return $this->PGN;
+    }
+
+    public function setPGN(?string $PGN): static
+    {
+        $this->PGN = $PGN;
+
+        return $this;
+    }
+
+    public function getCoverage(): ?int
+    {
+        return $this->coverage;
+    }
+
+    public function setCoverage(?int $coverage): static
+    {
+        $this->coverage = $coverage;
 
         return $this;
     }

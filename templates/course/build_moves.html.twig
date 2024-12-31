@@ -1,0 +1,26 @@
+<turbo-stream action="update" target="course_build-moves_{{ course.id }}">
+    <template>
+        <h2>{% if myTurn %}Choose your next move{% else %}Choose a move to prepare for{% endif %}</h2>
+        <div class="list-group">
+            <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-p-2">
+                <div class="tw-col-span-4">Move</div>
+                <div class="tw-col-span-2">Popularity</div>
+                <div class="tw-col-span-2">Results</div>
+            </div>
+            {% for moveForm in movesForms %}
+                {% set move = moveForm.move %}
+                {% set form = moveForm.form %}
+                {{ form_start(form) }}
+                <a href="#" class="list-group-item list-group-item-action" onclick="this.nextElementSibling.click();return false;">
+                    <div class="tw-grid tw-grid-cols-8 tw-gap-7">
+                        <div class="tw-col-span-4">{{ move.san }}</div>
+                        <div class="tw-col-span-2">{{ ((move.white + move.black + move.draws) / games)|format_number(style: 'percent') }}</div>
+                        <div class="tw-col-span-2">{{ (move.white / ((move.white + move.black + move.draws)))|format_number(style: 'percent') }} win</div>
+                    </div>
+                </a>
+                {{ form_widget(form.action) }}
+                {{ form_end(form) }}
+            {% endfor %}
+        </div>
+    </template>
+</turbo-frame>
