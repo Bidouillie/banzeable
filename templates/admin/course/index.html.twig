@@ -1,20 +1,36 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Hello CourseController!{% endblock %}
+{% block title %}Courses{% endblock %}
 
 {% block body %}
-<style>
-    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
-    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
-</style>
 
-<div class="example-wrapper">
-    <h1>Hello {{ controller_name }}! ✅</h1>
+<section class="py-5">
+    <div class="container px-4 px-lg-5 mt-5">
+        <div class="row gx-4 gx-lg-5 row-cols-2 row-cols-md-3 row-cols-xl-4 justify-content-left">
+            {% for course in courses %}
+            <div class="col mb-5">
+                <div class="card h-100">
+                    <!-- Product image-->
+                    <img class="card-img-top" src="https://dummyimage.com/450x300/dee2e6/6c757d.jpg" alt="..." />
+                    <!-- Product details-->
+                    <div class="card-body p-4">
+                        <div class="text-center">
+                            <!-- Product name-->
+                            <h5 class="fw-bolder">{{ course.name }}</h5>
+                            {% for index, user in course.owners %}
+                            {% if index == 0 %}by {% else %} & {% endif %}{{user.firstname|title}}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <!-- Product actions-->
+                    <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                        <div class="text-center"><a class="btn btn-outline-dark mt-auto" href="{{ path('app_admin_course_edit', {id: course.id}) }}">Edit course</a></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
 
-    This friendly message is coming from:
-    <ul>
-        <li>Your controller at <code>C:/Users/boule/VSCodeProjects/banzeable/src/Controller/Admin/CourseController.php</code></li>
-        <li>Your template at <code>C:/Users/boule/VSCodeProjects/banzeable/templates/admin/course/index.html.twig</code></li>
-    </ul>
-</div>
 {% endblock %}

@@ -2,12 +2,12 @@
 
 namespace App\Form;
 
-use App\Entity\Variation;
+use App\Entity\Course;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
-class VariationDeletionType extends AbstractType
+class CourseDeletionType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
@@ -17,7 +17,7 @@ class VariationDeletionType extends AbstractType
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
-            'data_class' => Variation::class,
+            'data_class' => Course::class,
         ]);
     }
 }

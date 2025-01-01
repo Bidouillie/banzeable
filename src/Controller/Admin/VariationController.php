@@ -32,21 +32,29 @@ class VariationController extends AbstractController
     public function show(?Variation $variation, Request $request, EntityManagerInterface $em, SerializerInterface $serializer): Response
     {
 
-        $deleteForm = $this->createForm(VariationDeletionType::class, $variation);
-
-        $deleteForm->handleRequest($request);
-        
-        if ($deleteForm->isSubmitted() && $deleteForm->isValid()) {
-            $em->remove($variation);
-            $em->flush();
-            return $this->redirectToRoute('app_admin_variation');
-        }
+        $deleteForm = $this->createForm(VariationDeletionType::class, $variation, [
+            'action' => $this->generateUrl('app_admin_variation_delete', ['id' => $variation->getId()]),
+        ]);
 
         return $this->render('admin/variation/show.html.twig', [
             'variation' => $variation,
             'variation_encoded' => $serializer->serialize($variation, 'json', ['groups' => ['move', 'notation']]),
             'delete_form' => $deleteForm,
         ]);
+    }
+
+    #[Route('/{id}/delete', name: 'app_admin_variation_delete', requirements: ['id' => '\d+'], methods: ['DELETE'])]
+    public function delete(?Variation $variation, Request $request, EntityManagerInterface $em): Response
+    {
+        $form = $this->createForm(VariationDeletionType::class, $variation);
+
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $em->remove($variation);
+            $em->flush();
+            return $this->redirectToRoute('app_admin_variation');
+        }
     }
 
     #[Route('/new', name: 'app_admin_variation_new', methods: ['GET', 'POST'])]

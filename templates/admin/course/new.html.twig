@@ -24,5 +24,11 @@
     {{ form_widget(form) }}
     <button type="submit" class="btn btn-primary">Submit</button>
     {{ form_end(form) }}
+    {% if delete_form is not null %}
+        {{ form_start(delete_form) }}
+        <button type="submit" class="btn btn-danger">Delete</button>
+        {{ form_row(delete_form._token) }}
+        {{ form_end(delete_form, {'render_rest': false}) }}
+    {% endif %}
 </div>
 {% endblock %}

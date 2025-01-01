@@ -8,6 +8,7 @@ enum CourseAspect: string
     case Endgame = 'endgame';
     case Strategy = 'strategy';
     case Tactics = 'tactics';
+    case Repertoire = 'repertoire';
     
     public function getLabel(): string
     {
@@ -16,6 +17,7 @@ enum CourseAspect: string
             self::Endgame => 'Endgame',
             self::Strategy => 'Strategy',
             self::Tactics => 'Tactics',
+            self::Repertoire => 'Repertoire',
         };
     }
 }
