@@ -2,18 +2,18 @@
 
 namespace App\Repository;
 
-use App\Entity\MovePopularity;
+use App\Entity\MovePopularityMaster;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<MovePopularity>
  */
-class MovePopularityRepository extends ServiceEntityRepository
+class MovePopularityMasterRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, MovePopularity::class);
+        parent::__construct($registry, MovePopularityMaster::class);
     }
 
     // TODO search by whole id (variant, speeds...)

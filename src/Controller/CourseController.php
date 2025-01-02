@@ -4,14 +4,17 @@ namespace App\Controller;
 
 use App\Entity\Course;
 use App\Entity\MovePopularity;
+use App\Entity\MovePopularityMaster;
 use App\Entity\User;
 use App\Entity\Variation;
 use App\Form\BuildMoveType;
 use App\Form\StudyToggleType;
 use App\Repository\CourseRepository;
+use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
 use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -104,7 +107,7 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build-moves/{fen}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, Request $request, MovePopularityRepository $repo, EntityManagerInterface $em, SerializerInterface $serializer, HttpClientInterface $client): Response
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, EntityManagerInterface $em, HttpClientInterface $client): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -113,7 +116,55 @@ class CourseController extends AbstractController
 
             $moves = $repo->findByFEN($fen);
 
+            $masterMoves = $masterRepo->findByFen($fen);
+
+            $flush = false;
+
+            if (count($masterMoves) < 1) {
+                $flush = true;
+
+                $response = $client->request('GET', 'https://explorer.lichess.ovh/masters', [
+                    'query' => [
+                        'fen' => $fen,
+                        'since' => '2021',
+                        'until' => '2024',
+                        'moves' => 250,
+                        'topGames' => 0,
+                    ],
+                ]);
+
+                if ($response->getStatusCode() === 200) {
+
+                    $content = $response->toArray();
+                    $responseMoves = $content['moves'];
+                    array_unshift($responseMoves, ['san' => '-', ...$content]);
+
+                    $date = new \DateTime();
+
+                    foreach ($responseMoves as $move) {
+                        $movePopularity = new MovePopularityMaster();
+                        $movePopularity->setSince('2021');
+                        $movePopularity->setUntil('2024');
+                        $movePopularity->setFEN($fen);
+                        $movePopularity->setSan($move['san']);
+                        $movePopularity->setDateCreated($date);
+                        $movePopularity->setWhite($move['white']);
+                        $movePopularity->setBlack($move['black']);
+                        $movePopularity->setDraws($move['draws']);
+
+                        if (isset($move['opening']) && isset($move['opening']['name'])) {
+                            $movePopularity->setOpening($move['opening']['name']);
+                        }
+
+                        $em->persist($movePopularity);
+
+                        $masterMoves[] = $movePopularity;
+                    }
+                }
+            }
+
             if (count($moves) < 1) {
+                $flush = true;
 
                 $response = $client->request('GET', 'https://explorer.lichess.ovh/lichess', [
                     'query' => [
@@ -121,41 +172,28 @@ class CourseController extends AbstractController
                         'variant' => 'standard',
                         'speeds' => 'rapid',
                         'ratings' => '1600,1800',
-                        'since' => '2020-12',
+                        'since' => '2021-01',
                         'until' => '2024-12',
                         'moves' => 4,
                         'topGames' => 0,
+                        'recentGames' => 0,
                     ],
                 ]);
 
                 if ($response->getStatusCode() === 200) {
+
                     $content = $response->toArray();
+                    $responseMoves = $content['moves'];
+                    array_unshift($responseMoves, ['san' => '-', ...$content]);
 
                     $date = new \DateTime();
 
-                    $movePopularity = new MovePopularity();
-                    $movePopularity->setVariant('standard');
-                    $movePopularity->setSpeeds('rapid');
-                    $movePopularity->setRatings('1600,1800');
-                    $movePopularity->setSince('2020-12');
-                    $movePopularity->setUntil('2024-12');
-                    $movePopularity->setFEN($fen);
-                    $movePopularity->setSan('-');
-                    $movePopularity->setDateCreated($date);
-                    $movePopularity->setWhite($content['white']);
-                    $movePopularity->setBlack($content['black']);
-                    $movePopularity->setDraws($content['draws']);
-
-                    $em->persist($movePopularity);
-
-                    $moves[] = $movePopularity;
-
-                    foreach ($content['moves'] as $move) {
+                    foreach ($responseMoves as $move) {
                         $movePopularity = new MovePopularity();
                         $movePopularity->setVariant('standard');
                         $movePopularity->setSpeeds('rapid');
                         $movePopularity->setRatings('1600,1800');
-                        $movePopularity->setSince('2020-12');
+                        $movePopularity->setSince('2021-01');
                         $movePopularity->setUntil('2024-12');
                         $movePopularity->setFEN($fen);
                         $movePopularity->setSan($move['san']);
@@ -165,20 +203,29 @@ class CourseController extends AbstractController
                         $movePopularity->setDraws($move['draws']);
 
                         $em->persist($movePopularity);
-                        
+
                         $moves[] = $movePopularity;
                     }
-
-                    $em->flush();
                 }
             }
+
+            if ($flush) {
+                $em->flush();
+            }
+
+            $masterMoves = array_reduce($masterMoves, function ($carry, $item) {
+                $carry[$item->getSan()] = $item;
+                return $carry;
+            }, []);
 
             $movesForms = [];
 
             foreach ($moves as $move) {
 
+                $masterMove = $masterMoves[$move->getSan()];
+
                 if ($move->getSan() !== '-') {
-                    $board = FenToBoardFactory::create('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -');
+                    $board = FenToBoardFactory::create($fen);
                     $board->play($board->turn, $move->getSan());
 
                     $form = $this->createForm(BuildMoveType::class, null, [
@@ -187,19 +234,22 @@ class CourseController extends AbstractController
 
                     $movesForms[] = [
                         'move' => $move,
+                        'master_move' => $masterMoves,
                         'form' => $form->createView(),
                     ];
                 } else {
                     $games = $move->getWhite() + $move->getBlack() + $move->getDraws();
+                    $masterGames = $masterMove->getWhite() + $masterMove->getBlack() + $masterMove->getDraws();
                 }
             }
 
             return $this->render('course/build_moves.html.twig', [
                 'course' => $course,
                 'fen' => $fen,
-                'myTurn' => ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn,
+                'my_turn' => ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn,
                 'games' => $games,
-                'movesForms' => $movesForms,
+                'master_games' => $masterGames,
+                'moves_forms' => $movesForms,
             ]);
         }
     }

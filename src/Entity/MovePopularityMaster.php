@@ -2,25 +2,13 @@
 
 namespace App\Entity;
 
-use App\Repository\MovePopularityRepository;
+use App\Repository\MovePopularityMasterRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: MovePopularityRepository::class)]
-class MovePopularity
+#[ORM\Entity(repositoryClass: MovePopularityMasterRepository::class)]
+class MovePopularityMaster
 {
-    #[ORM\Id]
-    #[ORM\Column(length: 255)]
-    private ?string $variant = null;
-
-    #[ORM\Id]
-    #[ORM\Column(length: 255)]
-    private ?string $speeds = null;
-
-    #[ORM\Id]
-    #[ORM\Column(length: 255)]
-    private ?string $ratings = null;
-
     #[ORM\Id]
     #[ORM\Column(length: 255)]
     private ?string $since = null;
@@ -49,41 +37,8 @@ class MovePopularity
     #[ORM\Column]
     private ?int $draws = null;
 
-    public function getVariant(): ?string
-    {
-        return $this->variant;
-    }
-
-    public function setVariant(string $variant): static
-    {
-        $this->variant = $variant;
-
-        return $this;
-    }
-
-    public function getSpeeds(): ?string
-    {
-        return $this->speeds;
-    }
-
-    public function setSpeeds(string $speeds): static
-    {
-        $this->speeds = $speeds;
-
-        return $this;
-    }
-
-    public function getRatings(): ?string
-    {
-        return $this->ratings;
-    }
-
-    public function setRatings(string $ratings): static
-    {
-        $this->ratings = $ratings;
-
-        return $this;
-    }
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $opening = null;
 
     public function getSince(): ?string
     {
@@ -177,6 +132,18 @@ class MovePopularity
     public function setDraws(int $draws): static
     {
         $this->draws = $draws;
+
+        return $this;
+    }
+
+    public function getOpening(): ?string
+    {
+        return $this->opening;
+    }
+
+    public function setOpening(?string $opening): static
+    {
+        $this->opening = $opening;
 
         return $this;
     }

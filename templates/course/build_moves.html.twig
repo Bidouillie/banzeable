@@ -1,20 +1,21 @@
 <turbo-stream action="update" target="course_build-moves_{{ course.id }}">
     <template>
-        <h2>{% if myTurn %}Choose your next move{% else %}Choose a move to prepare for{% endif %}</h2>
+        <h2>{% if my_turn %}Choose your next move{% else %}Choose a move to prepare for{% endif %}</h2>
         <div class="list-group">
             <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-p-2">
                 <div class="tw-col-span-4">Move</div>
-                <div class="tw-col-span-2">Popularity</div>
-                <div class="tw-col-span-2">Results</div>
+                <div class="tw-col-span-2">Masters popularity</div>
+                <div class="tw-col-span-2">Peer results</div>
             </div>
-            {% for moveForm in movesForms %}
-                {% set move = moveForm.move %}
-                {% set form = moveForm.form %}
+            {% for move_form in moves_forms %}
+                {% set move = move_form.move %}
+                {% set master_move = move_form.master_move[move.san] %}
+                {% set form = move_form.form %}
                 {{ form_start(form) }}
                 <a href="#" class="list-group-item list-group-item-action" onclick="this.nextElementSibling.click();return false;">
                     <div class="tw-grid tw-grid-cols-8 tw-gap-7">
                         <div class="tw-col-span-4">{{ move.san }}</div>
-                        <div class="tw-col-span-2">{{ ((move.white + move.black + move.draws) / games)|format_number(style: 'percent') }}</div>
+                        <div class="tw-col-span-2">{{ ((master_move.white + master_move.black + master_move.draws) / master_games)|format_number(style: 'percent') }}</div>
                         <div class="tw-col-span-2">{{ (move.white / ((move.white + move.black + move.draws)))|format_number(style: 'percent') }} win</div>
                     </div>
                 </a>
