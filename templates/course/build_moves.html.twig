@@ -9,13 +9,22 @@
             </div>
             {% for move_form in moves_forms %}
                 {% set move = move_form.move %}
-                {% set master_move = move_form.master_move[move.san] %}
                 {% set form = move_form.form %}
                 {{ form_start(form) }}
                 <a href="#" class="list-group-item list-group-item-action" onclick="this.nextElementSibling.click();return false;">
                     <div class="tw-grid tw-grid-cols-8 tw-gap-7">
                         <div class="tw-col-span-4">{{ move.san }}</div>
-                        <div class="tw-col-span-2">{{ ((master_move.white + master_move.black + master_move.draws) / master_games)|format_number(style: 'percent') }}</div>
+                        <div class="tw-col-span-2">
+                                {% if move_form.master_games >= master_games / 100 %}
+                                    {{ (move_form.master_games / master_games)|format_number(style: 'percent') }}
+                                {% elseif move_form.master_games >= master_games / 1000 and move_form.master_games > 0 %}
+                                    &lt;{{ 0.01|format_number(style: 'percent') }}
+                                {% elseif move_form.master_games > 0 %}
+                                    &lt;1‰
+                                {% else %}
+                                    {{ 0|format_number(style: 'percent') }}
+                                {% endif %}
+                        </div>
                         <div class="tw-col-span-2">{{ (move.white / ((move.white + move.black + move.draws)))|format_number(style: 'percent') }} win</div>
                     </div>
                 </a>

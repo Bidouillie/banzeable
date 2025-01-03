@@ -174,7 +174,7 @@ class CourseController extends AbstractController
                         'ratings' => '1600,1800',
                         'since' => '2021-01',
                         'until' => '2024-12',
-                        'moves' => 4,
+                        'moves' => 250,
                         'topGames' => 0,
                         'recentGames' => 0,
                     ],
@@ -217,12 +217,20 @@ class CourseController extends AbstractController
                 $carry[$item->getSan()] = $item;
                 return $carry;
             }, []);
+            
+            usort($moves, function ($move1, $move2) use ($masterMoves) {
+                $masterMove1 = isset($masterMoves[$move1->getSan()]) ? $masterMoves[$move1->getSan()] : null;
+                $masterMove2 = isset($masterMoves[$move2->getSan()]) ? $masterMoves[$move2->getSan()] : null;
+                $masterGames1 = $masterMove1 ? $masterMove1->getWhite() + $masterMove1->getBlack() + $masterMove1->getDraws() : 0;
+                $masterGames2 = $masterMove2 ? $masterMove2->getWhite() + $masterMove2->getBlack() + $masterMove2->getDraws() : 0;
+                return $masterGames2 - $masterGames1;
+            });
 
             $movesForms = [];
 
             foreach ($moves as $move) {
 
-                $masterMove = $masterMoves[$move->getSan()];
+                $masterMove = isset($masterMoves[$move->getSan()]) ? $masterMoves[$move->getSan()] : null;
 
                 if ($move->getSan() !== '-') {
                     $board = FenToBoardFactory::create($fen);
@@ -234,12 +242,12 @@ class CourseController extends AbstractController
 
                     $movesForms[] = [
                         'move' => $move,
-                        'master_move' => $masterMoves,
+                        'master_games' => $masterMove ? $masterMove->getWhite() + $masterMove->getBlack() + $masterMove->getDraws() : 0,
                         'form' => $form->createView(),
                     ];
                 } else {
                     $games = $move->getWhite() + $move->getBlack() + $move->getDraws();
-                    $masterGames = $masterMove->getWhite() + $masterMove->getBlack() + $masterMove->getDraws();
+                    $masterGames = $masterMove ? $masterMove->getWhite() + $masterMove->getBlack() + $masterMove->getDraws() : 0;
                 }
             }
 
@@ -248,7 +256,7 @@ class CourseController extends AbstractController
                 'fen' => $fen,
                 'my_turn' => ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn,
                 'games' => $games,
-                'master_games' => $masterGames,
+                'master_games' => $masterGames ?? 0,
                 'moves_forms' => $movesForms,
             ]);
         }
