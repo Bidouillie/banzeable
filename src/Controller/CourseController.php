@@ -118,6 +118,8 @@ class CourseController extends AbstractController
 
             $masterMoves = $masterRepo->findByFen($fen);
 
+            $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
+
             $flush = false;
 
             if (count($masterMoves) < 1) {
@@ -217,14 +219,20 @@ class CourseController extends AbstractController
                 $carry[$item->getSan()] = $item;
                 return $carry;
             }, []);
-            
-            usort($moves, function ($move1, $move2) use ($masterMoves) {
-                $masterMove1 = isset($masterMoves[$move1->getSan()]) ? $masterMoves[$move1->getSan()] : null;
-                $masterMove2 = isset($masterMoves[$move2->getSan()]) ? $masterMoves[$move2->getSan()] : null;
-                $masterGames1 = $masterMove1 ? $masterMove1->getWhite() + $masterMove1->getBlack() + $masterMove1->getDraws() : 0;
-                $masterGames2 = $masterMove2 ? $masterMove2->getWhite() + $masterMove2->getBlack() + $masterMove2->getDraws() : 0;
-                return $masterGames2 - $masterGames1;
-            });
+
+            if ($myTurn) {
+                usort($moves, function ($move1, $move2) use ($masterMoves) {
+                    $masterMove1 = isset($masterMoves[$move1->getSan()]) ? $masterMoves[$move1->getSan()] : null;
+                    $masterMove2 = isset($masterMoves[$move2->getSan()]) ? $masterMoves[$move2->getSan()] : null;
+                    $masterGames1 = $masterMove1 ? $masterMove1->getWhite() + $masterMove1->getBlack() + $masterMove1->getDraws() : 0;
+                    $masterGames2 = $masterMove2 ? $masterMove2->getWhite() + $masterMove2->getBlack() + $masterMove2->getDraws() : 0;
+                    return $masterGames2 - $masterGames1;
+                });
+            } else {
+                usort($moves, function ($move1, $move2) {
+                    return $move2->getWhite() - $move1->getWhite() + $move2->getBlack() - $move1->getBlack() + $move2->getDraws() - $move1->getDraws();
+                });
+            }
 
             $movesForms = [];
 
@@ -254,7 +262,7 @@ class CourseController extends AbstractController
             return $this->render('course/build_moves.html.twig', [
                 'course' => $course,
                 'fen' => $fen,
-                'my_turn' => ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn,
+                'my_turn' => $myTurn,
                 'games' => $games,
                 'master_games' => $masterGames ?? 0,
                 'moves_forms' => $movesForms,

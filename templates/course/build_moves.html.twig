@@ -4,28 +4,42 @@
         <div class="list-group">
             <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-p-2">
                 <div class="tw-col-span-4">Move</div>
-                <div class="tw-col-span-2">Masters popularity</div>
+                <div class="tw-col-span-2">{% if my_turn %}Masters{% else %}Expected{% endif %}</div>
                 <div class="tw-col-span-2">Peer results</div>
             </div>
             {% for move_form in moves_forms %}
                 {% set move = move_form.move %}
                 {% set form = move_form.form %}
+                {% set move_games = my_turn ? move_form.master_games : move.white + move.black + move.draws %}
+                {% set total_games = my_turn ? master_games : games %}
                 {{ form_start(form) }}
                 <a href="#" class="list-group-item list-group-item-action" onclick="this.nextElementSibling.click();return false;">
                     <div class="tw-grid tw-grid-cols-8 tw-gap-7">
                         <div class="tw-col-span-4">{{ move.san }}</div>
                         <div class="tw-col-span-2">
-                                {% if move_form.master_games >= master_games / 100 %}
-                                    {{ (move_form.master_games / master_games)|format_number(style: 'percent') }}
-                                {% elseif move_form.master_games >= master_games / 1000 and move_form.master_games > 0 %}
+                                {% if move_games >= total_games / 100 %}
+                                    {{ (move_games / total_games)|format_number(style: 'percent') }}
+                                {% elseif move_games >= total_games / 1000 and move_games > 0 %}
                                     &lt;{{ 0.01|format_number(style: 'percent') }}
-                                {% elseif move_form.master_games > 0 %}
+                                {% elseif move_games >= total_games / 10000 and move_games > 0 %}
                                     &lt;1‰
+                                {% elseif move_games > 0 %}
+                                    &lt;1‱
                                 {% else %}
                                     {{ 0|format_number(style: 'percent') }}
                                 {% endif %}
                         </div>
-                        <div class="tw-col-span-2">{{ (move.white / ((move.white + move.black + move.draws)))|format_number(style: 'percent') }} win</div>
+                        <div class="tw-col-span-2">
+                            <div class="tw-flex tw-flex-row tw-rounded-md tw-overflow-hidden">
+                                <div class="text-dark bg-light" style="width:{{ (move.white / ((move.white + move.black + move.draws)))|format_number(style: 'percent') }}">
+                                    <small class="tw-px-3 tw-py-1">{{ (move.white / ((move.white + move.black + move.draws)))|format_number(style: 'percent') }}</small>
+                                </div>
+                                <div class="bg-secondary" style="width:{{ (move.draws / ((move.white + move.black + move.draws)))|format_number(style: 'percent') }}"><div class="tw-px-3 tw-py-1"></div></div>
+                                <div class="text-end text-light bg-dark" style="width:{{ (move.black / ((move.white + move.black + move.draws)))|format_number(style: 'percent') }}">
+                                    <small class="tw-px-3 tw-py-1">{{ (move.black / ((move.white + move.black + move.draws)))|format_number(style: 'percent') }}</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </a>
                 {{ form_widget(form.action) }}
