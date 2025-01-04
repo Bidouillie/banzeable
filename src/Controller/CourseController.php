@@ -12,9 +12,9 @@ use App\Form\StudyToggleType;
 use App\Repository\CourseRepository;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
+use App\Service\LichessApiService;
 use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\LoggerInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -23,7 +23,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\UX\Turbo\TurboBundle;
 
 class CourseController extends AbstractController
@@ -107,7 +106,7 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build-moves/{fen}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, EntityManagerInterface $em, HttpClientInterface $client): Response
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, EntityManagerInterface $em, LichessApiService $lichessApi): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -116,30 +115,18 @@ class CourseController extends AbstractController
 
             $moves = $repo->findByFEN($fen);
 
-            $masterMoves = $masterRepo->findByFen($fen);
+            $mastersMoves = $masterRepo->findByFen($fen);
 
             $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
             $flush = false;
 
-            if (count($masterMoves) < 1) {
+            if (count($mastersMoves) < 1) {
                 $flush = true;
 
-                $response = $client->request('GET', 'https://explorer.lichess.ovh/masters', [
-                    'query' => [
-                        'fen' => $fen,
-                        'since' => '2021',
-                        'until' => '2024',
-                        'moves' => 250,
-                        'topGames' => 0,
-                    ],
-                ]);
+                $responseMoves = $lichessApi->getMastersMoves($fen);
 
-                if ($response->getStatusCode() === 200) {
-
-                    $content = $response->toArray();
-                    $responseMoves = $content['moves'];
-                    array_unshift($responseMoves, ['san' => '-', ...$content]);
+                if (isset($responseMoves)) {
 
                     $date = new \DateTime();
 
@@ -160,7 +147,7 @@ class CourseController extends AbstractController
 
                         $em->persist($movePopularity);
 
-                        $masterMoves[] = $movePopularity;
+                        $mastersMoves[] = $movePopularity;
                     }
                 }
             }
@@ -168,25 +155,9 @@ class CourseController extends AbstractController
             if (count($moves) < 1) {
                 $flush = true;
 
-                $response = $client->request('GET', 'https://explorer.lichess.ovh/lichess', [
-                    'query' => [
-                        'fen' => $fen,
-                        'variant' => 'standard',
-                        'speeds' => 'rapid',
-                        'ratings' => '1600,1800',
-                        'since' => '2021-01',
-                        'until' => '2024-12',
-                        'moves' => 250,
-                        'topGames' => 0,
-                        'recentGames' => 0,
-                    ],
-                ]);
+                $responseMoves = $lichessApi->getLichessMoves($fen);
 
-                if ($response->getStatusCode() === 200) {
-
-                    $content = $response->toArray();
-                    $responseMoves = $content['moves'];
-                    array_unshift($responseMoves, ['san' => '-', ...$content]);
+                if (isset($responseMoves)) {
 
                     $date = new \DateTime();
 
@@ -215,18 +186,18 @@ class CourseController extends AbstractController
                 $em->flush();
             }
 
-            $masterMoves = array_reduce($masterMoves, function ($carry, $item) {
+            $mastersMoves = array_reduce($mastersMoves, function ($carry, $item) {
                 $carry[$item->getSan()] = $item;
                 return $carry;
             }, []);
 
             if ($myTurn) {
-                usort($moves, function ($move1, $move2) use ($masterMoves) {
-                    $masterMove1 = isset($masterMoves[$move1->getSan()]) ? $masterMoves[$move1->getSan()] : null;
-                    $masterMove2 = isset($masterMoves[$move2->getSan()]) ? $masterMoves[$move2->getSan()] : null;
-                    $masterGames1 = $masterMove1 ? $masterMove1->getWhite() + $masterMove1->getBlack() + $masterMove1->getDraws() : 0;
-                    $masterGames2 = $masterMove2 ? $masterMove2->getWhite() + $masterMove2->getBlack() + $masterMove2->getDraws() : 0;
-                    return $masterGames2 - $masterGames1;
+                usort($moves, function ($move1, $move2) use ($mastersMoves) {
+                    $mastersMove1 = isset($mastersMoves[$move1->getSan()]) ? $mastersMoves[$move1->getSan()] : null;
+                    $mastersMove2 = isset($mastersMoves[$move2->getSan()]) ? $mastersMoves[$move2->getSan()] : null;
+                    $mastersGames1 = $mastersMove1 ? $mastersMove1->getWhite() + $mastersMove1->getBlack() + $mastersMove1->getDraws() : 0;
+                    $mastersGames2 = $mastersMove2 ? $mastersMove2->getWhite() + $mastersMove2->getBlack() + $mastersMove2->getDraws() : 0;
+                    return $mastersGames2 - $mastersGames1;
                 });
             } else {
                 usort($moves, function ($move1, $move2) {
@@ -238,7 +209,7 @@ class CourseController extends AbstractController
 
             foreach ($moves as $move) {
 
-                $masterMove = isset($masterMoves[$move->getSan()]) ? $masterMoves[$move->getSan()] : null;
+                $mastersMove = isset($mastersMoves[$move->getSan()]) ? $mastersMoves[$move->getSan()] : null;
 
                 if ($move->getSan() !== '-') {
                     $board = FenToBoardFactory::create($fen);
@@ -250,12 +221,12 @@ class CourseController extends AbstractController
 
                     $movesForms[] = [
                         'move' => $move,
-                        'master_games' => $masterMove ? $masterMove->getWhite() + $masterMove->getBlack() + $masterMove->getDraws() : 0,
+                        'masters_games' => $mastersMove ? $mastersMove->getWhite() + $mastersMove->getBlack() + $mastersMove->getDraws() : 0,
                         'form' => $form->createView(),
                     ];
                 } else {
                     $games = $move->getWhite() + $move->getBlack() + $move->getDraws();
-                    $masterGames = $masterMove ? $masterMove->getWhite() + $masterMove->getBlack() + $masterMove->getDraws() : 0;
+                    $mastersGames = $mastersMove ? $mastersMove->getWhite() + $mastersMove->getBlack() + $mastersMove->getDraws() : 0;
                 }
             }
 
@@ -264,7 +235,7 @@ class CourseController extends AbstractController
                 'fen' => $fen,
                 'my_turn' => $myTurn,
                 'games' => $games,
-                'master_games' => $masterGames ?? 0,
+                'masters_games' => $mastersGames ?? 0,
                 'moves_forms' => $movesForms,
             ]);
         }

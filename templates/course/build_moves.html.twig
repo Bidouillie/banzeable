@@ -10,8 +10,8 @@
             {% for move_form in moves_forms %}
                 {% set move = move_form.move %}
                 {% set form = move_form.form %}
-                {% set move_games = my_turn ? move_form.master_games : move.white + move.black + move.draws %}
-                {% set total_games = my_turn ? master_games : games %}
+                {% set move_games = my_turn ? move_form.masters_games : move.white + move.black + move.draws %}
+                {% set total_games = my_turn ? masters_games : games %}
                 {{ form_start(form) }}
                 <a href="#" class="list-group-item list-group-item-action" onclick="this.nextElementSibling.click();return false;">
                     <div class="tw-grid tw-grid-cols-8 tw-gap-7">
