@@ -17,11 +17,18 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
     }
 
     // TODO search by whole id (variant, speeds...)
-    public function findByFEN(string $FEN)
+    /**
+     * @return MovePopularityMaster[]
+     */
+    public function findByFEN(string|array $FEN)
     {
-        $qb = $this->createQueryBuilder('a')
-            ->andWhere('a.FEN = :FEN')
-            ->setParameter('FEN', $FEN);
+        $qb = $this->createQueryBuilder('a');
+        if (is_array($FEN)) {
+            $qb->where('a.FEN IN (:FEN)');
+        } else {
+            $qb->where('a.FEN = :FEN');
+        }
+        $qb->setParameter('FEN', $FEN);
 
         return $qb->getQuery()->getResult();
     }

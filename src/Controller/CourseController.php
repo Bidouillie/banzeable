@@ -3,16 +3,14 @@
 namespace App\Controller;
 
 use App\Entity\Course;
-use App\Entity\MovePopularity;
-use App\Entity\MovePopularityMaster;
 use App\Entity\User;
 use App\Entity\Variation;
 use App\Form\BuildMoveType;
 use App\Form\StudyToggleType;
+use App\Message\LoadMastersMoves;
 use App\Repository\CourseRepository;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
-use App\Service\LichessApiService;
 use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -20,6 +18,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -106,90 +105,33 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build-moves/{fen}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, EntityManagerInterface $em, LichessApiService $lichessApi): Response
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, EntityManagerInterface $em, MessageBusInterface $bus): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
+            $mastersMoves = $masterRepo->findByFen($fen);
             $moves = $repo->findByFEN($fen);
 
-            $mastersMoves = $masterRepo->findByFen($fen);
-
-            $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
-
-            $flush = false;
-
-            if (count($mastersMoves) < 1) {
-                $flush = true;
-
-                $responseMoves = $lichessApi->getMastersMoves($fen);
-
-                if (isset($responseMoves)) {
-
-                    $date = new \DateTime();
-
-                    foreach ($responseMoves as $move) {
-                        $movePopularity = new MovePopularityMaster();
-                        $movePopularity->setSince('2021');
-                        $movePopularity->setUntil('2024');
-                        $movePopularity->setFEN($fen);
-                        $movePopularity->setSan($move['san']);
-                        $movePopularity->setDateCreated($date);
-                        $movePopularity->setWhite($move['white']);
-                        $movePopularity->setBlack($move['black']);
-                        $movePopularity->setDraws($move['draws']);
-
-                        if (isset($move['opening']) && isset($move['opening']['name'])) {
-                            $movePopularity->setOpening($move['opening']['name']);
-                        }
-
-                        $em->persist($movePopularity);
-
-                        $mastersMoves[] = $movePopularity;
+            $mastersMoves = array_reduce($mastersMoves, function ($carry, $move) use ($fen, $bus) {
+                if ($move->getSan() !== '-') {
+                    if (!$move->isNextMovesLoaded()) {
+                        $board = FenToBoardFactory::create($fen);
+                        $board->play($board->turn, $move->getSan());
+                        $bus->dispatch(new LoadMastersMoves($board->toFen()));
+                        $move->setNextMovesLoaded(true);
                     }
                 }
-            }
 
-            if (count($moves) < 1) {
-                $flush = true;
-
-                $responseMoves = $lichessApi->getLichessMoves($fen);
-
-                if (isset($responseMoves)) {
-
-                    $date = new \DateTime();
-
-                    foreach ($responseMoves as $move) {
-                        $movePopularity = new MovePopularity();
-                        $movePopularity->setVariant('standard');
-                        $movePopularity->setSpeeds('rapid');
-                        $movePopularity->setRatings('1600,1800');
-                        $movePopularity->setSince('2021-01');
-                        $movePopularity->setUntil('2024-12');
-                        $movePopularity->setFEN($fen);
-                        $movePopularity->setSan($move['san']);
-                        $movePopularity->setDateCreated($date);
-                        $movePopularity->setWhite($move['white']);
-                        $movePopularity->setBlack($move['black']);
-                        $movePopularity->setDraws($move['draws']);
-
-                        $em->persist($movePopularity);
-
-                        $moves[] = $movePopularity;
-                    }
-                }
-            }
-
-            if ($flush) {
-                $em->flush();
-            }
-
-            $mastersMoves = array_reduce($mastersMoves, function ($carry, $item) {
-                $carry[$item->getSan()] = $item;
+                $carry[$move->getSan()] = $move;
                 return $carry;
             }, []);
+
+            $em->flush();
+
+            $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
             if ($myTurn) {
                 usort($moves, function ($move1, $move2) use ($mastersMoves) {
@@ -234,7 +176,7 @@ class CourseController extends AbstractController
                 'course' => $course,
                 'fen' => $fen,
                 'my_turn' => $myTurn,
-                'games' => $games,
+                'games' => $games ?? 0,
                 'masters_games' => $mastersGames ?? 0,
                 'moves_forms' => $movesForms,
             ]);

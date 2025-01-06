@@ -5,3 +5,5 @@ workers:
         depends_on:
             - sass
         cmd: ['symfony', 'console', 'tailwind:build', '--watch']
+    messenger_consume_async:
+        cmd: ['symfony', 'console', 'messenger:consume', 'async', '--no-debug']

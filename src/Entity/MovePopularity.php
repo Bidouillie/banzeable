@@ -49,6 +49,14 @@ class MovePopularity
     #[ORM\Column]
     private ?int $draws = null;
 
+    #[ORM\Column(options: ['default' => false])]
+    private ?bool $nextMovesLoaded = null;
+
+    public function __construct()
+    {
+        $this->setNextMovesLoaded(false);
+    }
+
     public function getVariant(): ?string
     {
         return $this->variant;
@@ -177,6 +185,18 @@ class MovePopularity
     public function setDraws(int $draws): static
     {
         $this->draws = $draws;
+
+        return $this;
+    }
+
+    public function isNextMovesLoaded(): ?bool
+    {
+        return $this->nextMovesLoaded;
+    }
+
+    public function setNextMovesLoaded(bool $nextMovesLoaded): static
+    {
+        $this->nextMovesLoaded = $nextMovesLoaded;
 
         return $this;
     }
