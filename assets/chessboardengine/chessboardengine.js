@@ -28,7 +28,7 @@ export class ChessboardEngine {
         return this.#board.getOrientation() === COLOR.white ? 'w' : 'b';
     }
 
-    constructor(htmlElement, orientation = 'w', moves = [], fen = FEN.start, PGN = null) {
+    constructor(htmlElement, orientation = 'w', PGN = null, moves = [], fen = FEN.start) {
 
         if (orientation !== 'w' && orientation !== 'b') {
             throw new Error("Orientation should be 'w' (white) or 'b' (black)")
@@ -51,13 +51,15 @@ export class ChessboardEngine {
             this.#chess.loadPgn(PGN);
         } else {
             this.#chess.load(fen);
+
+            for (let key in moves) {
+                this.#chess.move(moves[key]);
+            }
         }
 
-        for (let key in moves) {
-            this.#chess.move(moves[key]);
+        if (this.#chess.firstMove()) {
+            this.#chess.seek(this.#chess.firstMove().previous);
         }
-
-        this.#chess.seek(this.#chess.firstMove().previous);
     }
 
     /**
@@ -77,7 +79,7 @@ export class ChessboardEngine {
 
         this.#autoNext = autoNext;
 
-        if (this.orientation !== this.#chess.turn()) {
+        if (this.#mode === 'variation' && this.orientation !== this.#chess.turn()) {
             if (this.#playMove(this.#chess.nextMove().san)) {
                 this.#halfMovesProgress++;
                 this.#fireMoveEvent();
@@ -90,7 +92,14 @@ export class ChessboardEngine {
     #enableMoveInput() {
         this.#board.enableMoveInput((event) => {
             return this.#inputHandler(event);
-        }, this.#mode === 'analysis' ? null : this.#board.getOrientation());
+        }, this.#mode === 'analysis' ? this.#chess.turn() : this.#board.getOrientation());
+    }
+
+    #switchTurn() {
+        this.#board.disableMoveInput();
+        this.#board.enableMoveInput((event) => {
+            return this.#inputHandler(event);
+        }, this.#chess.turn());
     }
 
     disablePlayableMove() {
@@ -210,12 +219,19 @@ export class ChessboardEngine {
             case INPUT_EVENT_TYPE.moveInputFinished:
 
                 if (event.legalMove) {
+                    let event = {};
 
-                    const move = this.#chess.currentMove();
+                    if (this.#mode === 'variation') {
+                        const move = this.#chess.currentMove();
 
-                    const moveValidation = this.#validateOrUndoMove(move);
+                        const moveValidation = this.#validateOrUndoMove(move);
 
-                    this.#fireMoveEvent({ moveValidation, 'lastMove': moveValidation && move.ply === this.#chess.history().length });
+                        event = { moveValidation, 'lastMove': moveValidation && move.ply === this.#chess.history().length };
+                    } else {
+                        this.#switchTurn();
+                    }
+
+                    this.#fireMoveEvent(event);
                 }
 
                 break;
@@ -224,7 +240,8 @@ export class ChessboardEngine {
 
     #fireMoveEvent(event) {
         if (this.#movePlayedCallback) {
-            this.#movePlayedCallback({ index: this.#chess.currentMove().ply, ...event });
+            let move = this.#chess.currentMove();
+            this.#movePlayedCallback({ index: move.ply, san: move.san, ...event });
         }
     }
 

@@ -1,7 +1,7 @@
 {% extends 'base.html.twig' %}
 
 {% block importmap %}
-	{{ importmap(['app', 'playableboard']) }}
+	{{ importmap(['app', 'course-builder']) }}
 {% endblock %}
 
 {% block title %}Hello CourseController!{% endblock %}
@@ -15,6 +15,7 @@
 					<div class="d-flex flex-column">
 						<div class="card">
 							<div id="board"></div>
+        					<div class="js-course" data-course="{{ course_encoded }}"></div>
 						</div>
 						<div class="progress mt-3">
 							<div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" style="width:0%"></div>

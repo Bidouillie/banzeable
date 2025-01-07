@@ -90,7 +90,7 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build', name: 'app_course_build', requirements: ['id' => '\d+'])]
-    public function build(#[MapEntity(id: 'id')] ?Course $course): Response
+    public function build(#[MapEntity(id: 'id')] ?Course $course, SerializerInterface $serializer): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -107,6 +107,7 @@ class CourseController extends AbstractController
 
         return $this->render('course/build.html.twig', [
             'course' => $course,
+            'course_encoded' => $serializer->serialize($course, 'json', ['groups' => ['Default']]),
             'form' => $form,
         ]);
     }

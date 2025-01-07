@@ -16,8 +16,8 @@ return [
         'path' => './assets/app.js',
         'entrypoint' => true,
     ],
-    'playableboard' => [
-        'path' => './assets/playableboard.js',
+    'course-builder' => [
+        'path' => './assets/course-builder.js',
         'entrypoint' => true,
     ],
     'variationboard' => [

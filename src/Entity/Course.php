@@ -8,6 +8,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation as Serializer;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CourseRepository::class)]
@@ -29,6 +30,7 @@ class Course
     private ?CourseAspect $aspect = null;
 
     #[ORM\Column(options: ['default' => false])]
+    #[Serializer\Groups(['Default'])]
     private ?bool $blackOrientation = null;
 
     #[ORM\Column(type: Types::SMALLINT, nullable: true)]

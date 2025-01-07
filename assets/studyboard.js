@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
     variation = JSON.parse(document.querySelector('.js-variation').getAttribute('data-variation'));
     console.log(variation);
 
-    board = new ChessboardEngine(document.getElementById('board'), variation.blackOrientation ? 'b' : 'w', variation.moves.map((move) => move.notation.text));
+    board = new ChessboardEngine(document.getElementById('board'), variation.blackOrientation ? 'b' : 'w', null, variation.moves.map((move) => move.notation.text));
 
     let totalMoves = Math.floor((variation.moves.length + (variation.blackOrientation ? 0 : 1)) / 2);
 
