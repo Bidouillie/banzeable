@@ -17,6 +17,9 @@ class MovePopularityRepository extends ServiceEntityRepository
     }
 
     // TODO search by whole id (variant, speeds...)
+    /**
+     * @return MovePopularity[]
+     */
     public function findByFEN(string $FEN)
     {
         $qb = $this->createQueryBuilder('a')

@@ -4,7 +4,6 @@ namespace App\MessageHandler;
 
 use App\Entity\MovePopularityMaster;
 use App\Message\LoadMastersMoves;
-use App\Message\LoadMoves;
 use App\Service\LichessApiService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -17,7 +16,6 @@ final class LoadMastersMovesHandler
     public function __construct(
         private EntityManagerInterface $em,
         private LichessApiService $lichessApi,
-        private MessageBusInterface $bus,
         private LoggerInterface $logger,
     ) {}
 
@@ -51,7 +49,5 @@ final class LoadMastersMovesHandler
 
             $this->em->flush();
         }
-
-        $this->bus->dispatch(new LoadMoves($message->FEN));
     }
 }

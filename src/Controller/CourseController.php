@@ -8,6 +8,7 @@ use App\Entity\Variation;
 use App\Form\BuildMoveType;
 use App\Form\StudyToggleType;
 use App\Message\LoadMastersMoves;
+use App\Message\LoadMoves;
 use App\Repository\CourseRepository;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
@@ -89,13 +90,20 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build', name: 'app_course_build', requirements: ['id' => '\d+'])]
-    public function build(#[MapEntity(id: 'id')] ?Course $course, SerializerInterface $serializer): Response
+    public function build(#[MapEntity(id: 'id')] ?Course $course): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
-        $form = $this->createForm(BuildMoveType::class, null, [
-            'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -']),
-        ]);
+        $form = $this->createForm(
+            BuildMoveType::class,
+            [
+                'ply' => 0,
+                'selectedPercentHistory' => [],
+            ],
+            [
+                'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -']),
+            ]
+        );
 
         return $this->render('course/build.html.twig', [
             'course' => $course,
@@ -112,38 +120,57 @@ class CourseController extends AbstractController
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
-            $mastersMoves = $masterRepo->findByFen($fen);
+            $form = $this->createForm(BuildMoveType::class);
+            $form->handleRequest($request);
+
+            // TODO check if form submitted ?
+            $ply = intval($form->get('ply')->getData());
+            $selectedPercentHistory = $form->get('selectedPercentHistory')->getData();
+
+            $mMoves = $masterRepo->findByFen($fen);
             $moves = $repo->findByFEN($fen);
 
-            $mastersMoves = array_reduce($mastersMoves, function ($carry, $move) use ($fen, $bus) {
-                if ($move->getSan() !== '-') {
-                    if (!$move->isNextMovesLoaded()) {
-                        $board = FenToBoardFactory::create($fen);
-                        $board->play($board->turn, $move->getSan());
-                        $bus->dispatch(new LoadMastersMoves($board->toFen()));
-                        $move->setNextMovesLoaded(true);
-                    }
-                }
-
+            $mMoves = array_reduce($mMoves, function ($carry, $move) {
                 $carry[$move->getSan()] = $move;
                 return $carry;
             }, []);
 
-            $em->flush();
+            $mastersGames = array_key_exists('-', $mMoves) ? $mMoves['-']->getTotal() : 0;
+            $games = 0;
+
+            foreach ($moves as $key => $move) {
+                if ($move->getSan() === '-') {
+                    $games = $move->getTotal() ?? 0;
+                    unset($moves[$key]);
+                    break;
+                }
+            }
+
+            $formData = [
+                'ply' => $ply + 1,
+                'totalGames' => $ply > 0 ? intval($form->get('totalGames')->getData()) : $games,
+            ];
 
             $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
+            $selectedMultiplier = 1;
 
             if ($myTurn) {
-                usort($moves, function ($move1, $move2) use ($mastersMoves) {
-                    $mastersMove1 = isset($mastersMoves[$move1->getSan()]) ? $mastersMoves[$move1->getSan()] : null;
-                    $mastersMove2 = isset($mastersMoves[$move2->getSan()]) ? $mastersMoves[$move2->getSan()] : null;
-                    $mastersGames1 = $mastersMove1 ? $mastersMove1->getWhite() + $mastersMove1->getBlack() + $mastersMove1->getDraws() : 0;
-                    $mastersGames2 = $mastersMove2 ? $mastersMove2->getWhite() + $mastersMove2->getBlack() + $mastersMove2->getDraws() : 0;
+                usort($moves, function ($move1, $move2) use ($mMoves) {
+                    $mMove1 = array_key_exists($move1->getSan(), $mMoves) ? $mMoves[$move1->getSan()] : null;
+                    $mMove2 = array_key_exists($move2->getSan(), $mMoves) ? $mMoves[$move2->getSan()] : null;
+                    $mastersGames1 = $mMove1 ? $mMove1->getTotal() : 0;
+                    $mastersGames2 = $mMove2 ? $mMove2->getTotal() : 0;
                     return $mastersGames2 - $mastersGames1;
                 });
             } else {
+                $even = true;
+                foreach ($selectedPercentHistory as $number) {
+                    $even = !$even;
+                    $selectedMultiplier = $even ? $selectedMultiplier * $number : $selectedMultiplier / $number;
+                }
+
                 usort($moves, function ($move1, $move2) {
-                    return $move2->getWhite() - $move1->getWhite() + $move2->getBlack() - $move1->getBlack() + $move2->getDraws() - $move1->getDraws();
+                    return $move2->getTotal() - $move1->getTotal();
                 });
             }
 
@@ -151,33 +178,58 @@ class CourseController extends AbstractController
 
             foreach ($moves as $move) {
 
-                $mastersMove = isset($mastersMoves[$move->getSan()]) ? $mastersMoves[$move->getSan()] : null;
+                $mMove = array_key_exists($move->getSan(), $mMoves) ? $mMoves[$move->getSan()] : null;
 
-                if ($move->getSan() !== '-') {
-                    $board = FenToBoardFactory::create($fen);
-                    $board->play($board->turn, $move->getSan());
+                $board = FenToBoardFactory::create($fen);
+                $board->play($board->turn, $move->getSan());
 
-                    $form = $this->createForm(BuildMoveType::class, null, [
-                        'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'fen' => $board->toFen()]),
-                    ]);
+                $moveSelectedPercentHistory = $selectedPercentHistory;
 
-                    $movesForms[] = [
-                        'move' => $move,
-                        'masters_games' => $mastersMove ? $mastersMove->getWhite() + $mastersMove->getBlack() + $mastersMove->getDraws() : 0,
-                        'form' => $form->createView(),
-                    ];
+                if ($myTurn) {
+                    $cover = isset($mMove) && $mMove->getTotal() > $mastersGames / 100;
+                    array_push($moveSelectedPercentHistory, $games, $move->getTotal());
                 } else {
-                    $games = $move->getWhite() + $move->getBlack() + $move->getDraws();
-                    $mastersGames = $mastersMove ? $mastersMove->getWhite() + $mastersMove->getBlack() + $mastersMove->getDraws() : 0;
+                    $cover = $move->getTotal() > $formData['totalGames'] * $selectedMultiplier / $course->getCoverage();
                 }
+
+                if ($cover) {
+                    if (!$move->isNextMovesLoaded()) {
+                        $bus->dispatch(new LoadMoves($board->toFen()));
+                        $move->setNextMovesLoaded(true);
+                    }
+
+                    if (isset($mMove)) {
+                        if (!$mMove->isNextMovesLoaded()) {
+                            $bus->dispatch(new LoadMastersMoves($board->toFen()));
+                            $mMove->setNextMovesLoaded(true);
+                        }
+                    }
+                }
+
+                $form = $this->createForm(BuildMoveType::class, [
+                    'selectedPercentHistory' => $moveSelectedPercentHistory,
+                    ...$formData
+                ], [
+                    'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'fen' => $board->toFen()]),
+                ]);
+
+                $movesForms[] = [
+                    'move' => $move,
+                    'masters_games' => $mMove ? $mMove->getTotal() : 0,
+                    'cover' => $cover,
+                    'form' => $form->createView(),
+                ];
             }
+
+            $em->flush();
 
             return $this->render('course/build_moves.html.twig', [
                 'course' => $course,
                 'fen' => $fen,
                 'my_turn' => $myTurn,
-                'games' => $games ?? 0,
-                'masters_games' => $mastersGames ?? 0,
+                'selected_multiplier' => $selectedMultiplier,
+                'masters_games' => $mastersGames,
+                'total_games' => $formData['totalGames'],
                 'moves_forms' => $movesForms,
             ]);
         }

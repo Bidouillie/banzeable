@@ -144,6 +144,11 @@ class MovePopularityMaster
         return $this;
     }
 
+    public function getTotal(): ?int
+    {
+        return $this->getWhite() + $this->getBlack() + $this->getDraws();
+    }
+
     public function getOpening(): ?string
     {
         return $this->opening;

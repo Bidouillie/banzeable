@@ -189,6 +189,11 @@ class MovePopularity
         return $this;
     }
 
+    public function getTotal(): ?int
+    {
+        return $this->getWhite() + $this->getBlack() + $this->getDraws();
+    }
+
     public function isNextMovesLoaded(): ?bool
     {
         return $this->nextMovesLoaded;
