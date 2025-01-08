@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             ToastMaker.toast("Wrong move", 'danger');
         }
-    }, 1000, 'variation');
+    }, 'variation', 1000);
 
     navigationEl.querySelectorAll('button[data-action="start"]')[0].addEventListener('click', () => {
         if (board.gotoMove(0)) {

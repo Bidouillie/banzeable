@@ -14,6 +14,7 @@ class BuildMoveType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
+            ->add('san', HiddenType::class)
             ->add('ply', HiddenType::class)
             ->add('selectedPercentHistory', CollectionType::class, [
                 'allow_add' => true,

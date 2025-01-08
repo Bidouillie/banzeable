@@ -21,7 +21,7 @@ export class ChessboardEngine {
 
     #halfMovesProgress = 0;
 
-    // number of miliseconds to wait for next move, or false if no auto mode
+    // number of miliseconds to wait for next move (or to enable next turn), or false if no auto mode
     #autoNext;
 
     get orientation() {
@@ -64,10 +64,10 @@ export class ChessboardEngine {
 
     /**
      * @param {movePlayedCallback} moveHandler
-     * @param {number | false} autoNext
      * @param {'analysis' | 'variation'} mode
+     * @param {number | true | false} autoNext
      */
-    enablePlayableMove(moveHandler, autoNext = false, mode = 'analysis') {
+    enablePlayableMove(moveHandler, mode = 'analysis', autoNext = false) {
 
         if (mode !== 'analysis' && mode !== 'variation') {
             throw new Error("Mode should be 'analysis' or 'variation'")
@@ -97,15 +97,32 @@ export class ChessboardEngine {
 
     #switchTurn() {
         this.#board.disableMoveInput();
-        this.#board.enableMoveInput((event) => {
-            return this.#inputHandler(event);
-        }, this.#chess.turn());
+        if (this.#autoNext === true) {
+            this.#board.enableMoveInput((event) => {
+                return this.#inputHandler(event);
+            }, this.#chess.turn());
+        } else {
+
+            if (this.#autoNext !== false) {
+                setTimeout(() => {
+                    this.#board.enableMoveInput((event) => {
+                        return this.#inputHandler(event);
+                    }, this.#chess.turn());
+                }, this.#autoNext);
+            }
+        }
     }
 
     disablePlayableMove() {
         this.#movePlayedCallback = null;
         this.#autoNext = false;
         this.#board.disableMoveInput();
+    }
+
+    playMove(sanMove) {
+        const movePlayed = this.#playMove(sanMove);
+        this.#switchTurn();
+        return movePlayed;
     }
 
     previousMove() {

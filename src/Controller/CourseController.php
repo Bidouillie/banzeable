@@ -17,6 +17,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -97,6 +98,7 @@ class CourseController extends AbstractController
         $form = $this->createForm(
             BuildMoveType::class,
             [
+                'san' => '-',
                 'ply' => 0,
                 'selectedPercentHistory' => [],
             ],
@@ -114,14 +116,15 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build-moves/{fen}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, EntityManagerInterface $em, MessageBusInterface $bus): Response
+    #[Route('/course/{id}/build-moves/{fen}/{fromSan}', name: 'app_course_build_moves_from_san', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, ?string $fromSan, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, EntityManagerInterface $em, MessageBusInterface $bus, FormFactoryInterface $formFactory): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
-            $form = $this->createForm(BuildMoveType::class);
+            $form = $formFactory->createNamed('build_move' . (isset($fromSan) ? "_$fromSan" : ''), BuildMoveType::class);
             $form->handleRequest($request);
 
             // TODO check if form submitted ?
@@ -207,11 +210,12 @@ class CourseController extends AbstractController
                     }
                 }
 
-                $form = $this->createForm(BuildMoveType::class, [
+                $form = $formFactory->createNamed('build_move_' . $move->getSan(), BuildMoveType::class, [
+                    'san' => $move->getSan(),
                     'selectedPercentHistory' => $moveSelectedPercentHistory,
                     ...$formData
                 ], [
-                    'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'fen' => $board->toFen()]),
+                    'action' => $this->generateUrl('app_course_build_moves_from_san', ['id' => $course->getId(), 'fen' => $board->toFen(), 'fromSan' => $move->getSan()]),
                 ]);
 
                 $movesForms[] = [
