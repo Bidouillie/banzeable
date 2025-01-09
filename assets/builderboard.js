@@ -1,7 +1,7 @@
 
 import { FEN } from 'cm-chessboard'
 
-import { ChessboardEngine } from './chessboardengine/chessboardengine.js'
+import { VariationChessboardEngine } from './chessboardengine/variation-cbe.js';
 
 let fen = FEN.start;
 // fen = 'rnbqk2r/p1p1bppp/4pn2/1pPP4/Q7/8/PP1P1PPP/RNB1KBNR w KQkq b6 0 6';
@@ -13,7 +13,7 @@ let board;
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    board = new ChessboardEngine(document.getElementById('board'), 'w', PGN);
+    board = new VariationChessboardEngine(document.getElementById('board'), 'w', PGN);
 
     board.enablePlayableMove();
 

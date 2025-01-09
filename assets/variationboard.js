@@ -1,5 +1,5 @@
 
-import { ChessboardEngine } from './chessboardengine/chessboardengine.js'
+import { VariationChessboardEngine } from './chessboardengine/variation-cbe.js';
 
 let board;
 
@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const variation = JSON.parse(document.querySelector('.js-variation').getAttribute('data-variation'));
     console.log(variation);
 
-    board = new ChessboardEngine(document.getElementById('board'), variation.blackOrientation ? 'b' : 'w', variation.moves.map((move) => {
+    board = new VariationChessboardEngine(document.getElementById('board'), variation.blackOrientation ? 'b' : 'w', variation.moves.map((move) => {
         return move.notation.text;
     }));
 

@@ -1,8 +1,8 @@
 
-import { ChessboardEngine } from './chessboardengine/chessboardengine.js'
+import { VariationChessboardEngine } from './chessboardengine/variation-cbe.js';
 import { ToastMaker } from './toast.js';
 
-// ChessboardEngine
+// VariationChessboardEngine
 let board;
 
 let variation;
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
     variation = JSON.parse(document.querySelector('.js-variation').getAttribute('data-variation'));
     console.log(variation);
 
-    board = new ChessboardEngine(document.getElementById('board'), variation.blackOrientation ? 'b' : 'w', null, variation.moves.map((move) => move.notation.text));
+    board = new VariationChessboardEngine(document.getElementById('board'), variation.blackOrientation ? 'b' : 'w', null, variation.moves.map((move) => move.notation.text));
 
     let totalMoves = Math.floor((variation.moves.length + (variation.blackOrientation ? 0 : 1)) / 2);
 
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             ToastMaker.toast("Wrong move", 'danger');
         }
-    }, 'variation', 1000);
+    }, 1000);
 
     navigationEl.querySelectorAll('button[data-action="start"]')[0].addEventListener('click', () => {
         if (board.gotoMove(0)) {

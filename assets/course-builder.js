@@ -1,7 +1,7 @@
 
 import { FEN } from 'cm-chessboard'
 
-import { ChessboardEngine } from './chessboardengine/chessboardengine.js'
+import { AnalysisChessboardEngine } from './chessboardengine/analysis-cbe.js';
 
 let fen = FEN.start;
 let board;
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     console.log(course);
 
-    board = new ChessboardEngine(document.getElementById('board'), course.blackOrientation ? 'b' : 'w', null, [], fen);
+    board = new AnalysisChessboardEngine(document.getElementById('board'), course.blackOrientation ? 'b' : 'w', null, [], fen);
 
     document.addEventListener('turbo:submit-start', (event) => {
         console.log('submit-start');
