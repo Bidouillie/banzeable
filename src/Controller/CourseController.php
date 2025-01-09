@@ -116,15 +116,15 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build-moves/{fen}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    #[Route('/course/{id}/build-moves/{fen}/{fromSan}', name: 'app_course_build_moves_from_san', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, ?string $fromSan, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, EntityManagerInterface $em, MessageBusInterface $bus, FormFactoryInterface $formFactory): Response
+    #[Route('/course/{id}/build-moves/{fen}/{fromLan}', name: 'app_course_build_moves_from_lan', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$', 'lan' => '^([a-h][1-8]){2}$'])]
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, ?string $fromLan, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, EntityManagerInterface $em, MessageBusInterface $bus, FormFactoryInterface $formFactory): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
-            $form = $formFactory->createNamed('build_move' . (isset($fromSan) ? "_$fromSan" : ''), BuildMoveType::class);
+            $form = $formFactory->createNamed('build_move' . (isset($fromLan) ? "_$fromLan" : ''), BuildMoveType::class);
             $form->handleRequest($request);
 
             // TODO check if form submitted ?
@@ -187,6 +187,9 @@ class CourseController extends AbstractController
                 $board = FenToBoardFactory::create($fen);
                 $board->play($board->turn, $move->getSan());
 
+                $last = end($board->history);
+                $lan = $last['from'] . $last['to'];
+
                 $moveSelectedPercentHistory = $selectedPercentHistory;
 
                 if ($myTurn) {
@@ -210,12 +213,12 @@ class CourseController extends AbstractController
                     }
                 }
 
-                $form = $formFactory->createNamed('build_move_' . $move->getSan(), BuildMoveType::class, [
+                $form = $formFactory->createNamed("build_move_$lan", BuildMoveType::class, [
                     'san' => $move->getSan(),
                     'selectedPercentHistory' => $moveSelectedPercentHistory,
                     ...$formData
                 ], [
-                    'action' => $this->generateUrl('app_course_build_moves_from_san', ['id' => $course->getId(), 'fen' => $board->toFen(), 'fromSan' => $move->getSan()]),
+                    'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'fen' => $board->toFen(), 'fromLan' => $lan]),
                 ]);
 
                 $movesForms[] = [
