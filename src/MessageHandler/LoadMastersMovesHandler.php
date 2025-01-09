@@ -4,16 +4,17 @@ namespace App\MessageHandler;
 
 use App\Entity\MovePopularityMaster;
 use App\Message\LoadMastersMoves;
+use App\Repository\MovePopularityMasterRepository;
 use App\Service\LichessApiService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final class LoadMastersMovesHandler
 {
     public function __construct(
+        private MovePopularityMasterRepository $repo,
         private EntityManagerInterface $em,
         private LichessApiService $lichessApi,
         private LoggerInterface $logger,
@@ -27,10 +28,15 @@ final class LoadMastersMovesHandler
 
         if (isset($responseMoves)) {
 
+            $moves = array_reduce($this->repo->findBy(['since' => '2021', 'until' => '2024', 'FEN' => $message->FEN]), function ($carry, $move) {
+                $carry[$move->getSan()] = $move;
+                return $carry;
+            }, []);
+
             $date = new \DateTime();
 
             foreach ($responseMoves as $move) {
-                $movePopularity = new MovePopularityMaster();
+                $movePopularity = array_key_exists($move['san'], $moves) ? $moves[$move['san']] : new MovePopularityMaster();
                 $movePopularity->setSince('2021');
                 $movePopularity->setUntil('2024');
                 $movePopularity->setFEN($message->FEN);
