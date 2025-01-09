@@ -6,32 +6,28 @@ import { ChessboardEngine } from './chessboardengine/chessboardengine.js'
 let fen = FEN.start;
 let board;
 
-let fromBoard;
+let clicking = false;
 
 let formSubmitting = null;
-let buildingForms = null;
+let buildingFormLinks = null;
 
 function build_move(event) {
-    if (typeof fromBoard === 'undefined' || !fromBoard) {
-        board.playMove(event.target.getAttribute('data-san'));
-    }
-    for (let i = 0; i < buildingForms.length; i++) {
-        let submitButtons = buildingForms[i].querySelectorAll('button[type="submit"]');
-        for (let j = 0; j < submitButtons.length; j++) {
-            submitButtons[j].setAttribute('disabled', true);
-        }
+    console.log('build_move');
+    if (!clicking) {
+        clicking = true;
+        board.playMove(event.currentTarget.getAttribute('data-san'));
+        console.log('end build_move');
     }
 }
 
-function click_move(event) {
+function on_move_played(event) {
     console.log(event);
-    fromBoard = true;
-    for (let i = 0; i < buildingForms.length; i++) {
-        if (buildingForms[i].getAttribute('data-san') === event.san) {
-            buildingForms[i].querySelector('button[type="submit"]').click();
+    clicking = true;
+    for (let i = 0; i < buildingFormLinks.length; i++) {
+        if (buildingFormLinks[i].getAttribute('data-san') === event.san) {
+            buildingFormLinks[i].querySelector('form').requestSubmit();
         }
     }
-    fromBoard = false;
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -40,37 +36,35 @@ document.addEventListener('DOMContentLoaded', function () {
 
     console.log(course);
 
+    board = new ChessboardEngine(document.getElementById('board'), course.blackOrientation ? 'b' : 'w', null, [], fen);
+
     document.addEventListener('turbo:submit-start', (event) => {
+        console.log('submit-start');
         formSubmitting = event.detail.formSubmission;
     });
     document.addEventListener('turbo:submit-end', (event) => {
+        console.log('submit-end');
     });
 
     document.addEventListener('turbo:before-stream-render', (event) => {
-        if (formSubmitting !== null) {
-            if (formSubmitting.formElement.id === 'course_build_start') {
-                board = new ChessboardEngine(document.getElementById('board'), course.blackOrientation ? 'b' : 'w', null, [], fen);
+        console.log('before-stream-render');
+        if (buildingFormLinks !== null) {
+            for (let i = 0; i < buildingFormLinks.length; i++) {
+                buildingFormLinks[i].removeEventListener('click', build_move);
             }
-            if (formSubmitting.formElement.getAttribute('name').startsWith('build_move')) {
-                if (buildingForms !== null) {
-                    for (let i = 0; i < buildingForms.length; i++) {
-                        buildingForms[i].removeEventListener('submit', build_move);
-                    }
-                }
-            }
+            clicking = false;
         }
     });
     document.addEventListener('turbo:after-stream-render', (event) => {
-        if (formSubmitting !== null) {
-            if (formSubmitting.formElement.getAttribute('name').startsWith('build_move')) {
-                buildingForms = document.querySelectorAll('form[name^=build_move]');
-                for (let i = 0; i < buildingForms.length; i++) {
-                    buildingForms[i].addEventListener('submit', build_move);
-                }
-
-                board.enablePlayableMove(click_move, 'analysis');
+        console.log('after-stream-render');
+        if (formSubmitting.formElement.getAttribute('name').startsWith('build_move')) {
+            buildingFormLinks = document.querySelectorAll('a.build_move');
+            for (let i = 0; i < buildingFormLinks.length; i++) {
+                buildingFormLinks[i].addEventListener('click', build_move);
             }
-            formSubmitting = null;
+
+            board.enablePlayableMove(on_move_played);
         }
+        formSubmitting = null;
     });
 });
