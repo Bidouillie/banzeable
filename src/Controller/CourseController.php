@@ -226,6 +226,7 @@ class CourseController extends AbstractController
                     'masters_games' => $mMove ? $mMove->getTotal() : 0,
                     'cover' => $cover,
                     'form' => $form->createView(),
+                    'lan' => $lan,
                 ];
             }
 

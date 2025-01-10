@@ -12,7 +12,7 @@
                 {% set form = move_form.form %}
                 {% set move_games = my_turn ? move_form.masters_games : move.total %}
                 {% set games = my_turn ? masters_games : total_games * selected_multiplier %}
-                <a href="#" class="list-group-item list-group-item-action build_move {% if not move_form.cover %}disabled{% endif %}" data-san="{{ move.san }}" onclick="return false">
+                <a href="#" class="list-group-item list-group-item-action build_move {% if not move_form.cover %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move_form.lan }}" onclick="return false">
                     {{ form_start(form) }}
                     <div class="tw-grid tw-grid-cols-8 tw-gap-7">
                         <div class="tw-col-span-4">{{ move.san }}</div>

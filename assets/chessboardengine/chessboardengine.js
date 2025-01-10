@@ -1,9 +1,11 @@
 
 import '../vendor/cm-chessboard/assets/chessboard.css';
+import '../vendor/cm-chessboard/assets/extensions/arrows/arrows.css';
 import '../vendor/cm-chessboard/assets/extensions/markers/markers.css';
 
 import { Chessboard, COLOR, FEN, INPUT_EVENT_TYPE } from 'cm-chessboard'
 import { Markers } from 'cm-chessboard/src/extensions/markers/Markers.js';
+import { Arrows, ARROW_TYPE } from 'cm-chessboard/src/extensions/arrows/Arrows.js';
 import { Chess } from '@jackstenglein/chess';
 
 export class ChessboardEngine {
@@ -34,7 +36,7 @@ export class ChessboardEngine {
             position: fen,
             orientation: orientation === 'w' ? COLOR.white : COLOR.black,
             assetsUrl: '/cm-chessboard/assets/',
-            extensions: [{ class: Markers }],
+            extensions: [{ class: Markers }, { class: Arrows }],
             style: {
                 pieces: {
                     file: '/cm-chessboard/assets/pieces/staunty.svg',
@@ -290,5 +292,13 @@ export class ChessboardEngine {
                 return false;
         }
         return true;
+    }
+
+    addArrow(lan) {
+        this._board.addArrow(ARROW_TYPE.pointy, lan.substring(0, 2), lan.substring(2, 4))
+    }
+
+    removeArrows() {
+        this._board.removeArrows();
     }
 }

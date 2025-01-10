@@ -46,10 +46,17 @@ return [
     'cm-chessboard' => [
         'version' => '8.7.4',
     ],
+    'cm-chessboard/src/extensions/arrows/Arrows.js' => [
+        'version' => '8.7.4',
+    ],
     'cm-chessboard/src/extensions/markers/Markers.js' => [
         'version' => '8.7.4',
     ],
     'cm-chessboard/assets/chessboard.css' => [
+        'version' => '8.7.4',
+        'type' => 'css',
+    ],
+    'cm-chessboard/assets/extensions/arrows/arrows.css' => [
         'version' => '8.7.4',
         'type' => 'css',
     ],
