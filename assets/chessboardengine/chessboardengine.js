@@ -4,7 +4,7 @@ import '../vendor/cm-chessboard/assets/extensions/arrows/arrows.css';
 import '../vendor/cm-chessboard/assets/extensions/markers/markers.css';
 
 import { Chessboard, COLOR, FEN, INPUT_EVENT_TYPE } from 'cm-chessboard'
-import { Markers } from 'cm-chessboard/src/extensions/markers/Markers.js';
+import { Markers, MARKER_TYPE } from 'cm-chessboard/src/extensions/markers/Markers.js';
 import { Arrows, ARROW_TYPE } from 'cm-chessboard/src/extensions/arrows/Arrows.js';
 import { Chess } from '@jackstenglein/chess';
 
@@ -125,7 +125,10 @@ export class ChessboardEngine {
                 return this._validateMoveInput(event);
             case INPUT_EVENT_TYPE.moveInputFinished:
                 if (event.legalMove) {
+                    this._board.removeMarkers();
                     this._moveInputFinished();
+                    this._board.addMarker(MARKER_TYPE.bevel, event.squareFrom);
+                    this._board.addMarker(MARKER_TYPE.bevel, event.squareTo);
                 }
                 break;
         }
@@ -150,7 +153,11 @@ export class ChessboardEngine {
             /**
              * Play board move
              */
-            this._board.movePiece(move.from, move.to, true);
+            this._board.removeMarkers();
+            this._board.addMarker(MARKER_TYPE.bevel, move.from);
+            this._board.movePiece(move.from, move.to, true).then(() => {
+                this._board.addMarker(MARKER_TYPE.bevel, move.to);
+            });
             switch (true) {
                 case move.flags.includes('k'):
                 case move.flags.includes('q'):
@@ -172,7 +179,7 @@ export class ChessboardEngine {
                     this._board.setPiece(move.to, move.color + move.promotion);
                     break;
             }
-            return true;
+            return move;
         }
         return false;
     }
@@ -191,7 +198,13 @@ export class ChessboardEngine {
             /**
              * Play board move
              */
-            this._board.movePiece(move.to, move.from, true);
+            this._board.removeMarkers();
+            this._board.movePiece(move.to, move.from, true).then(() => {
+                if (move.previous) {
+                    this._board.addMarker(MARKER_TYPE.bevel, move.previous.from);
+                    this._board.addMarker(MARKER_TYPE.bevel, move.previous.to);
+                }
+            });
             switch (true) {
                 case move.flags.includes('k'):
                 case move.flags.includes('q'):

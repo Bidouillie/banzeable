@@ -67,7 +67,7 @@ export class VariationChessboardEngine extends ChessboardEngine {
     nextMove() {
         let movePlayed = super.nextMove();
 
-        if (movePlayed && move.ply === this.#halfMovesProgress) {
+        if (movePlayed && movePlayed.ply === this.#halfMovesProgress) {
             this._enableMoveInput();
         } else {
             this._board.disableMoveInput();
