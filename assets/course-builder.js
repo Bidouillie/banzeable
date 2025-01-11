@@ -21,13 +21,13 @@ function build_move(event) {
     }
 }
 
-function mouse_over(event) {
+function mouse_enter(event) {
     if (!clicking) {
         board.addArrow(event.currentTarget.getAttribute('data-lan'));
     }
 }
 
-function mouse_out() {
+function mouse_leave() {
     if (!clicking) {
         board.removeArrows();
     }
@@ -62,8 +62,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (buildingFormLinks !== null) {
             for (let i = 0; i < buildingFormLinks.length; i++) {
                 buildingFormLinks[i].removeEventListener('click', build_move);
-                buildingFormLinks[i].removeEventListener('mouseover', mouse_over);
-                buildingFormLinks[i].removeEventListener('mouseout', mouse_out);
+                buildingFormLinks[i].removeEventListener('mouseenter', mouse_enter);
+                buildingFormLinks[i].removeEventListener('mouseleave', mouse_leave);
             }
             clicking = false;
         }
@@ -74,8 +74,8 @@ document.addEventListener('DOMContentLoaded', function () {
             buildingFormLinks = document.querySelectorAll('a.build_move');
             for (let i = 0; i < buildingFormLinks.length; i++) {
                 buildingFormLinks[i].addEventListener('click', build_move);
-                buildingFormLinks[i].addEventListener('mouseover', mouse_over);
-                buildingFormLinks[i].addEventListener('mouseout', mouse_out);
+                buildingFormLinks[i].addEventListener('mouseenter', mouse_enter);
+                buildingFormLinks[i].addEventListener('mouseleave', mouse_leave);
             }
 
             board.enablePlayableMove(on_move_played);
