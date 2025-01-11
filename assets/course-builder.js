@@ -16,7 +16,7 @@ function build_move(event) {
     if (!clicking) {
         clicking = true;
         board.removeArrows();
-        board.playMove(event.currentTarget.getAttribute('data-san'));
+        board.playMoves(event.currentTarget.getAttribute('data-san'));
         console.log('end build_move');
     }
 }

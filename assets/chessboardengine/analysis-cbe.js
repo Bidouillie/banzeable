@@ -30,8 +30,8 @@ export class AnalysisChessboardEngine extends ChessboardEngine {
         this._fireMoveEvent(event);
     }
 
-    playMove(sanMove) {
-        if (this._playMove(sanMove)) {
+    playMoves(sanMoves) {
+        if (this._playMoves(sanMoves)) {
             this._fireMoveEvent();
             this.#switchTurn();
         }

@@ -141,98 +141,122 @@ export class ChessboardEngine {
         }
     }
 
-    _playMove(sanMove) {
+    _playMoves(sanMoves) {
 
-        if (sanMove) {
+        if (sanMoves && (typeof sanMoves === 'string' || sanMoves.length > 0)) {
+
+            if (typeof sanMoves === 'string') {
+                sanMoves = [sanMoves];
+            }
 
             /**
-             * Play chess move
+             * Play chess moves
              */
-            const move = this._chess.move(sanMove);
+            let moves = [];
+            for (let i = 0; i < sanMoves.length; i++) {
+                moves.push(this._chess.move(sanMoves[i]));
+            }
 
             /**
-             * Play board move
+             * Play board moves
              */
             this._board.removeMarkers();
-            this._board.addMarker(MARKER_TYPE.bevel, move.from);
-            this._board.movePiece(move.from, move.to, true).then(() => {
-                this._board.addMarker(MARKER_TYPE.bevel, move.to);
-            });
-            switch (true) {
-                case move.flags.includes('k'):
-                case move.flags.includes('q'):
-                    let from;
-                    let to;
-                    if (move.flags.includes('k')) {
-                        from = 'h' + move.from.substring(1);
-                        to = 'f' + move.to.substring(1);
-                    } else {
-                        from = 'a' + move.from.substring(1);
-                        to = 'd' + move.to.substring(1);
-                    }
-                    this._board.movePiece(from, to, true);
-                    break;
-                case move.flags.includes('e'):
-                    this._board.setPiece(move.to.substring(0, 1) + move.from.substring(1), null);
-                    break;
-                case move.flags.includes('p'):
-                    this._board.setPiece(move.to, move.color + move.promotion);
-                    break;
+            if (moves.length === 1) {
+                this._board.addMarker(MARKER_TYPE.bevel, moves[0].from);
             }
-            return move;
+            for (let i = 0; i < moves.length; i++) {
+                const move = moves[i];
+                this._board.movePiece(move.from, move.to, true).then(() => {
+                    if (i === sanMoves.length - 2) {
+                        this._board.addMarker(MARKER_TYPE.bevel, moves[i + 1].from);
+                    }
+                    if (i === sanMoves.length - 1) {
+                        this._board.addMarker(MARKER_TYPE.bevel, move.to);
+                    }
+                });
+                switch (true) {
+                    case move.flags.includes('k'):
+                    case move.flags.includes('q'):
+                        let from;
+                        let to;
+                        if (move.flags.includes('k')) {
+                            from = 'h' + move.from.substring(1);
+                            to = 'f' + move.to.substring(1);
+                        } else {
+                            from = 'a' + move.from.substring(1);
+                            to = 'd' + move.to.substring(1);
+                        }
+                        this._board.movePiece(from, to, true);
+                        break;
+                    case move.flags.includes('e'):
+                        this._board.setPiece(move.to.substring(0, 1) + move.from.substring(1), null);
+                        break;
+                    case move.flags.includes('p'):
+                        this._board.setPiece(move.to, move.color + move.promotion);
+                        break;
+                }
+            }
+            return moves.slice(-1)[0];
         }
         return false;
     }
 
-    _undoMove() {
+    _undoMove(repeat = 1) {
 
-        const move = this._chess.currentMove();
+        let move;
 
-        if (move) {
+        for (let i = repeat; i > 0; i--) {
 
-            /**
-             * Play chess move
-             */
-            this._chess.seek(move.previous);
+            move = this._chess.currentMove();
 
-            /**
-             * Play board move
-             */
-            this._board.removeMarkers();
-            this._board.movePiece(move.to, move.from, true).then(() => {
-                if (move.previous) {
-                    this._board.addMarker(MARKER_TYPE.bevel, move.previous.from);
-                    this._board.addMarker(MARKER_TYPE.bevel, move.previous.to);
+            if (move) {
+
+                /**
+                 * Play chess move
+                 */
+                this._chess.seek(move.previous);
+
+                /**
+                 * Play board move
+                 */
+                if (i === repeat) {
+                    this._board.removeMarkers();
                 }
-            });
-            switch (true) {
-                case move.flags.includes('k'):
-                case move.flags.includes('q'):
-                    let from;
-                    let to;
-                    if (move.flags.includes('k')) {
-                        from = 'h' + move.from.substring(1);
-                        to = 'f' + move.to.substring(1);
-                    } else {
-                        from = 'a' + move.from.substring(1);
-                        to = 'd' + move.to.substring(1);
+                this._board.movePiece(move.to, move.from, true).then(() => {
+                    if (move.previous && i === 1) {
+                        this._board.addMarker(MARKER_TYPE.bevel, move.previous.from);
+                        this._board.addMarker(MARKER_TYPE.bevel, move.previous.to);
                     }
-                    this._board.movePiece(to, from, true);
-                    break;
-                case move.flags.includes('e'):
-                    this._board.setPiece(move.to.substring(0, 1) + move.from.substring(1), move.color + 'p');
-                    break;
-                case move.flags.includes('p'):
-                    this._board.setPiece(move.from, move.color + 'p');
-                    break;
-            }
+                });
+                switch (true) {
+                    case move.flags.includes('k'):
+                    case move.flags.includes('q'):
+                        let from;
+                        let to;
+                        if (move.flags.includes('k')) {
+                            from = 'h' + move.from.substring(1);
+                            to = 'f' + move.to.substring(1);
+                        } else {
+                            from = 'a' + move.from.substring(1);
+                            to = 'd' + move.to.substring(1);
+                        }
+                        this._board.movePiece(to, from, true);
+                        break;
+                    case move.flags.includes('e'):
+                        this._board.setPiece(move.to.substring(0, 1) + move.from.substring(1), move.color + 'p');
+                        break;
+                    case move.flags.includes('p'):
+                        this._board.setPiece(move.from, move.color + 'p');
+                        break;
+                }
 
-            if (move.flags.includes('c')) {
-                this._board.setPiece(move.to, (move.color === 'w' ? 'b' : 'w') + move.captured);
+                if (move.flags.includes('c')) {
+                    this._board.setPiece(move.to, (move.color === 'w' ? 'b' : 'w') + move.captured);
+                }
             }
-
-            return move;
         }
+
+        return move;
     }
 
     /**
@@ -267,7 +291,7 @@ export class ChessboardEngine {
     nextMove() {
         const move = this._chess.nextMove();
         if (move) {
-            return this._playMove(move.san);
+            return this._playMoves(move.san);
         }
     }
 
@@ -285,21 +309,20 @@ export class ChessboardEngine {
 
         const currentMove = this._chess.currentMove();
         const currentIndex = currentMove ? currentMove.ply : 0;
+
         switch (true) {
             case index > currentIndex:
-                let nextMove;
-                do {
-                    nextMove = this._chess.nextMove();
-                    if (nextMove) {
-                        this._playMove(nextMove.san);
-                    }
-                } while (nextMove && nextMove.ply < index);
+                const sanMoves = [];
+                let nextMove = this._chess.nextMove();
+                sanMoves.push(nextMove.san);
+                while (nextMove && nextMove.ply < index) {
+                    nextMove = nextMove.next;
+                    sanMoves.push(nextMove.san);
+                }
+                this._playMoves(sanMoves);
                 break;
             case index < currentIndex:
-                let previousMove;
-                do {
-                    previousMove = this._undoMove();
-                } while (previousMove && previousMove.ply > index);
+                this._undoMove(currentIndex - index);
                 break;
             default:
                 return false;

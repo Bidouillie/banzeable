@@ -16,7 +16,7 @@ export class VariationChessboardEngine extends ChessboardEngine {
             if (this._autoNext !== false) {
                 setTimeout(() => {
                     const move = this._chess.nextMove();
-                    if (move && this._playMove(move.san)) {
+                    if (move && this._playMoves(move.san)) {
                         this.#halfMovesProgress++;
                         this._fireMoveEvent();
                         this._enableMoveInput();
@@ -57,7 +57,7 @@ export class VariationChessboardEngine extends ChessboardEngine {
     enablePlayableMove(moveHandler, autoNext = false) {
         super.enablePlayableMove(moveHandler, autoNext);
         if (this.orientation !== this._chess.turn()) {
-            if (this._playMove(this._chess.nextMove().san)) {
+            if (this._playMoves(this._chess.nextMove().san)) {
                 this.#halfMovesProgress++;
                 this._fireMoveEvent();
             }
@@ -66,11 +66,13 @@ export class VariationChessboardEngine extends ChessboardEngine {
 
     nextMove() {
         let movePlayed = super.nextMove();
-
-        if (movePlayed && movePlayed.ply === this.#halfMovesProgress) {
-            this._enableMoveInput();
-        } else {
-            this._board.disableMoveInput();
+        if (movePlayed) {
+            if (movePlayed.ply === this.#halfMovesProgress) {
+                this._enableMoveInput();
+            } else {
+                this._board.disableMoveInput();
+            }
+            return movePlayed;
         }
     }
 
