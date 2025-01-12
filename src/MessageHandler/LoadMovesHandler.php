@@ -36,6 +36,9 @@ final class LoadMovesHandler
             $date = new \DateTime();
 
             foreach ($responseMoves as $move) {
+                /**
+                 * @var MovePopularity $movePopularity
+                 */
                 $movePopularity = array_key_exists($move['san'], $moves) ? $moves[$move['san']] : new MovePopularity();
                 $movePopularity->setVariant('standard');
                 $movePopularity->setSpeeds('rapid');

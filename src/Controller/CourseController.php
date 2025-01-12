@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\Course;
+use App\Entity\MovePopularity;
+use App\Entity\MovePopularityMaster;
 use App\Entity\User;
 use App\Entity\Variation;
 use App\Form\BuildMoveType;
@@ -98,7 +100,6 @@ class CourseController extends AbstractController
         $form = $this->createForm(
             BuildMoveType::class,
             [
-                'san' => '-',
                 'ply' => 0,
                 'selectedPercentHistory' => [],
             ],
@@ -134,6 +135,9 @@ class CourseController extends AbstractController
             $mMoves = $masterRepo->findByFen($fen);
             $moves = $repo->findByFEN($fen);
 
+            /**
+             * @var \App\Entity\MovePopularityMaster[] $mMoves
+             */
             $mMoves = array_reduce($mMoves, function ($carry, $move) {
                 $carry[$move->getSan()] = $move;
                 return $carry;
@@ -178,7 +182,11 @@ class CourseController extends AbstractController
                 });
             }
 
+            $date = new \DateTime();
+
             $movesForms = [];
+
+            $messages = [];
 
             foreach ($moves as $move) {
 
@@ -200,16 +208,30 @@ class CourseController extends AbstractController
                 }
 
                 if ($cover) {
-                    if (!$move->isNextMovesLoaded()) {
-                        $bus->dispatch(new LoadMoves($board->toFen()));
-                        $move->setNextMovesLoaded(true);
-                    }
+                    if ($masterRepo->findOneBy(['since' => '2021', 'until' => '2024', 'FEN' => $board->toFen()]) === null) {
+                        $movePopularity = new MovePopularityMaster();
+                        $movePopularity->setSince('2021');
+                        $movePopularity->setUntil('2024');
+                        $movePopularity->setFEN($board->toFen());
+                        $movePopularity->setSan('-');
+                        $movePopularity->setDateCreated($date);
 
-                    if (isset($mMove)) {
-                        if (!$mMove->isNextMovesLoaded()) {
-                            $bus->dispatch(new LoadMastersMoves($board->toFen()));
-                            $mMove->setNextMovesLoaded(true);
-                        }
+                        $em->persist($movePopularity);
+                        $messages[] = new LoadMastersMoves($board->toFen());
+                    }
+                    if ($repo->findOneBy(['variant' => 'standard', 'speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12', 'FEN' => $board->toFen()]) === null) {
+                        $movePopularity = new MovePopularity();
+                        $movePopularity->setVariant('standard');
+                        $movePopularity->setSpeeds('rapid');
+                        $movePopularity->setRatings('1600,1800');
+                        $movePopularity->setSince('2021-01');
+                        $movePopularity->setUntil('2024-12');
+                        $movePopularity->setFEN($board->toFen());
+                        $movePopularity->setSan('-');
+                        $movePopularity->setDateCreated($date);
+
+                        $em->persist($movePopularity);
+                        $messages[] = new LoadMoves($board->toFen());
                     }
                 }
 
@@ -231,6 +253,10 @@ class CourseController extends AbstractController
             }
 
             $em->flush();
+
+            foreach ($messages as $message) {
+                $bus->dispatch($message);
+            }
 
             return $this->render('course/build_moves.html.twig', [
                 'course' => $course,

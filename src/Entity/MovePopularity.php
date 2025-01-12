@@ -40,22 +40,16 @@ class MovePopularity
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $date_created = null;
 
-    #[ORM\Column]
+    #[ORM\Column(nullable: true)]
     private ?int $white = null;
 
-    #[ORM\Column]
+    #[ORM\Column(nullable: true)]
     private ?int $black = null;
 
-    #[ORM\Column]
+    #[ORM\Column(nullable: true)]
     private ?int $draws = null;
 
-    #[ORM\Column(options: ['default' => false])]
-    private ?bool $nextMovesLoaded = null;
-
-    public function __construct()
-    {
-        $this->setNextMovesLoaded(false);
-    }
+    public function __construct() {}
 
     public function getVariant(): ?string
     {
@@ -192,17 +186,5 @@ class MovePopularity
     public function getTotal(): ?int
     {
         return $this->getWhite() + $this->getBlack() + $this->getDraws();
-    }
-
-    public function isNextMovesLoaded(): ?bool
-    {
-        return $this->nextMovesLoaded;
-    }
-
-    public function setNextMovesLoaded(bool $nextMovesLoaded): static
-    {
-        $this->nextMovesLoaded = $nextMovesLoaded;
-
-        return $this;
     }
 }
