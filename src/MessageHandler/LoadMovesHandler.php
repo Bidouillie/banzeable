@@ -28,7 +28,7 @@ final class LoadMovesHandler
 
         if (isset($responseMoves)) {
 
-            $moves = array_reduce($this->repo->findBy(['variant' => 'standard', 'speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12', 'FEN' => $message->FEN]), function ($carry, $move) {
+            $moves = array_reduce($this->repo->findBy(['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12', 'FEN' => $message->FEN]), function ($carry, $move) {
                 $carry[$move->getSan()] = $move;
                 return $carry;
             }, []);
@@ -40,7 +40,6 @@ final class LoadMovesHandler
                  * @var MovePopularity $movePopularity
                  */
                 $movePopularity = array_key_exists($move['san'], $moves) ? $moves[$move['san']] : new MovePopularity();
-                $movePopularity->setVariant('standard');
                 $movePopularity->setSpeeds('rapid');
                 $movePopularity->setRatings('1600,1800');
                 $movePopularity->setSince('2021-01');

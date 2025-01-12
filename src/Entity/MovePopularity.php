@@ -11,10 +11,6 @@ class MovePopularity
 {
     #[ORM\Id]
     #[ORM\Column(length: 255)]
-    private ?string $variant = null;
-
-    #[ORM\Id]
-    #[ORM\Column(length: 255)]
     private ?string $speeds = null;
 
     #[ORM\Id]
@@ -50,18 +46,6 @@ class MovePopularity
     private ?int $draws = null;
 
     public function __construct() {}
-
-    public function getVariant(): ?string
-    {
-        return $this->variant;
-    }
-
-    public function setVariant(string $variant): static
-    {
-        $this->variant = $variant;
-
-        return $this;
-    }
 
     public function getSpeeds(): ?string
     {

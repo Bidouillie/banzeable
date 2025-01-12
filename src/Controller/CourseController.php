@@ -219,9 +219,8 @@ class CourseController extends AbstractController
                         $em->persist($movePopularity);
                         $messages[] = new LoadMastersMoves($board->toFen());
                     }
-                    if ($repo->findOneBy(['variant' => 'standard', 'speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12', 'FEN' => $board->toFen()]) === null) {
+                    if ($repo->findOneBy(['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12', 'FEN' => $board->toFen()]) === null) {
                         $movePopularity = new MovePopularity();
-                        $movePopularity->setVariant('standard');
                         $movePopularity->setSpeeds('rapid');
                         $movePopularity->setRatings('1600,1800');
                         $movePopularity->setSince('2021-01');

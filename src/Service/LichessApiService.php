@@ -6,8 +6,6 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class LichessApiService
 {
-    private $client;
-
     private string $apiUrl;
     private string $explorerUrl;
 
@@ -17,9 +15,9 @@ class LichessApiService
     private $sinceYear = '2021';
     private $untilYear = '2024';
 
-    public function __construct(HttpClientInterface $client)
-    {
-        $this->client = $client;
+    public function __construct(
+        private readonly HttpClientInterface $client,
+    ) {
         $this->apiUrl = "https://lichess.org/api";
         $this->explorerUrl = "https://explorer.lichess.ovh";
     }
@@ -50,7 +48,7 @@ class LichessApiService
         }
     }
 
-    public function getLichessMoves(string $fen, string $variant = null, array $speeds = null, array $ratings = null, int $since = null, int $until = null)
+    public function getLichessMoves(string $fen, string $variant = null, array $speeds = [], array $ratings = [], int $since = null, int $until = null)
     {
         $url = $this->explorerUrl . '/lichess';
 
