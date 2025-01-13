@@ -3,17 +3,14 @@
 namespace App\Controller;
 
 use App\Entity\Course;
-use App\Entity\MovePopularity;
-use App\Entity\MovePopularityMaster;
 use App\Entity\User;
 use App\Entity\Variation;
 use App\Form\BuildMoveType;
 use App\Form\StudyToggleType;
-use App\Message\LoadMastersMoves;
-use App\Message\LoadMoves;
 use App\Repository\CourseRepository;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
+use App\Service\MoveBuilderService;
 use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -22,7 +19,6 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -118,7 +114,7 @@ class CourseController extends AbstractController
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build-moves/{fen}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
     #[Route('/course/{id}/build-moves/{fen}/{fromLan}', name: 'app_course_build_moves_from_lan', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$', 'lan' => '^([a-h][1-8]){2}$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, ?string $fromLan, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, EntityManagerInterface $em, MessageBusInterface $bus, FormFactoryInterface $formFactory): Response
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, ?string $fromLan, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, MoveBuilderService $mbService, FormFactoryInterface $formFactory): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -132,35 +128,18 @@ class CourseController extends AbstractController
             $ply = intval($form->get('ply')->getData());
             $selectedPercentHistory = $form->get('selectedPercentHistory')->getData();
 
-            $mMoves = $masterRepo->findByFen($fen);
-            $moves = $repo->findByFEN($fen);
+            $mMoves = $masterRepo->findByFen($fen, $mastersGames);
+            $moves = $repo->findByFEN($fen, $games);
 
-            /**
-             * @var \App\Entity\MovePopularityMaster[] $mMoves
-             */
-            $mMoves = array_reduce($mMoves, function ($carry, $move) {
-                $carry[$move->getSan()] = $move;
-                return $carry;
-            }, []);
-
-            $mastersGames = array_key_exists('-', $mMoves) ? $mMoves['-']->getTotal() : 0;
-            $games = 0;
-
-            foreach ($moves as $key => $move) {
-                if ($move->getSan() === '-') {
-                    $games = $move->getTotal() ?? 0;
-                    unset($moves[$key]);
-                    break;
-                }
-            }
-
-            $formData = [
-                'ply' => $ply + 1,
-                'totalGames' => $ply > 0 ? intval($form->get('totalGames')->getData()) : $games,
-            ];
+            $totalGames = $ply > 0 ? intval($form->get('totalGames')->getData()) : $games;
 
             $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
-            $selectedMultiplier = 1;
+
+            $even = true;
+            $selectedMultiplier = array_reduce($selectedPercentHistory, function ($carry, $number) use (&$even) {
+                $even = !$even;
+                return $even ? $carry * $number : $carry / $number;
+            }, 1);
 
             if ($myTurn) {
                 usort($moves, function ($move1, $move2) use ($mMoves) {
@@ -171,22 +150,12 @@ class CourseController extends AbstractController
                     return $mastersGames2 - $mastersGames1;
                 });
             } else {
-                $even = true;
-                foreach ($selectedPercentHistory as $number) {
-                    $even = !$even;
-                    $selectedMultiplier = $even ? $selectedMultiplier * $number : $selectedMultiplier / $number;
-                }
-
                 usort($moves, function ($move1, $move2) {
                     return $move2->getTotal() - $move1->getTotal();
                 });
             }
 
-            $date = new \DateTime();
-
             $movesForms = [];
-
-            $messages = [];
 
             foreach ($moves as $move) {
 
@@ -204,40 +173,18 @@ class CourseController extends AbstractController
                     $cover = isset($mMove) && $mMove->getTotal() > $mastersGames / 100;
                     array_push($moveSelectedPercentHistory, $games, $move->getTotal());
                 } else {
-                    $cover = $move->getTotal() > $formData['totalGames'] * $selectedMultiplier / $course->getCoverage();
+                    $cover = $move->getTotal() > $totalGames * $selectedMultiplier / $course->getCoverage();
                 }
 
                 if ($cover) {
-                    if ($masterRepo->findOneBy(['since' => '2021', 'until' => '2024', 'FEN' => $board->toFen()]) === null) {
-                        $movePopularity = new MovePopularityMaster();
-                        $movePopularity->setSince('2021');
-                        $movePopularity->setUntil('2024');
-                        $movePopularity->setFEN($board->toFen());
-                        $movePopularity->setSan('-');
-                        $movePopularity->setDateCreated($date);
-
-                        $em->persist($movePopularity);
-                        $messages[] = new LoadMastersMoves($board->toFen());
-                    }
-                    if ($repo->findOneBy(['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12', 'FEN' => $board->toFen()]) === null) {
-                        $movePopularity = new MovePopularity();
-                        $movePopularity->setSpeeds('rapid');
-                        $movePopularity->setRatings('1600,1800');
-                        $movePopularity->setSince('2021-01');
-                        $movePopularity->setUntil('2024-12');
-                        $movePopularity->setFEN($board->toFen());
-                        $movePopularity->setSan('-');
-                        $movePopularity->setDateCreated($date);
-
-                        $em->persist($movePopularity);
-                        $messages[] = new LoadMoves($board->toFen());
-                    }
+                    $mbService->preloadMoves($board->toFen());
                 }
 
                 $form = $formFactory->createNamed("build_move_$lan", BuildMoveType::class, [
+                    'ply' => $ply + 1,
                     'san' => $move->getSan(),
                     'selectedPercentHistory' => $moveSelectedPercentHistory,
-                    ...$formData
+                    'totalGames' => $totalGames,
                 ], [
                     'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'fen' => $board->toFen(), 'fromLan' => $lan]),
                 ]);
@@ -251,19 +198,13 @@ class CourseController extends AbstractController
                 ];
             }
 
-            $em->flush();
-
-            foreach ($messages as $message) {
-                $bus->dispatch($message);
-            }
-
             return $this->render('course/build_moves.html.twig', [
                 'course' => $course,
                 'fen' => $fen,
                 'my_turn' => $myTurn,
                 'selected_multiplier' => $selectedMultiplier,
                 'masters_games' => $mastersGames,
-                'total_games' => $formData['totalGames'],
+                'total_games' => $totalGames,
                 'moves_forms' => $movesForms,
             ]);
         }

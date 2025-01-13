@@ -45,7 +45,12 @@ class MovePopularity
     #[ORM\Column(nullable: true)]
     private ?int $draws = null;
 
-    public function __construct() {}
+    public function __construct() {
+        $this->setSpeeds('rapid');
+        $this->setRatings('1600,1800');
+        $this->setSince('2021-01');
+        $this->setUntil('2024-12');
+    }
 
     public function getSpeeds(): ?string
     {

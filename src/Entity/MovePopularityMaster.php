@@ -40,7 +40,10 @@ class MovePopularityMaster
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $opening = null;
 
-    public function __construct() {}
+    public function __construct() {
+        $this->setSince('2021');
+        $this->setUntil('2024');
+    }
 
     public function getSince(): ?string
     {

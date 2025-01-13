@@ -20,12 +20,21 @@ class MovePopularityRepository extends ServiceEntityRepository
     /**
      * @return MovePopularity[]
      */
-    public function findByFEN(string $FEN)
+    public function findByFEN(string $FEN, &$games)
     {
         $qb = $this->createQueryBuilder('a')
             ->andWhere('a.FEN = :FEN')
             ->setParameter('FEN', $FEN);
 
-        return $qb->getQuery()->getResult();
+        $moves = $qb->getQuery()->getResult();
+
+        foreach ($moves as $key => $move) {
+            if ($move->getSan() === '-') {
+                $games = $move->getTotal() ?? 0;
+                unset($moves[$key]);
+            }
+        }
+
+        return $moves;
     }
 }
