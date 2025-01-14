@@ -48,7 +48,7 @@ class LichessApiService
         }
     }
 
-    public function getLichessMoves(string $fen, string $variant = null, array $speeds = [], array $ratings = [], int $since = null, int $until = null)
+    public function getLichessMoves(string $fen, string $variant = null, array $speeds = null, array $ratings = null, int $since = null, int $until = null)
     {
         $url = $this->explorerUrl . '/lichess';
 

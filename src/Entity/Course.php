@@ -39,9 +39,6 @@ class Course
     #[ORM\Column(nullable: true)]
     private ?float $price = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $PGN = null;
-
     #[ORM\Column(nullable: true)]
     private ?int $coverage = null;
 
@@ -142,18 +139,6 @@ class Course
     public function setPrice(?float $price): static
     {
         $this->price = $price;
-
-        return $this;
-    }
-
-    public function getPGN(): ?string
-    {
-        return $this->PGN;
-    }
-
-    public function setPGN(?string $PGN): static
-    {
-        $this->PGN = $PGN;
 
         return $this;
     }

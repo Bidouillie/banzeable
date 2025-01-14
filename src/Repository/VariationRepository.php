@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Entity\Course;
 use App\Entity\Variation;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -16,28 +17,23 @@ class VariationRepository extends ServiceEntityRepository
         parent::__construct($registry, Variation::class);
     }
 
-//    /**
-//     * @return Variation[] Returns an array of Variation objects
-//     */
-//    public function findByExampleField($value): array
-//    {
-//        return $this->createQueryBuilder('v')
-//            ->andWhere('v.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->orderBy('v.id', 'ASC')
-//            ->setMaxResults(10)
-//            ->getQuery()
-//            ->getResult()
-//        ;
-//    }
+    /**
+     * @return Variation[]
+     */
+    public function findByMoveFromCourse(string $FEN, string $SAN, Course $course)
+    {
+        $qb = $this->createQueryBuilder('variation')
+            ->innerJoin('variation.moves', 'move')
+            ->innerJoin('move.notation', 'notation')
+            ->andWhere('variation.course = :course')
+            ->andWhere('notation.FEN = :FEN')
+            ->andWhere('notation.text = :SAN')
+            ->setParameter('course', $course)
+            ->setParameter('FEN', $FEN)
+            ->setParameter('SAN', $SAN);
 
-//    public function findOneBySomeField($value): ?Variation
-//    {
-//        return $this->createQueryBuilder('v')
-//            ->andWhere('v.exampleField = :val')
-//            ->setParameter('val', $value)
-//            ->getQuery()
-//            ->getOneOrNullResult()
-//        ;
-//    }
+        $variations = $qb->getQuery()->getResult();
+
+        return $variations;
+    }
 }

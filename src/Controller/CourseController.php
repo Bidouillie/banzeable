@@ -7,9 +7,12 @@ use App\Entity\User;
 use App\Entity\Variation;
 use App\Form\BuildMoveType;
 use App\Form\StudyToggleType;
+use App\Form\VariationFromPGNMovesType;
 use App\Repository\CourseRepository;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
+use App\Repository\NotationRepository;
+use App\Repository\VariationRepository;
 use App\Service\MoveBuilderService;
 use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
@@ -93,14 +96,17 @@ class CourseController extends AbstractController
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
+        $fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
+
         $form = $this->createForm(
             BuildMoveType::class,
             [
                 'ply' => 0,
                 'selectedPercentHistory' => [],
+                'canSave' => false,
             ],
             [
-                'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -']),
+                'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'fen' => $fen]),
             ]
         );
 
@@ -114,7 +120,7 @@ class CourseController extends AbstractController
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build-moves/{fen}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
     #[Route('/course/{id}/build-moves/{fen}/{fromLan}', name: 'app_course_build_moves_from_lan', requirements: ['id' => '\d+', 'fen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$', 'lan' => '^([a-h][1-8]){2}$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, ?string $fromLan, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, MoveBuilderService $mbService, FormFactoryInterface $formFactory): Response
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $fen, ?string $fromLan, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, VariationRepository $variationRepo, NotationRepository $notationRepo, MoveBuilderService $mbService, FormFactoryInterface $formFactory): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -125,8 +131,11 @@ class CourseController extends AbstractController
             $form->handleRequest($request);
 
             // TODO check if form submitted ?
+            $fromFEN = $form->get('fromFEN')->getData();
+            $fromSAN = $form->get('fromSAN')->getData();
             $ply = intval($form->get('ply')->getData());
             $selectedPercentHistory = $form->get('selectedPercentHistory')->getData();
+            $canSave = $form->get('canSave')->getData();
 
             $mMoves = $masterRepo->findByFen($fen, $mastersGames);
             $moves = $repo->findByFEN($fen, $games);
@@ -141,12 +150,20 @@ class CourseController extends AbstractController
                 return $even ? $carry * $number : $carry / $number;
             }, 1);
 
+            $movesReached = $notationRepo->findByFENFromCourse($fen, $course, 'SAN');
+
             if ($myTurn) {
-                usort($moves, function ($move1, $move2) use ($mMoves) {
+                usort($moves, function ($move1, $move2) use ($mMoves, $movesReached) {
+                    if (array_key_exists($move1->getSan(), $movesReached) xor array_key_exists($move2->getSan(), $movesReached)) {
+                        return array_key_exists($move1->getSan(), $movesReached) ? -1 : 1;
+                    }
                     $mMove1 = array_key_exists($move1->getSan(), $mMoves) ? $mMoves[$move1->getSan()] : null;
                     $mMove2 = array_key_exists($move2->getSan(), $mMoves) ? $mMoves[$move2->getSan()] : null;
                     $mastersGames1 = $mMove1 ? $mMove1->getTotal() : 0;
                     $mastersGames2 = $mMove2 ? $mMove2->getTotal() : 0;
+                    if ($mastersGames1 === $mastersGames2) {
+                        return $move2->getTotal() - $move1->getTotal();
+                    }
                     return $mastersGames2 - $mastersGames1;
                 });
             } else {
@@ -155,14 +172,27 @@ class CourseController extends AbstractController
                 });
             }
 
+            if (isset($fromFEN) && isset($fromSAN) && !$canSave && !$myTurn) {
+                $variationsReached = $variationRepo->findByMoveFromCourse($fromFEN, $fromSAN, $course);
+
+                if (empty($variationsReached)) {
+                    $canSave = true;
+                }
+            }
+
             $movesForms = [];
+            $FENsReached = [];
 
             foreach ($moves as $move) {
 
-                $mMove = array_key_exists($move->getSan(), $mMoves) ? $mMoves[$move->getSan()] : null;
+                $SAN = $move->getSan();
+
+                $mMove = array_key_exists($SAN, $mMoves) ? $mMoves[$SAN] : null;
 
                 $board = FenToBoardFactory::create($fen);
-                $board->play($board->turn, $move->getSan());
+                $board->play($board->turn, $SAN);
+
+                $FENReached = $board->toFen();
 
                 $last = end($board->history);
                 $lan = $last['from'] . $last['to'];
@@ -177,35 +207,59 @@ class CourseController extends AbstractController
                 }
 
                 if ($cover) {
-                    $mbService->preloadMoves($board->toFen());
+                    $mbService->preloadMoves($FENReached);
                 }
 
                 $form = $formFactory->createNamed("build_move_$lan", BuildMoveType::class, [
+                    'fromFEN' => $myTurn ? $fen : $fromFEN,
+                    'fromSAN' => $myTurn ? $SAN : $fromSAN,
                     'ply' => $ply + 1,
                     'san' => $move->getSan(),
                     'selectedPercentHistory' => $moveSelectedPercentHistory,
                     'totalGames' => $totalGames,
+                    'canSave' => $canSave,
                 ], [
-                    'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'fen' => $board->toFen(), 'fromLan' => $lan]),
+                    'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'fen' => $FENReached, 'fromLan' => $lan]),
                 ]);
 
-                $movesForms[] = [
+                $movesForm = [
                     'move' => $move,
                     'masters_games' => $mMove ? $mMove->getTotal() : 0,
                     'cover' => $cover,
                     'form' => $form->createView(),
                     'lan' => $lan,
+                    'FENReached' => $FENReached,
+                    'reached' => array_key_exists($move->getSan(), $movesReached),
+                    'nextMoveReached' => false,
                 ];
+
+                $FENsReached[] = $FENReached;
+                $movesForms[] = $movesForm;
+            }
+
+            if ($canSave) {
+                $variation = new Variation();
+                $variation->setCourse($course);
+                $saveForm = $this->createForm(VariationFromPGNMovesType::class, $variation, [
+                    'action' => $this->generateUrl('app_variation_new'),
+                ]);
+
+
+                if (!$myTurn) {
+                    $nextVariationsReached = $notationRepo->findByFENFromCourse($FENsReached, $course, 'FEN');
+                    foreach ($movesForms as &$movesForm) {
+                        $movesForm['nextMoveReached'] = array_key_exists($movesForm['FENReached'], $nextVariationsReached);
+                    }
+                }
             }
 
             return $this->render('course/build_moves.html.twig', [
                 'course' => $course,
                 'fen' => $fen,
                 'my_turn' => $myTurn,
-                'selected_multiplier' => $selectedMultiplier,
-                'masters_games' => $mastersGames,
-                'total_games' => $totalGames,
+                'games' => $myTurn ? $mastersGames : $totalGames * $selectedMultiplier,
                 'moves_forms' => $movesForms,
+                'save_form' => $saveForm ?? null,
             ]);
         }
     }

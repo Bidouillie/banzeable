@@ -337,4 +337,9 @@ export class ChessboardEngine {
     removeArrows() {
         this._board.removeArrows();
     }
+
+    getPGNMoves() {
+        console.log(this._chess.renderPgn({ skipHeader: true }));
+        return this._chess.renderPgn({ skipHeader: true });
+    }
 }

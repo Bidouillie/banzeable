@@ -60,6 +60,8 @@ class Variation extends PGNBase
 
     public function setPGN(string $PGN): static
     {
+        $this->PGN = $PGN;
+
         $lines = max(explode("\n", $PGN), explode(PHP_EOL, $PGN));
 
         $tags = [];
@@ -67,7 +69,7 @@ class Variation extends PGNBase
         $movetext = null;
         $resulttext = null;
 
-        foreach($lines as $line) {
+        foreach ($lines as $line) {
             $line = trim($line);
             $matchesTag = preg_match('/^\[([a-zA-Z]+) "(.+)"\]$/', $line, $matches);
             if ($matchesTag) {
@@ -75,8 +77,8 @@ class Variation extends PGNBase
                 $tagsKeyValue[$matches[1]] = $matches[2];
             } else {
                 $moveRegex = '[RNBQK]?[a-h]?[1-8]?x?[a-h][1-8](=[RNBQ])?(\+|#)?|O-O(-O)?';
-                $matchesMovetext = preg_match("/^(([1-9][0-9]*\. ($moveRegex) ($moveRegex) )+)((0|1\/2|1)-(0|1\/2|1)|\*)$/", $line, $matches);
-    
+                $matchesMovetext = preg_match("/^(([1-9][0-9]*\. ($moveRegex)( ($moveRegex))? )+)((0|1\/2|1)-(0|1\/2|1)|\*)$/", $line, $matches);
+
                 if ($matchesMovetext) {
                     $movetext = $matches[1];
                     $resulttext = $matches[1];
@@ -85,10 +87,10 @@ class Variation extends PGNBase
         }
 
         if (!isset($movetext)) {
-            throw new \Exception("Missing Movetext", 1);
+            throw new \Exception("Missing Movetext");
         }
 
-        $this->PGN = implode(PHP_EOL, array_merge($tags, [$movetext . $resulttext]));
+        // $this->PGN = implode(PHP_EOL, array_merge($tags, [$movetext . $resulttext]));
 
         $this->setTags($tagsKeyValue);
 
@@ -164,7 +166,7 @@ class Variation extends PGNBase
     {
         $board = $this->getFEN() ? FenToBoardFactory::create($this->getFEN()) : new Board();
 
-        foreach(explode(' ', $moves) as $moveText) {
+        foreach (explode(' ', $moves) as $moveText) {
             $move = new Move();
             $notation = new Notation();
 

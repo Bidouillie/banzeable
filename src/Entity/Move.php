@@ -21,7 +21,7 @@ class Move
     #[Serializer\Groups(['variation'])]
     private ?Variation $variation = null;
 
-    #[ORM\ManyToOne(cascade: ['persist'])]
+    #[ORM\ManyToOne(inversedBy: 'moves', cascade: ['persist'])]
     #[ORM\JoinColumn(nullable: false)]
     #[Serializer\Groups(groups: ['notation'])]
     private ?Notation $notation = null;
