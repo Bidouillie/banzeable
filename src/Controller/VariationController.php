@@ -28,23 +28,23 @@ class VariationController extends AbstractController
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
-            $variation = new Variation();
-            $form = $this->createForm(VariationFromPGNMovesType::class, $variation);
+            $newVariation = new Variation();
+            $form = $this->createForm(VariationFromPGNMovesType::class, $newVariation);
 
             $form->handleRequest($request);
 
             if ($form->isSubmitted() && $form->isValid()) {
 
-                $course = $variation->getCourse();
-                $variation->setBlackOrientation($course->isBlackOrientation());
+                $course = $newVariation->getCourse();
+                $newVariation->setBlackOrientation($course->isBlackOrientation());
 
-                $variation->setName('repertoire');
+                $newVariation->setName('repertoire');
 
                 /**
                  * Get all notations met in variation and order them
                  */
                 $FENs = [];
-                foreach ($variation->getMoves() as $move) {
+                foreach ($newVariation->getMoves() as $move) {
                     $FENs[] = $move->getNotation()->getFEN();
                 }
 
@@ -62,7 +62,7 @@ class VariationController extends AbstractController
                 /**
                  * Linking the moves to the notations that are already created
                  */
-                foreach ($variation->getMoves() as $move) {
+                foreach ($newVariation->getMoves() as $move) {
                     $notation = $move->getNotation();
 
                     if (isset($orderedNotations[$notation->getFEN()]) && isset($orderedNotations[$notation->getFEN()][$notation->getText()])) {
@@ -71,11 +71,58 @@ class VariationController extends AbstractController
                         if (!isset($orderedNotations[$notation->getFEN()])) {
                             $orderedNotations[$notation->getFEN()] = [];
                         }
-                        $orderedNotations[$notation->getFEN()][$notation->getText()] = $move->getNotation();
+                        $orderedNotations[$notation->getFEN()][$notation->getText()] = $notation;
                     }
                 }
 
-                $em->persist($variation);
+                /**
+                 * Get saved variations and order their moves in a tree
+                 */
+                $orderedMoves = [];
+                foreach ($course->getVariations() as $variation) {
+                    $bufferOrderedMoves = &$orderedMoves;
+                    foreach ($variation->getMoves() as $move) {
+                        $notation = $move->getNotation();
+                        $SAN = $move->getNotation()->getText();
+                        if (!array_key_exists($SAN, $bufferOrderedMoves)) {
+                            $bufferOrderedMoves[$SAN] = [];
+                        }
+                        $bufferOrderedMoves = &$bufferOrderedMoves[$SAN];
+                    }
+                    $bufferOrderedMoves['-'] = $variation;
+                    unset($bufferOrderedMoves);
+                }
+
+                /**
+                 * Get variation that follow the new variation the longest
+                 */
+                unset($variation);
+                $movesExist = [];
+                foreach ($newVariation->getMoves() as $move) {
+                    $SAN = $move->getNotation()->getText();
+                    if (array_key_exists($SAN, $orderedMoves)) {
+                        $orderedMoves = $orderedMoves[$SAN];
+                        $movesExist[] = $move;
+                    } elseif (array_key_exists('-', $orderedMoves)) {
+                        $variation = $orderedMoves['-'];
+                    } else {
+                        break;
+                    }
+                }
+
+                /**
+                 * Add moves to existing variation or save new variation
+                 */
+                if (isset($variation)) {
+                    foreach ($newVariation->getMoves() as $move) {
+                        if (!in_array($move, $movesExist)) {
+                            $variation->addMove($move);
+                        }
+                    }
+                } elseif (!array_key_exists('-', $orderedMoves)) {
+                    $em->persist($newVariation);
+                }
+
                 $em->flush();
             }
 
