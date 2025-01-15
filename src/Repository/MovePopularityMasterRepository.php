@@ -42,4 +42,33 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
 
         return $moves;
     }
+
+    /**
+     * @return string[]
+     */
+    public function findGroupedByFEN(string|array $FEN, array $criteria = [])
+    {
+        $qb = $this->createQueryBuilder('move')
+            ->select('move.FEN')
+            ->where('move.FEN');
+
+        if (is_array($FEN)) {
+            $qb->where('move.FEN IN (:FEN)');
+        } else {
+            $qb->where('move.FEN = :FEN');
+        }
+        foreach (array_keys($criteria) as $key) {
+            $qb->andWhere("move.$key = :$key");
+        }
+        $qb->addGroupBy('move.FEN');
+
+        $qb->setParameter('FEN', $FEN);
+        foreach ($criteria as $key => $value) {
+            $qb->setParameter($key, $value);
+        }
+
+        $moves = $qb->getQuery()->getSingleColumnResult();
+
+        return $moves;
+    }
 }

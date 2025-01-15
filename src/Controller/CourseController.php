@@ -181,21 +181,50 @@ class CourseController extends AbstractController
             }
 
             $movesForms = [];
-            $FENsReached = [];
+            $nextFENs = [];
 
-            foreach ($moves as $move) {
+            $moveLANNextFENs = array_map(function ($move) use ($fen, &$nextFENs) {
+                $board = FenToBoardFactory::create($fen);
+                $board->play($board->turn, $move->getSan());
+                $nextFEN = $board->toFen();
+                $last = end($board->history);
+                $LAN = $last['from'] . $last['to'];
+
+                $nextFENs[] = $nextFEN;
+
+                return [
+                    'move' => $move,
+                    'LAN' => $LAN,
+                    'nextFEN' => $nextFEN,
+                ];
+            }, $moves);
+
+            $masterNextFENsSaved = $masterRepo->findGroupedByFEN($nextFENs, ['since' => '2021', 'until' => '2024']);
+            $nextFENsSaved = $repo->findGroupedByFEN($nextFENs, ['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12']);
+
+            $nextVariationsReached = [];
+            if ($canSave) {
+                $variation = new Variation();
+                $variation->setCourse($course);
+                $saveForm = $this->createForm(VariationFromPGNMovesType::class, $variation, [
+                    'action' => $this->generateUrl('app_variation_new'),
+                ]);
+
+                if (!$myTurn) {
+                    $nextVariationsReached = $notationRepo->findByFENFromCourse($nextFENs, $course, 'FEN');
+                }
+            }
+
+            $FENsToPreload = [];
+            foreach ($moveLANNextFENs as $moveLANNextFEN) {
+
+                $move = $moveLANNextFEN['move'];
+                $LAN = $moveLANNextFEN['LAN'];
+                $FENReached = $moveLANNextFEN['nextFEN'];
 
                 $SAN = $move->getSan();
 
                 $mMove = array_key_exists($SAN, $mMoves) ? $mMoves[$SAN] : null;
-
-                $board = FenToBoardFactory::create($fen);
-                $board->play($board->turn, $SAN);
-
-                $FENReached = $board->toFen();
-
-                $last = end($board->history);
-                $lan = $last['from'] . $last['to'];
 
                 $moveSelectedPercentHistory = $selectedPercentHistory;
 
@@ -207,51 +236,34 @@ class CourseController extends AbstractController
                 }
 
                 if ($cover) {
-                    $mbService->preloadMoves($FENReached);
+                    $FENsToPreload[] = $FENReached;
                 }
 
-                $form = $formFactory->createNamed("build_move_$lan", BuildMoveType::class, [
+                $form = $formFactory->createNamed("build_move_$LAN", BuildMoveType::class, [
                     'fromFEN' => $myTurn ? $fen : $fromFEN,
                     'fromSAN' => $myTurn ? $SAN : $fromSAN,
                     'ply' => $ply + 1,
-                    'san' => $move->getSan(),
+                    'san' => $SAN,
                     'selectedPercentHistory' => $moveSelectedPercentHistory,
                     'totalGames' => $totalGames,
                     'canSave' => $canSave,
                 ], [
-                    'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'fen' => $FENReached, 'fromLan' => $lan]),
+                    'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'fen' => $FENReached, 'fromLan' => $LAN]),
                 ]);
 
-                $movesForm = [
+                $movesForms[] = [
                     'move' => $move,
                     'masters_games' => $mMove ? $mMove->getTotal() : 0,
                     'cover' => $cover,
                     'form' => $form->createView(),
-                    'lan' => $lan,
+                    'lan' => $LAN,
                     'FENReached' => $FENReached,
-                    'reached' => array_key_exists($move->getSan(), $movesReached),
-                    'nextMoveReached' => false,
+                    'reached' => array_key_exists($SAN, $movesReached),
+                    'nextMoveReached' => $canSave && !$myTurn && array_key_exists($FENReached, $nextVariationsReached),
                 ];
-
-                $FENsReached[] = $FENReached;
-                $movesForms[] = $movesForm;
             }
 
-            if ($canSave) {
-                $variation = new Variation();
-                $variation->setCourse($course);
-                $saveForm = $this->createForm(VariationFromPGNMovesType::class, $variation, [
-                    'action' => $this->generateUrl('app_variation_new'),
-                ]);
-
-
-                if (!$myTurn) {
-                    $nextVariationsReached = $notationRepo->findByFENFromCourse($FENsReached, $course, 'FEN');
-                    foreach ($movesForms as &$movesForm) {
-                        $movesForm['nextMoveReached'] = array_key_exists($movesForm['FENReached'], $nextVariationsReached);
-                    }
-                }
-            }
+            $mbService->preloadMoves($FENsToPreload, $masterNextFENsSaved, $nextFENsSaved);
 
             return $this->render('course/build_moves.html.twig', [
                 'course' => $course,

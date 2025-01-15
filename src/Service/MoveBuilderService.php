@@ -20,29 +20,35 @@ class MoveBuilderService
         private readonly MessageBusInterface $bus,
     ) {}
 
-    public function preloadMoves($fen)
+    public function preloadMoves(string|array $FENs, $masterFENSaved, $FENSaved)
     {
+        if (!is_array($FENs)) {
+            $FENs = [$FENs];
+        }
+
         $messages = [];
 
-        if ($this->masterRepo->findOneBy(['since' => '2021', 'until' => '2024', 'FEN' => $fen]) === null) {
-            $movePopularity = new MovePopularityMaster();
-            $movePopularity->setFEN($fen);
-            $movePopularity->setSan('-');
-            $movePopularity->setDateCreated(new \DateTime());
+        foreach ($FENs as $FEN) {
+            if (!in_array($FEN, $masterFENSaved)) {
+                $movePopularity = new MovePopularityMaster();
+                $movePopularity->setFEN($FEN);
+                $movePopularity->setSan('-');
+                $movePopularity->setDateCreated(new \DateTime());
 
-            $this->em->persist($movePopularity);
-            $messages[] = new LoadMastersMoves($fen);
-        }
-        if ($this->repo->findOneBy(['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12', 'FEN' => $fen]) === null) {
-            $movePopularity = new MovePopularity();
-            $movePopularity->setFEN($fen);
-            $movePopularity->setSan('-');
-            $movePopularity->setDateCreated(new \DateTime());
+                $this->em->persist($movePopularity);
+                $messages[] = new LoadMastersMoves($FEN);
+            }
+            if (!in_array($FEN, $FENSaved)) {
+                $movePopularity = new MovePopularity();
+                $movePopularity->setFEN($FEN);
+                $movePopularity->setSan('-');
+                $movePopularity->setDateCreated(new \DateTime());
 
-            $this->em->persist($movePopularity);
-            $messages[] = new LoadMoves($fen);
+                $this->em->persist($movePopularity);
+                $messages[] = new LoadMoves($FEN);
+            }
         }
-        
+
         $this->em->flush();
 
         foreach ($messages as $message) {
