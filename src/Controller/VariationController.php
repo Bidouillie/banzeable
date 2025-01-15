@@ -84,7 +84,7 @@ class VariationController extends AbstractController
                     foreach ($variation->getMoves() as $move) {
                         $notation = $move->getNotation();
                         $SAN = $move->getNotation()->getText();
-                        if (!array_key_exists($SAN, $bufferOrderedMoves)) {
+                        if (!isset($bufferOrderedMoves[$SAN])) {
                             $bufferOrderedMoves[$SAN] = [];
                         }
                         $bufferOrderedMoves = &$bufferOrderedMoves[$SAN];
@@ -100,10 +100,10 @@ class VariationController extends AbstractController
                 $movesExist = [];
                 foreach ($newVariation->getMoves() as $move) {
                     $SAN = $move->getNotation()->getText();
-                    if (array_key_exists($SAN, $orderedMoves)) {
+                    if (isset($orderedMoves[$SAN])) {
                         $orderedMoves = $orderedMoves[$SAN];
                         $movesExist[] = $move;
-                    } elseif (array_key_exists('-', $orderedMoves)) {
+                    } elseif (isset($orderedMoves['-'])) {
                         $variation = $orderedMoves['-'];
                     } else {
                         break;
@@ -119,7 +119,7 @@ class VariationController extends AbstractController
                             $variation->addMove($move);
                         }
                     }
-                } elseif (!array_key_exists('-', $orderedMoves)) {
+                } elseif (!isset($orderedMoves['-'])) {
                     $em->persist($newVariation);
                 }
 

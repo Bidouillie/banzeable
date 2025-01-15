@@ -39,7 +39,7 @@ final class LoadMovesHandler
                 /**
                  * @var MovePopularity $movePopularity
                  */
-                $movePopularity = array_key_exists($move['san'], $moves) ? $moves[$move['san']] : new MovePopularity();
+                $movePopularity = isset($moves[$move['san']]) ? $moves[$move['san']] : new MovePopularity();
                 $movePopularity->setFEN($message->FEN);
                 $movePopularity->setSan($move['san']);
                 $movePopularity->setDateCreated($date);

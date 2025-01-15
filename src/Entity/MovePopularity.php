@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\MovePopularityRepository;
+use Chess\FenToBoardFactory;
+use Chess\Variant\AbstractBoard;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -45,7 +47,10 @@ class MovePopularity
     #[ORM\Column(nullable: true)]
     private ?int $draws = null;
 
-    public function __construct() {
+    private ?AbstractBoard $board = null;
+
+    public function __construct()
+    {
         $this->setSpeeds('rapid');
         $this->setRatings('1600,1800');
         $this->setSince('2021-01');
@@ -112,6 +117,19 @@ class MovePopularity
         return $this;
     }
 
+    public function getNextFEN(): ?string
+    {
+        if (isset($this->board)) {
+            return $this->board->toFen();
+        }
+        if (isset($this->FEN) && isset($this->san)) {
+            $this->board = FenToBoardFactory::create($this->FEN);
+            $this->board->play($this->board->turn, $this->san);
+            return $this->board->toFen();
+        }
+        return null;
+    }
+
     public function getSan(): ?string
     {
         return $this->san;
@@ -122,6 +140,21 @@ class MovePopularity
         $this->san = $san;
 
         return $this;
+    }
+
+    public function getLAN(): ?string
+    {
+        if (isset($this->board)) {
+            $last = end($this->board->history);
+            return $last['from'] . $last['to'];
+        }
+        if (isset($this->FEN) && isset($this->san)) {
+            $this->board = FenToBoardFactory::create($this->FEN);
+            $this->board->play($this->board->turn, $this->san);
+            $last = end($this->board->history);
+            return $last['from'] . $last['to'];
+        }
+        return null;
     }
 
     public function getDateCreated(): ?\DateTimeInterface

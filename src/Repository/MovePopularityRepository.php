@@ -20,7 +20,7 @@ class MovePopularityRepository extends ServiceEntityRepository
     /**
      * @return MovePopularity[]
      */
-    public function findByFEN(string $FEN, &$games)
+    public function findByFEN(string $FEN, &$nbGames)
     {
         $qb = $this->createQueryBuilder('a')
             ->andWhere('a.FEN = :FEN')
@@ -30,7 +30,7 @@ class MovePopularityRepository extends ServiceEntityRepository
 
         foreach ($moves as $key => $move) {
             if ($move->getSan() === '-') {
-                $games = $move->getTotal() ?? 0;
+                $nbGames = $move->getTotal() ?? 0;
                 unset($moves[$key]);
             }
         }
@@ -44,13 +44,12 @@ class MovePopularityRepository extends ServiceEntityRepository
     public function findGroupedByFEN(string|array $FEN, array $criteria = [])
     {
         $qb = $this->createQueryBuilder('move')
-            ->select('move.FEN')
-            ->where('move.FEN');
+            ->select('move.FEN');
 
         if (is_array($FEN)) {
-            $qb->where('move.FEN IN (:FEN)');
+            $qb->andWhere('move.FEN IN (:FEN)');
         } else {
-            $qb->where('move.FEN = :FEN');
+            $qb->andWhere('move.FEN = :FEN');
         }
         foreach (array_keys($criteria) as $key) {
             $qb->andWhere("move.$key = :$key");

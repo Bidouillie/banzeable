@@ -6,6 +6,7 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -14,22 +15,24 @@ class BuildMoveType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('fromFEN', HiddenType::class, [
+            ->add('myLastTurnFEN', HiddenType::class, [
                 'required' => false,
             ])
-            ->add('fromSAN', HiddenType::class, [
+            ->add('myLastTurnSAN', HiddenType::class, [
                 'required' => false,
             ])
             ->add('san', HiddenType::class)
-            ->add('ply', HiddenType::class)
             ->add('selectedPercentHistory', CollectionType::class, [
                 'allow_add' => true,
                 'row_attr' => [
                     'class' => 'd-none',
                 ],
             ])
-            ->add('totalGames', HiddenType::class, [
+            ->add('totalGames', IntegerType::class, [
                 'required' => false,
+                'row_attr' => [
+                    'class' => 'd-none',
+                ],
             ])
             ->add('canSave', CheckboxType::class, [
                 'required' => false,

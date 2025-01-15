@@ -20,7 +20,7 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
     /**
      * @return MovePopularityMaster[]
      */
-    public function findByFEN(string|array $FEN, &$games)
+    public function findByFEN(string|array $FEN, &$nbGames)
     {
         $qb = $this->createQueryBuilder('a');
         if (is_array($FEN)) {
@@ -32,9 +32,9 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
 
         $moves = $qb->getQuery()->getResult();
 
-        $moves = array_reduce($moves, function ($carry, $move) use (&$games) {
+        $moves = array_reduce($moves, function ($carry, $move) use (&$nbGames) {
             if ($move->getSan() === '-') {
-                $games = $move->getTotal() ?? 0;
+                $nbGames = $move->getTotal() ?? 0;
             }
             $carry[$move->getSan()] = $move;
             return $carry;
