@@ -32,6 +32,9 @@ class Move
     #[ORM\ManyToMany(targetEntity: Notation::class)]
     private Collection $alternatives;
 
+    #[ORM\Column(nullable: true)]
+    private ?float $selectedMultiplier = null;
+
     public function __construct()
     {
         $this->alternatives = new ArrayCollection();
@@ -86,6 +89,18 @@ class Move
     public function removeAlternative(Notation $alternative): static
     {
         $this->alternatives->removeElement($alternative);
+
+        return $this;
+    }
+
+    public function getSelectedMultiplier(): ?float
+    {
+        return $this->selectedMultiplier;
+    }
+
+    public function setSelectedMultiplier(?float $selectedMultiplier): static
+    {
+        $this->selectedMultiplier = $selectedMultiplier;
 
         return $this;
     }
