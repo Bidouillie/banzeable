@@ -24,6 +24,13 @@
                     <div class="tw-grid tw-grid-cols-8 tw-gap-7">
                         <div class="tw-col-span-4">{{ move.san }}{% if move_form.reached %} ✅{% endif %}{% if move_form.next_move_reached %} ✔{% endif %}</div>
                         <div class="tw-col-span-2">
+                            {% if true %}
+                                {% if move_nb_games > 0 %}
+                                    1 in {{ (nb_games / move_nb_games)|round }} games
+                                {% else %}
+                                    1 in ∞ games
+                                {% endif %}
+                            {% else %}
                                 {% if move_nb_games >= nb_games / 100 %}
                                     {{ (move_nb_games / nb_games)|format_number(style: 'percent') }}
                                 {% elseif move_nb_games >= nb_games / 1000 and move_nb_games > 0 %}
@@ -35,6 +42,7 @@
                                 {% else %}
                                     {{ 0|format_number(style: 'percent') }}
                                 {% endif %}
+                            {% endif %}
                         </div>
                         <div class="tw-col-span-2">
                             <div class="tw-flex tw-flex-row tw-rounded-md tw-overflow-hidden">
