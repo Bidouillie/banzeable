@@ -41,6 +41,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     board = new AnalysisChessboardEngine(document.getElementById('board'), course.blackOrientation ? 'b' : 'w', null, [], fen);
 
+    document.querySelector('form[name="build_move"]').requestSubmit();
+
     document.addEventListener('turbo:submit-start', (event) => {
         console.log('submit-start');
         formSubmitting = event.detail.formSubmission;
