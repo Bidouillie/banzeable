@@ -21,15 +21,8 @@ class BuildMoveType extends AbstractType
             ->add('myLastTurnSAN', HiddenType::class, [
                 'required' => false,
             ])
-            ->add('san', HiddenType::class)
             ->add('selectedPercentHistory', CollectionType::class, [
                 'allow_add' => true,
-                'row_attr' => [
-                    'class' => 'd-none',
-                ],
-            ])
-            ->add('totalGames', IntegerType::class, [
-                'required' => false,
                 'row_attr' => [
                     'class' => 'd-none',
                 ],

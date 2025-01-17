@@ -40,6 +40,15 @@ class VariationController extends AbstractController
 
                 $newVariation->setName('repertoire');
 
+                $moves = $newVariation->getMoves();
+
+                /**
+                 * Remove last move if not played by playing side
+                 */
+                if (count($moves) % 2 === ($course->isBlackOrientation() ? 1 : 0)) {
+                    $newVariation->removeMove($moves->last());
+                }
+
                 /**
                  * Get all notations met in variation and order them
                  */
@@ -67,7 +76,7 @@ class VariationController extends AbstractController
                 $selectedMultiplier = 1;
                 foreach ($newVariation->getMoves() as $key => $move) {
 
-                    $selectedMultiplier *= floatval($selectedPercentHistory[$key]);
+                    $selectedMultiplier = floatval($selectedPercentHistory[$key]);
                     $move->setSelectedMultiplier($selectedMultiplier);
 
                     $notation = $move->getNotation();

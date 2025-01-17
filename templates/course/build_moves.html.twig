@@ -21,20 +21,24 @@
                 <a href="#" class="list-group-item list-group-item-action build_move {% if not move_form.cover %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.LAN }}" onclick="return false">
                     {{ form_start(form) }}
                     <div class="tw-grid tw-grid-cols-8 tw-gap-7">
-                        <div class="tw-col-span-4">{{ move.san }}{% if move_form.reached %} ✅{% endif %}{% if move_form.next_move_reached %} ✔{% endif %}</div>
+                        <div class="tw-col-span-4">{{ move.san }}{% if move_form.reached %} ✅{% elseif move_form.next_move_reached %} ✔{% endif %}</div>
                         <div class="tw-col-span-2">
-                            {% if false %}
-                                {% if move_form.expected > 0 %}
-                                    1 in {{ (100 / move_form.expected)|round }} games
+                            {% if true and not my_turn %}
+                                {% if move_form.expected >= 1 / 1000 %}
+                                    1 in {{ (1 / move_form.expected)|round }} games
+                                {% elseif move_form.expected >= 1 / 10000 %}
+                                    1 in > 1 000 games
+                                {% elseif move_form.expected > 0 %}
+                                    1 in > 10 000 games
                                 {% else %}
                                     1 in ∞ games
                                 {% endif %}
                             {% else %}
                                 {% if move_form.expected >= 1 / 100 %}
                                     {{ (move_form.expected)|format_number(style: 'percent') }}
-                                {% elseif move_form.expected >= 1 / 1000 and move_form.expected > 0 %}
+                                {% elseif move_form.expected >= 1 / 1000 %}
                                     &lt;{{ 0.01|format_number(style: 'percent') }}
-                                {% elseif move_form.expected >= 1 / 10000 and move_form.expected > 0 %}
+                                {% elseif move_form.expected >= 1 / 10000 %}
                                     &lt;1‰
                                 {% elseif move_form.expected > 0 %}
                                     &lt;1‱

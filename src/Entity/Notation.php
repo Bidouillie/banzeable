@@ -28,7 +28,6 @@ class Notation
      * @var Collection<int, Move>
      */
     #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'notation')]
-    #[Serializer\Groups(['move'])]
     private Collection $moves;
 
     public function __construct()

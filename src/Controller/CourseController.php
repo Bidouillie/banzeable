@@ -11,6 +11,7 @@ use App\Form\VariationFromPGNMovesType;
 use App\Repository\CourseRepository;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
+use App\Repository\MoveRepository;
 use App\Repository\NotationRepository;
 use App\Repository\VariationRepository;
 use App\Service\MoveBuilderService;
@@ -119,7 +120,7 @@ class CourseController extends AbstractController
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/course/{id}/build-moves/{FEN}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'FEN' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
     #[Route('/course/{id}/build-moves/{FEN}/{LAN}', name: 'app_course_build_moves_from_lan', requirements: ['id' => '\d+', 'FEN' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$', 'lan' => '^([a-h][1-8]){2}$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $FEN, ?string $LAN, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, VariationRepository $variationRepo, NotationRepository $notationRepo, MoveBuilderService $mbService, FormFactoryInterface $formFactory): Response
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $FEN, ?string $LAN, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, VariationRepository $variationRepo, MoveRepository $moveRepo, NotationRepository $notationRepo, MoveBuilderService $mbService, FormFactoryInterface $formFactory): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -135,9 +136,7 @@ class CourseController extends AbstractController
 
             $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($FEN)->turn;
 
-            $selectedMultiplier = array_reduce($data['selectedPercentHistory'], function ($carry, $number) {
-                return $carry * $number;
-            }, 1);
+            $selectedMultiplier = empty($data['selectedPercentHistory']) ? 1 : end($data['selectedPercentHistory']);
 
             $movesReached = $notationRepo->findByFENFromCourse($FEN, $course, 'SAN');
 
@@ -165,7 +164,14 @@ class CourseController extends AbstractController
                 });
             }
 
-            $totalGames = isset($LAN) ? $form->get('totalGames')->getData() : $nbGames;
+            $nextFENs = array_map(function ($move) {
+                return $move->getNextFEN();
+            }, $moves);
+
+            $masterNextFENsSaved = $masterRepo->findGroupedByFEN($nextFENs, ['since' => '2021', 'until' => '2024']);
+            $nextFENsSaved = $repo->findGroupedByFEN($nextFENs, ['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12']);
+
+            $nextVariationsReached = $moveRepo->findByFENReachedFromCourse($nextFENs, $course, 'FEN');
 
             if (isset($data['myLastTurnFEN']) && isset($data['myLastTurnSAN']) && !$canSave && !$myTurn) {
                 $variationsReached = $variationRepo->findByMoveFromCourse($data['myLastTurnFEN'], $data['myLastTurnSAN'], $course);
@@ -175,14 +181,6 @@ class CourseController extends AbstractController
                 }
             }
 
-            $nextFENs = array_map(function ($move) {
-                return $move->getNextFEN();
-            }, $moves);
-
-            $masterNextFENsSaved = $masterRepo->findGroupedByFEN($nextFENs, ['since' => '2021', 'until' => '2024']);
-            $nextFENsSaved = $repo->findGroupedByFEN($nextFENs, ['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12']);
-
-            $nextVariationsReached = [];
             if ($canSave) {
                 $variation = new Variation();
                 $variation->setCourse($course);
@@ -190,10 +188,6 @@ class CourseController extends AbstractController
                 $saveForm = $this->createForm(VariationFromPGNMovesType::class, $variation, [
                     'action' => $this->generateUrl('app_variation_new'),
                 ]);
-
-                if (!$myTurn) {
-                    $nextVariationsReached = $notationRepo->findByFENFromCourse($nextFENs, $course, 'FEN');
-                }
             }
 
             $FENsToPreload = [];
@@ -205,10 +199,8 @@ class CourseController extends AbstractController
 
                 $SAN = $move->getSan();
 
-                $moveSelectedPercentHistory = $data['selectedPercentHistory'];
-
-                array_push($moveSelectedPercentHistory, $myTurn ? 1 : $move->getTotal() / $nbGames);
-
+                $cover = false;
+                $expected = 0;
                 if ($myTurn) {
                     if (isset($mMoves) && isset($mMoves[$SAN])) {
                         $cover = $mMoves[$SAN]->getTotal() > $nbMastersGames / 100;
@@ -219,6 +211,15 @@ class CourseController extends AbstractController
                     $expected = $selectedMultiplier * $move->getTotal() / $nbGames;
                 }
 
+                $moveSelectedPercentHistory = $data['selectedPercentHistory'];
+
+                $moveSelectedPercent = $selectedMultiplier * ($myTurn ? 1 : $move->getTotal() / $nbGames);
+                if (!isset($movesReached[$SAN]) && isset($nextVariationsReached[$FENReached])) {
+                    $moveSelectedPercent += $nextVariationsReached[$FENReached]->getSelectedMultiplier();
+                }
+
+                array_push($moveSelectedPercentHistory, $moveSelectedPercent);
+
                 if ($cover) {
                     $FENsToPreload[] = $FENReached;
                 }
@@ -227,7 +228,6 @@ class CourseController extends AbstractController
                     'myLastTurnFEN' => $myTurn ? $FEN : $data['myLastTurnFEN'],
                     'myLastTurnSAN' => $myTurn ? $SAN : $data['myLastTurnSAN'],
                     'selectedPercentHistory' => $moveSelectedPercentHistory,
-                    'totalGames' => $totalGames,
                     'canSave' => $canSave,
                 ], [
                     'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $FENReached, 'LAN' => $nextLAN]),
@@ -239,7 +239,7 @@ class CourseController extends AbstractController
                     'cover' => $cover,
                     'expected' => $expected,
                     'reached' => isset($movesReached[$SAN]),
-                    'next_move_reached' => $canSave && !$myTurn && isset($nextVariationsReached[$FENReached]),
+                    'next_move_reached' => isset($nextVariationsReached[$FENReached]),
                 ];
             }
 

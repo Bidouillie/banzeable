@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\MoveRepository;
+use Chess\FenToBoardFactory;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -35,6 +36,9 @@ class Move
     #[ORM\Column(nullable: true)]
     private ?float $selectedMultiplier = null;
 
+    #[ORM\Column(name: 'fen_reached', length: 255)]
+    private ?string $FENReached = null;
+
     public function __construct()
     {
         $this->alternatives = new ArrayCollection();
@@ -65,6 +69,14 @@ class Move
     public function setNotation(?Notation $notation): static
     {
         $this->notation = $notation;
+
+        if (isset($notation)) {
+            $board = FenToBoardFactory::create($notation->getFEN());
+            $board->play($board->turn, $notation->getText());
+            $this->FENReached = $board->toFen();
+        } else {
+            $this->FENReached = null;
+        }
 
         return $this;
     }
@@ -101,6 +113,18 @@ class Move
     public function setSelectedMultiplier(?float $selectedMultiplier): static
     {
         $this->selectedMultiplier = $selectedMultiplier;
+
+        return $this;
+    }
+
+    public function getFENReached(): ?string
+    {
+        return $this->FENReached;
+    }
+
+    public function setFENReached(?string $FENReached): static
+    {
+        $this->FENReached = $FENReached;
 
         return $this;
     }
