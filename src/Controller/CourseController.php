@@ -141,9 +141,15 @@ class CourseController extends AbstractController
             $movesReached = $notationRepo->findByFENFromCourse($FEN, $course, 'SAN');
 
             $moves = $repo->findByFEN($FEN, $nbGames);
+            if(empty($moves)) {
+                $moves = $mbService->loadMoves($FEN, $nbGames);
+            }
 
             if ($myTurn) {
                 $mMoves = $masterRepo->findByFen($FEN, $nbMastersGames);
+                if(empty($mMoves)) {
+                    $mMoves = $mbService->loadMastersMoves($FEN, $nbMastersGames);
+                }
 
                 usort($moves, function ($move1, $move2) use ($mMoves, $movesReached) {
                     if (isset($movesReached[$move1->getSan()]) xor isset($movesReached[$move2->getSan()])) {

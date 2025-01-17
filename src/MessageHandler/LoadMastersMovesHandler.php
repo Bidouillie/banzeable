@@ -2,10 +2,9 @@
 
 namespace App\MessageHandler;
 
-use App\Entity\MovePopularityMaster;
 use App\Message\LoadMastersMoves;
 use App\Repository\MovePopularityMasterRepository;
-use App\Service\LichessApiService;
+use App\Service\MoveBuilderService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -16,7 +15,7 @@ final class LoadMastersMovesHandler
     public function __construct(
         private MovePopularityMasterRepository $repo,
         private EntityManagerInterface $em,
-        private LichessApiService $lichessApi,
+        private MoveBuilderService $mbService,
         private LoggerInterface $logger,
     ) {}
 
@@ -24,37 +23,8 @@ final class LoadMastersMovesHandler
     {
         $this->logger->info("Handling LoadMastersMoves $message->FEN");
 
-        $responseMoves = $this->lichessApi->getMastersMoves($message->FEN);
-
-        if (isset($responseMoves)) {
-
-            $moves = array_reduce($this->repo->findBy(['since' => '2021', 'until' => '2024', 'FEN' => $message->FEN]), function ($carry, $move) {
-                $carry[$move->getSan()] = $move;
-                return $carry;
-            }, []);
-
-            $date = new \DateTime();
-
-            foreach ($responseMoves as $move) {
-                /**
-                 * @var MovePopularityMaster $movePopularity
-                 */
-                $movePopularity = isset($moves[$move['san']]) ? $moves[$move['san']] : new MovePopularityMaster();
-                $movePopularity->setFEN($message->FEN);
-                $movePopularity->setSan($move['san']);
-                $movePopularity->setDateCreated($date);
-                $movePopularity->setWhite($move['white']);
-                $movePopularity->setBlack($move['black']);
-                $movePopularity->setDraws($move['draws']);
-
-                if (isset($move['opening']) && isset($move['opening']['name'])) {
-                    $movePopularity->setOpening($move['opening']['name']);
-                }
-
-                $this->em->persist($movePopularity);
-            }
-
-            $this->em->flush();
+        if (!$this->mbService->loadMastersMoves($message->FEN)) {
+            $this->logger->error("Handling LoadMastersMoves $message->FEN failed");
         }
     }
 }
