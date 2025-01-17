@@ -42,6 +42,8 @@ class Variation extends PGNBase
 
     private ?string $PGN = null;
 
+    private ?array $selectedPercentHistory = null;
+
     public function __construct()
     {
         $this->moves = new ArrayCollection();
@@ -97,6 +99,18 @@ class Variation extends PGNBase
         $moves = trim(preg_replace('/[1-9][0-9]*\. /', '', $movetext));
 
         $this->setMoves($moves);
+
+        return $this;
+    }
+
+    public function getSelectedPercentHistory(): ?array
+    {
+        return $this->selectedPercentHistory;
+    }
+
+    public function setSelectedPercentHistory(array $selectedPercentHistory): static
+    {
+        $this->selectedPercentHistory = $selectedPercentHistory;
 
         return $this;
     }

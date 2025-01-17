@@ -61,10 +61,16 @@ class VariationController extends AbstractController
 
                 /**
                  * Linking the moves to the notations that are already created
+                 * Add percentage history
                  */
-                foreach ($newVariation->getMoves() as $move) {
-                    $notation = $move->getNotation();
+                $selectedPercentHistory = $newVariation->getSelectedPercentHistory();
+                $selectedMultiplier = 1;
+                foreach ($newVariation->getMoves() as $key => $move) {
 
+                    $selectedMultiplier *= floatval($selectedPercentHistory[$key]);
+                    $move->setSelectedMultiplier($selectedMultiplier);
+
+                    $notation = $move->getNotation();
                     if (isset($orderedNotations[$notation->getFEN()]) && isset($orderedNotations[$notation->getFEN()][$notation->getText()])) {
                         $move->setNotation($orderedNotations[$notation->getFEN()][$notation->getText()]);
                     } else {

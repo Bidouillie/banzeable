@@ -18,26 +18,25 @@
             {% for move_form in moves_forms %}
                 {% set move = move_form.move %}
                 {% set form = move_form.form %}
-                {% set move_nb_games = my_turn ? move_form.nb_masters_games : move.total %}
                 <a href="#" class="list-group-item list-group-item-action build_move {% if not move_form.cover %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.LAN }}" onclick="return false">
                     {{ form_start(form) }}
                     <div class="tw-grid tw-grid-cols-8 tw-gap-7">
                         <div class="tw-col-span-4">{{ move.san }}{% if move_form.reached %} ✅{% endif %}{% if move_form.next_move_reached %} ✔{% endif %}</div>
                         <div class="tw-col-span-2">
-                            {% if true %}
-                                {% if move_nb_games > 0 %}
-                                    1 in {{ (nb_games / move_nb_games)|round }} games
+                            {% if false %}
+                                {% if move_form.expected > 0 %}
+                                    1 in {{ (100 / move_form.expected)|round }} games
                                 {% else %}
                                     1 in ∞ games
                                 {% endif %}
                             {% else %}
-                                {% if move_nb_games >= nb_games / 100 %}
-                                    {{ (move_nb_games / nb_games)|format_number(style: 'percent') }}
-                                {% elseif move_nb_games >= nb_games / 1000 and move_nb_games > 0 %}
+                                {% if move_form.expected >= 1 / 100 %}
+                                    {{ (move_form.expected)|format_number(style: 'percent') }}
+                                {% elseif move_form.expected >= 1 / 1000 and move_form.expected > 0 %}
                                     &lt;{{ 0.01|format_number(style: 'percent') }}
-                                {% elseif move_nb_games >= nb_games / 10000 and move_nb_games > 0 %}
+                                {% elseif move_form.expected >= 1 / 10000 and move_form.expected > 0 %}
                                     &lt;1‰
-                                {% elseif move_nb_games > 0 %}
+                                {% elseif move_form.expected > 0 %}
                                     &lt;1‱
                                 {% else %}
                                     {{ 0|format_number(style: 'percent') }}

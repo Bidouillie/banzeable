@@ -133,22 +133,19 @@ class CourseController extends AbstractController
             $data = $form->getData();
             $canSave = $data['canSave'];
 
-            $mMoves = $masterRepo->findByFen($FEN, $nbMastersGames);
-            $moves = $repo->findByFEN($FEN, $nbGames);
-
-            $totalGames = isset($LAN) ? $form->get('totalGames')->getData() : $nbGames;
-
             $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($FEN)->turn;
 
-            $even = true;
-            $selectedMultiplier = array_reduce($data['selectedPercentHistory'], function ($carry, $number) use (&$even) {
-                $even = !$even;
-                return $even ? $carry * $number : $carry / $number;
+            $selectedMultiplier = array_reduce($data['selectedPercentHistory'], function ($carry, $number) {
+                return $carry * $number;
             }, 1);
 
             $movesReached = $notationRepo->findByFENFromCourse($FEN, $course, 'SAN');
 
+            $moves = $repo->findByFEN($FEN, $nbGames);
+
             if ($myTurn) {
+                $mMoves = $masterRepo->findByFen($FEN, $nbMastersGames);
+
                 usort($moves, function ($move1, $move2) use ($mMoves, $movesReached) {
                     if (isset($movesReached[$move1->getSan()]) xor isset($movesReached[$move2->getSan()])) {
                         return isset($movesReached[$move1->getSan()]) ? -1 : 1;
@@ -167,6 +164,8 @@ class CourseController extends AbstractController
                     return $move2->getTotal() - $move1->getTotal();
                 });
             }
+
+            $totalGames = isset($LAN) ? $form->get('totalGames')->getData() : $nbGames;
 
             if (isset($data['myLastTurnFEN']) && isset($data['myLastTurnSAN']) && !$canSave && !$myTurn) {
                 $variationsReached = $variationRepo->findByMoveFromCourse($data['myLastTurnFEN'], $data['myLastTurnSAN'], $course);
@@ -187,6 +186,7 @@ class CourseController extends AbstractController
             if ($canSave) {
                 $variation = new Variation();
                 $variation->setCourse($course);
+                $variation->setSelectedPercentHistory($data['selectedPercentHistory']);
                 $saveForm = $this->createForm(VariationFromPGNMovesType::class, $variation, [
                     'action' => $this->generateUrl('app_variation_new'),
                 ]);
@@ -205,15 +205,18 @@ class CourseController extends AbstractController
 
                 $SAN = $move->getSan();
 
-                $mMove = isset($mMoves[$SAN]) ? $mMoves[$SAN] : null;
-
                 $moveSelectedPercentHistory = $data['selectedPercentHistory'];
 
+                array_push($moveSelectedPercentHistory, $myTurn ? 1 : $move->getTotal() / $nbGames);
+
                 if ($myTurn) {
-                    $cover = isset($mMove) && $mMove->getTotal() > $nbMastersGames / 100;
-                    array_push($moveSelectedPercentHistory, $nbGames, $move->getTotal());
+                    if (isset($mMoves) && isset($mMoves[$SAN])) {
+                        $cover = $mMoves[$SAN]->getTotal() > $nbMastersGames / 100;
+                        $expected = isset($nbMastersGames) && $nbMastersGames > 0 ? $mMoves[$SAN]->getTotal() / $nbMastersGames : 0;
+                    }
                 } else {
-                    $cover = $move->getTotal() > $totalGames * $selectedMultiplier / $course->getCoverage();
+                    $cover = $selectedMultiplier * $move->getTotal() / $nbGames > 1 / $course->getCoverage();
+                    $expected = $selectedMultiplier * $move->getTotal() / $nbGames;
                 }
 
                 if ($cover) {
@@ -234,7 +237,7 @@ class CourseController extends AbstractController
                     'move' => $move,
                     'form' => $form->createView(),
                     'cover' => $cover,
-                    'nb_masters_games' => $mMove ? $mMove->getTotal() : 0,
+                    'expected' => $expected,
                     'reached' => isset($movesReached[$SAN]),
                     'next_move_reached' => $canSave && !$myTurn && isset($nextVariationsReached[$FENReached]),
                 ];
@@ -245,7 +248,6 @@ class CourseController extends AbstractController
             return $this->render('course/build_moves.html.twig', [
                 'course' => $course,
                 'my_turn' => $myTurn,
-                'nb_games' => $myTurn ? $nbMastersGames : $totalGames * $selectedMultiplier,
                 'moves_forms' => $movesForms,
                 'save_form' => $saveForm ?? null,
             ]);

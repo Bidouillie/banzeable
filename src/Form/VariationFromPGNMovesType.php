@@ -6,6 +6,7 @@ use App\Entity\Course;
 use App\Entity\Variation;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -24,6 +25,12 @@ class VariationFromPGNMovesType extends AbstractType
                 ],
             ])
             ->add('PGN', HiddenType::class)
+            ->add('selectedPercentHistory', CollectionType::class, [
+                'allow_add' => true,
+                'row_attr' => [
+                    'class' => 'd-none',
+                ],
+            ])
             ->add('action', SubmitType::class, [
                 'label' => "Save variation",
             ]);
