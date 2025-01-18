@@ -3,10 +3,7 @@
 namespace App\Form;
 
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
-use Symfony\Component\Form\Extension\Core\Type\HiddenType;
-use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -15,20 +12,14 @@ class BuildMoveType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('myLastTurnFEN', HiddenType::class, [
-                'required' => false,
-            ])
-            ->add('myLastTurnSAN', HiddenType::class, [
-                'required' => false,
-            ])
             ->add('selectedPercentHistory', CollectionType::class, [
                 'allow_add' => true,
                 'row_attr' => [
                     'class' => 'd-none',
                 ],
             ])
-            ->add('canSave', CheckboxType::class, [
-                'required' => false,
+            ->add('canSaveHistory', CollectionType::class, [
+                'allow_add' => true,
                 'row_attr' => [
                     'class' => 'd-none',
                 ]

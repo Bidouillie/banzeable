@@ -18,7 +18,7 @@ class MoveRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return Move[]
+     * @return Move[][]
      */
     public function findByFENReachedFromCourse(string|array $FEN, Course $course, string $byKey = null)
     {
@@ -40,12 +40,20 @@ class MoveRepository extends ServiceEntityRepository
         switch ($byKey) {
             case 'FEN':
                 return array_reduce($moves, function ($carry, $move) {
-                    $carry[$move->getFENReached()] = $move;
+                    if (!isset($carry[$move->getFENReached()])) {
+                        $carry[$move->getFENReached()] = [$move];
+                    } else {
+                        $carry[$move->getFENReached()][] = $move;
+                    }
                     return $carry;
                 }, []);
             case 'SAN':
                 return array_reduce($moves, function ($carry, $move) {
-                    $carry[$move->getFENReached()] = $move;
+                    if (!isset($carry[$move->getNotation()->getText()])) {
+                        $carry[$move->getNotation()->getText()] = [$move];
+                    } else {
+                        $carry[$move->getNotation()->getText()][] = $move;
+                    }
                     return $carry;
                 }, []);
         }

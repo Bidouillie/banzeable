@@ -21,7 +21,7 @@
                 <a href="#" class="list-group-item list-group-item-action build_move {% if not move_form.cover %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.LAN }}" onclick="return false">
                     {{ form_start(form) }}
                     <div class="tw-grid tw-grid-cols-8 tw-gap-7">
-                        <div class="tw-col-span-4">{{ move.san }}{% if move_form.reached %} ✅{% elseif move_form.next_move_reached %} ✔{% endif %}</div>
+                        <div class="tw-col-span-4">{{ move.san }}{% if move_form.saved %} ✅{% elseif move_form.next_saved %} ✔{% endif %}</div>
                         <div class="tw-col-span-2">
                             {% if true and not my_turn %}
                                 {% if move_form.expected >= 1 / 1000 %}

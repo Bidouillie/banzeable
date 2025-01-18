@@ -10,11 +10,13 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\UX\Turbo\TurboBundle;
 
+#[Route('/variation')]
 class VariationController extends AbstractController
 {
-    #[Route('/variation', name: 'app_variation')]
+    #[Route('/index', name: 'app_variation')]
     public function index(): Response
     {
         return $this->render('variation/index.html.twig', [
@@ -22,6 +24,7 @@ class VariationController extends AbstractController
         ]);
     }
 
+    #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/new', name: 'app_variation_new', methods: ['GET', 'POST'])]
     public function new(Request $request, EntityManagerInterface $em, NotationRepository $repo): Response
     {
@@ -36,6 +39,9 @@ class VariationController extends AbstractController
             if ($form->isSubmitted() && $form->isValid()) {
 
                 $course = $newVariation->getCourse();
+
+                $this->denyAccessUnlessGranted('course.owns', $course);
+
                 $newVariation->setBlackOrientation($course->isBlackOrientation());
 
                 $newVariation->setName('repertoire');
