@@ -4,6 +4,7 @@ namespace App\Form;
 
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -12,6 +13,21 @@ class BuildMoveType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
+            ->add('FENHistory', CollectionType::class, [
+                'allow_add' => true,
+                'row_attr' => [
+                    'class' => 'd-none',
+                ],
+            ])
+            ->add('LANHistory', CollectionType::class, [
+                'allow_add' => true,
+                'entry_options' => [
+                    'required' => false,
+                ],
+                'row_attr' => [
+                    'class' => 'd-none',
+                ],
+            ])
             ->add('selectedPercentHistory', CollectionType::class, [
                 'allow_add' => true,
                 'row_attr' => [
@@ -20,6 +36,9 @@ class BuildMoveType extends AbstractType
             ])
             ->add('canSaveHistory', CollectionType::class, [
                 'allow_add' => true,
+                'entry_options' => [
+                    'required' => false,
+                ],
                 'row_attr' => [
                     'class' => 'd-none',
                 ]

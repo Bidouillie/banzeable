@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class LichessApiService
@@ -17,6 +18,7 @@ class LichessApiService
 
     public function __construct(
         private readonly HttpClientInterface $client,
+        private readonly LoggerInterface $logger,
     ) {
         $this->apiUrl = "https://lichess.org/api";
         $this->explorerUrl = "https://explorer.lichess.ovh";
@@ -24,6 +26,8 @@ class LichessApiService
 
     public function getMastersMoves(string $fen, int $since = null, int $until = null)
     {
+        $this->logger->info('getMastersMoves ' . $fen);
+
         $url = $this->explorerUrl . '/masters';
 
         $query = [
@@ -50,6 +54,8 @@ class LichessApiService
 
     public function getLichessMoves(string $fen, string $variant = null, array $speeds = null, array $ratings = null, int $since = null, int $until = null)
     {
+        $this->logger->info('getLichessMoves ' . $fen);
+
         $url = $this->explorerUrl . '/lichess';
 
         $speeds = $speeds ?? $this->speeds;

@@ -4,18 +4,32 @@ import { FEN } from 'cm-chessboard'
 import { AnalysisChessboardEngine } from './chessboardengine/analysis-cbe.js';
 
 let fen = FEN.start;
+
+/**
+ * @type AnalysisChessboardEngine board
+ */
 let board;
 
 let formSubmitting = null;
 let buildingFormLinks = null;
+let previousForm = null;
 
 function build_move(event) {
     console.log('build_move');
-    
+
     board.removeArrows();
     board.playMoves(event.currentTarget.getAttribute('data-san'));
 
     console.log('end build_move');
+}
+
+function build_previous_move(event) {
+    console.log('build_previous_move');
+
+    board.removeArrows();
+    board.undoMove();
+
+    console.log('end build_previous_move');
 }
 
 function mouse_enter(event) {
@@ -58,6 +72,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
+        if (previousForm !== null) {
+            previousForm.removeEventListener('submit', build_previous_move);
+        }
+
         if (formName === 'variation_from_pgn_moves') {
             board.disablePlayableMove();
         }
@@ -76,6 +94,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (formName.startsWith('build_move')) {
             buildingFormLinks = document.querySelectorAll('a.build_move');
 
+            previousForm = document.getElementById('build_move_previous');
+
             let save_variation_PGN_field = document.getElementById('variation_from_pgn_moves_PGN');
             if (save_variation_PGN_field !== null) {
                 save_variation_PGN_field.value = board.getPGNMoves();
@@ -90,6 +110,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     buildingFormLinks[i].addEventListener('mouseleave', mouse_leave);
                 }
             }
+        }
+
+        if(previousForm !== null) {
+            previousForm.addEventListener('submit', build_previous_move);
         }
 
         board.enablePlayableMove(on_move_played);

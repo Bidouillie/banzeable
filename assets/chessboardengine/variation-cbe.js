@@ -30,7 +30,7 @@ export class VariationChessboardEngine extends ChessboardEngine {
         if (this._autoNext !== false) {
             setTimeout(() => {
                 if (this._undoMove()) {
-                    this._fireMoveEvent();
+                    this._fireMoveEvent({ undo: true });
                     this._enableMoveInput();
                 }
             }, this._autoNext);

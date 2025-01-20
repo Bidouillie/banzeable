@@ -79,7 +79,7 @@ class Variation extends PGNBase
                 $tagsKeyValue[$matches[1]] = $matches[2];
             } else {
                 $moveRegex = '[RNBQK]?[a-h]?[1-8]?x?[a-h][1-8](=[RNBQ])?(\+|#)?|O-O(-O)?';
-                $matchesMovetext = preg_match("/^(([1-9][0-9]*\. ($moveRegex)( ($moveRegex))? )+)((0|1\/2|1)-(0|1\/2|1)|\*)$/", $line, $matches);
+                $matchesMovetext = preg_match("/^(([1-9][0-9]*\. ($moveRegex)( ($moveRegex))? ?)+)((0|1\/2|1)-(0|1\/2|1)|\*)?$/", $line, $matches);
 
                 if ($matchesMovetext) {
                     $movetext = $matches[1];

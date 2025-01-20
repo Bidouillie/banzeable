@@ -10,6 +10,9 @@ import { Chess } from '@jackstenglein/chess';
 
 export class ChessboardEngine {
 
+    /**
+     * @type Chess _chess
+     */
     _chess = new Chess();
     _board;
 
@@ -137,7 +140,7 @@ export class ChessboardEngine {
     _fireMoveEvent(event) {
         if (this.#movePlayedCallback) {
             let move = this._chess.currentMove();
-            this.#movePlayedCallback({ index: move.ply, san: move.san, ...event });
+            this.#movePlayedCallback({ index: move === null ? 0 : move.ply, san: move?.san, ...event });
         }
     }
 
@@ -339,7 +342,6 @@ export class ChessboardEngine {
     }
 
     getPGNMoves() {
-        console.log(this._chess.renderPgn({ skipHeader: true }));
-        return this._chess.renderPgn({ skipHeader: true });
+        return this._chess.renderLine(this._chess.currentMove(), { skipHeader: true });
     }
 }

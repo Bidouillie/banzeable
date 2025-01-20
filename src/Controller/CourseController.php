@@ -133,11 +133,14 @@ class CourseController extends AbstractController
             // TODO check if form submitted ?
             $data = $form->getData();
 
-            $canSaveHistory = $data['canSaveHistory'];
-            $canSave = empty($canSaveHistory) ? false : (end($canSaveHistory) === 'true' ? true : false);
+            $FENHistory = $data['FENHistory'];
+            $LANHistory = $data['LANHistory'];
 
             $selectedPercentHistory = $data['selectedPercentHistory'];
             $selectedPercent = empty($selectedPercentHistory) ? 1 : end($selectedPercentHistory);
+
+            $canSaveHistory = $data['canSaveHistory'];
+            $canSave = empty($canSaveHistory) ? false : end($canSaveHistory);
 
             $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($FEN)->turn;
 
@@ -200,14 +203,25 @@ class CourseController extends AbstractController
                 $cover = false;
                 $expected = 0;
                 if ($myTurn) {
-                    if (isset($mMoves) && isset($mMoves[$SAN])) {
-                        $cover = $mMoves[$SAN]->getTotal() > $nbMastersGames / 100;
-                        $expected = isset($nbMastersGames) && $nbMastersGames > 0 ? $mMoves[$SAN]->getTotal() / $nbMastersGames : 0;
+                    if (!empty($movesSaved)) {
+                        if (isset($movesSaved[$SAN])) {
+                            $cover = true;
+                        }
+                    } else {
+                        if (isset($mMoves) && isset($mMoves[$SAN])) {
+                            $cover = $mMoves[$SAN]->getTotal() > $nbMastersGames / 100;
+                        }
                     }
+                    $expected = isset($nbMastersGames) && $nbMastersGames > 0 && isset($mMoves) && isset($mMoves[$SAN]) ? $mMoves[$SAN]->getTotal() / $nbMastersGames : 0;
                 } else {
                     $cover = $selectedPercent * $move->getTotal() / $nbGames > 1 / $course->getCoverage();
                     $expected = $selectedPercent * $move->getTotal() / $nbGames;
                 }
+
+                $moveFENHistory = $FENHistory;
+                $moveFENHistory[] = $FEN;
+                $moveLANHistory = $LANHistory;
+                $moveLANHistory[] = $LAN;
 
                 $moveSelectedPercentHistory = $selectedPercentHistory;
 
@@ -223,9 +237,11 @@ class CourseController extends AbstractController
                 }
 
                 $moveCanSaveHistory = $data['canSaveHistory'];
-                $moveCanSaveHistory[] = ($canSave || !isset($nextMovesPlayed[$FENReached]) || !isset($nextMovesPlayed[$FENReached][$FEN])) ? 'true' : 'false';
+                $moveCanSaveHistory[] = $canSave || !isset($nextMovesPlayed[$FENReached]) || !isset($nextMovesPlayed[$FENReached][$FEN]);
 
                 $form = $formFactory->createNamed("build_move_$nextLAN", BuildMoveType::class, [
+                    'FENHistory' => $moveFENHistory,
+                    'LANHistory' => $moveLANHistory,
                     'selectedPercentHistory' => $moveSelectedPercentHistory,
                     'canSaveHistory' => $moveCanSaveHistory,
                 ], [
@@ -244,7 +260,7 @@ class CourseController extends AbstractController
 
             $mbService->preloadMoves($FENsToPreload, $masterNextFENsSaved, $nextFENsSaved);
 
-            if ($canSave && ((prev($canSaveHistory) === 'true' ? true : false) || !$myTurn)) {
+            if ($canSave && (prev($canSaveHistory) || !$myTurn)) {
                 $variation = new Variation();
                 $variation->setCourse($course);
                 $variation->setSelectedPercentHistory($selectedPercentHistory);
@@ -253,10 +269,28 @@ class CourseController extends AbstractController
                 ]);
             }
 
+            $lastTurnFEN = array_pop($FENHistory);
+            if (isset($lastTurnFEN) && !empty($selectedPercentHistory) && !empty($canSaveHistory)) {
+                array_pop($selectedPercentHistory);
+                array_pop($canSaveHistory);
+                $lastTurnLAN = array_pop($LANHistory);
+                $formName = isset($lastTurnLAN) ? "build_move_$lastTurnLAN" : 'build_move';
+                $formAction = isset($lastTurnLAN) ? $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $lastTurnFEN, 'LAN' => $lastTurnLAN]) : $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'FEN' => $lastTurnFEN]);
+                $previousForm = $formFactory->createNamed($formName, BuildMoveType::class, [
+                    'FENHistory' => $FENHistory,
+                    'LANHistory' => $LANHistory,
+                    'selectedPercentHistory' => $selectedPercentHistory,
+                    'canSaveHistory' => $canSaveHistory,
+                ], [
+                    'action' => $formAction,
+                ]);
+            }
+
             return $this->render('course/build_moves.html.twig', [
                 'course' => $course,
                 'my_turn' => $myTurn,
                 'moves_forms' => $movesForms,
+                'previous_form' => $previousForm ?? null,
                 'save_form' => $saveForm ?? null,
             ]);
         }

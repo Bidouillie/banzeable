@@ -2,11 +2,22 @@
     <template>
         <h2>{% if my_turn %}Choose your next move{% else %}Choose a move to prepare for{% endif %}</h2>
         <div class="list-group">
-            {% if save_form %}
-            <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-p-2"  id="course_build-moves_{{ course.id }}_save-variation">
-                <div class="tw-col-span-8">
-                    {{ form_start(save_form) }}
-                    {{ form_end(save_form) }}
+            {% if save_form or previous_form %}
+            <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-p-2">
+                <div class="tw-col-span-4">
+                    {% if previous_form %}
+                    {{ form_start(previous_form, {'attr': {'id': 'build_move_previous'}}) }}
+                    <button type="submit" class="btn btn-primary">Back</button>
+                    {{ form_end(previous_form) }}
+                    {% endif %}
+                </div>
+                <div class="tw-col-span-4">
+                    <div class="d-flex justify-content-end" id="course_build-moves_{{ course.id }}_save-variation">
+                        {% if save_form %}
+                        {{ form_start(save_form) }}
+                        {{ form_end(save_form) }}
+                        {% endif %}
+                    </div>
                 </div>
             </div>
              {% endif %}

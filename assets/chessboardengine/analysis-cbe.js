@@ -23,16 +23,22 @@ export class AnalysisChessboardEngine extends ChessboardEngine {
 
     _moveInputFinished() {
 
-        let event = {};
-
         this.#switchTurn();
 
-        this._fireMoveEvent(event);
+        this._fireMoveEvent();
     }
 
     playMoves(sanMoves) {
         if (this._playMoves(sanMoves)) {
             this._fireMoveEvent();
+            this.#switchTurn();
+        }
+        return false;
+    }
+
+    undoMove() {
+        if (this._undoMove()) {
+            this._fireMoveEvent({ undo: true });
             this.#switchTurn();
         }
         return false;
