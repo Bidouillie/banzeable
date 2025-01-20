@@ -32,6 +32,8 @@ class MoveRepository extends ServiceEntityRepository
             $qb->andWhere('move.FENReached = :FEN');
         }
 
+        $qb->orderBy('variation.id', 'ASC');
+
         $qb->setParameter('course', $course)
             ->setParameter('FEN', $FEN);
 

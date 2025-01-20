@@ -79,7 +79,6 @@ class VariationController extends AbstractController
                  * Add percentage history
                  */
                 $selectedPercentHistory = $newVariation->getSelectedPercentHistory();
-                $selectedMultiplier = 1;
                 foreach ($newVariation->getMoves() as $key => $move) {
 
                     $selectedMultiplier = floatval($selectedPercentHistory[$key]);

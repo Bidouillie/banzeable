@@ -4,7 +4,6 @@ namespace App\Form;
 
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
-use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -30,6 +29,13 @@ class BuildMoveType extends AbstractType
             ])
             ->add('selectedPercentHistory', CollectionType::class, [
                 'allow_add' => true,
+                'row_attr' => [
+                    'class' => 'd-none',
+                ],
+            ])
+            ->add('movesMerged', CollectionType::class, [
+                'allow_add' => true,
+                'entry_type' => MoveIndexType::class,
                 'row_attr' => [
                     'class' => 'd-none',
                 ],

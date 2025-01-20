@@ -101,10 +101,7 @@ class CourseController extends AbstractController
 
         $form = $this->createForm(
             BuildMoveType::class,
-            [
-                'selectedPercentHistory' => [],
-                'canSaveHistory' => [],
-            ],
+            null,
             [
                 'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'FEN' => $FEN]),
             ]
@@ -120,7 +117,7 @@ class CourseController extends AbstractController
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/{id}/build-moves/{FEN}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'FEN' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
     #[Route('/{id}/build-moves/{FEN}/{LAN}', name: 'app_course_build_moves_from_lan', requirements: ['id' => '\d+', 'FEN' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$', 'lan' => '^([a-h][1-8]){2}$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $FEN, ?string $LAN, Request $request, MovePopularityRepository $repo, MovePopularityMasterRepository $masterRepo, MoveRepository $moveRepo, NotationRepository $notationRepo, MoveBuilderService $mbService, FormFactoryInterface $formFactory): Response
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $FEN, ?string $LAN, Request $request, MovePopularityRepository $mpRepo, MovePopularityMasterRepository $mpMasterRepo, MoveRepository $moveRepo, NotationRepository $notationRepo, MoveBuilderService $mbService, FormFactoryInterface $formFactory): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -142,17 +139,23 @@ class CourseController extends AbstractController
             $canSaveHistory = $data['canSaveHistory'];
             $canSave = empty($canSaveHistory) ? false : end($canSaveHistory);
 
+            $movesMerged = $data['movesMerged'];
+            $lastMovesMerged = array_reduce($movesMerged, function ($carry, $moveMerged) {
+                $carry[$moveMerged['move']->getVariation()->getId()] = $moveMerged;
+                return $carry;
+            }, []);
+
             $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($FEN)->turn;
 
             $movesSaved = $notationRepo->findByFENFromCourse($FEN, $course, 'SAN');
 
-            $moves = $repo->findByFEN($FEN, $nbGames);
+            $moves = $mpRepo->findByFEN($FEN, $nbGames);
             if (empty($moves)) {
                 $moves = $mbService->loadMoves($FEN, $nbGames);
             }
 
             if ($myTurn) {
-                $mMoves = $masterRepo->findByFen($FEN, $nbMastersGames);
+                $mMoves = $mpMasterRepo->findByFen($FEN, $nbMastersGames);
                 if (empty($mMoves)) {
                     $mMoves = $mbService->loadMastersMoves($FEN, $nbMastersGames);
                 }
@@ -180,8 +183,8 @@ class CourseController extends AbstractController
                 return $move->getNextFEN();
             }, $moves);
 
-            $masterNextFENsSaved = $masterRepo->findGroupedByFEN($nextFENs, ['since' => '2021', 'until' => '2024']);
-            $nextFENsSaved = $repo->findGroupedByFEN($nextFENs, ['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12']);
+            $masterNextFENsSaved = $mpMasterRepo->findGroupedByFEN($nextFENs, ['since' => '2021', 'until' => '2024']);
+            $nextFENsSaved = $mpRepo->findGroupedByFEN($nextFENs, ['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12']);
 
             $movesSavedFENReached = $moveRepo->findByFENReachedFromCourse($nextFENs, $course, 'FEN');
             $nextMovesPlayed = array_reduce(array_keys($movesSavedFENReached), function ($carry, $FENReached) use ($movesSavedFENReached) {
@@ -224,10 +227,18 @@ class CourseController extends AbstractController
                 $moveLANHistory[] = $LAN;
 
                 $moveSelectedPercentHistory = $selectedPercentHistory;
+                $moveMovesMerged = $movesMerged;
 
                 $moveSelectedPercent = $selectedPercent * ($myTurn ? 1 : $move->getTotal() / $nbGames);
                 if (!isset($movesSaved[$SAN]) && isset($movesSavedFENReached[$FENReached])) {
-                    $moveSelectedPercent += $movesSavedFENReached[$FENReached][0]->getSelectedMultiplier();
+                    $moveToMerge = $movesSavedFENReached[$FENReached][0];
+                    if (isset($lastMovesMerged[$moveToMerge->getVariation()->getId()])) {
+                        $lastMoveMerged = $lastMovesMerged[$moveToMerge->getVariation()->getId()];
+                        $moveSelectedPercent += $moveToMerge->getSelectedMultiplier() * $selectedPercentHistory[$lastMoveMerged['index']] / $lastMoveMerged['move']->getSelectedMultiplier();
+                    } else {
+                        $moveSelectedPercent += $moveToMerge->getSelectedMultiplier();
+                    }
+                    $moveMovesMerged[] = ['move' => $moveToMerge, 'index' => count($selectedPercentHistory)];
                 }
 
                 $moveSelectedPercentHistory[] = $moveSelectedPercent;
@@ -236,13 +247,14 @@ class CourseController extends AbstractController
                     $FENsToPreload[] = $FENReached;
                 }
 
-                $moveCanSaveHistory = $data['canSaveHistory'];
+                $moveCanSaveHistory = $canSaveHistory;
                 $moveCanSaveHistory[] = $canSave || !isset($nextMovesPlayed[$FENReached]) || !isset($nextMovesPlayed[$FENReached][$FEN]);
 
                 $form = $formFactory->createNamed("build_move_$nextLAN", BuildMoveType::class, [
                     'FENHistory' => $moveFENHistory,
                     'LANHistory' => $moveLANHistory,
                     'selectedPercentHistory' => $moveSelectedPercentHistory,
+                    'movesMerged' => $moveMovesMerged,
                     'canSaveHistory' => $moveCanSaveHistory,
                 ], [
                     'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $FENReached, 'LAN' => $nextLAN]),
@@ -273,6 +285,10 @@ class CourseController extends AbstractController
             if (isset($lastTurnFEN) && !empty($selectedPercentHistory) && !empty($canSaveHistory)) {
                 array_pop($selectedPercentHistory);
                 array_pop($canSaveHistory);
+                $movesMerged = array_filter($movesMerged, function ($moveMerged) use ($selectedPercentHistory) {
+                    return $moveMerged['index'] < count($selectedPercentHistory);
+                });
+
                 $lastTurnLAN = array_pop($LANHistory);
                 $formName = isset($lastTurnLAN) ? "build_move_$lastTurnLAN" : 'build_move';
                 $formAction = isset($lastTurnLAN) ? $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $lastTurnFEN, 'LAN' => $lastTurnLAN]) : $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'FEN' => $lastTurnFEN]);
@@ -280,6 +296,7 @@ class CourseController extends AbstractController
                     'FENHistory' => $FENHistory,
                     'LANHistory' => $LANHistory,
                     'selectedPercentHistory' => $selectedPercentHistory,
+                    'movesMerged' => $movesMerged,
                     'canSaveHistory' => $canSaveHistory,
                 ], [
                     'action' => $formAction,
