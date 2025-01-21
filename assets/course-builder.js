@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function () {
             previousForm.removeEventListener('submit', build_previous_move);
         }
 
-        if (formName === 'variation_from_pgn_moves') {
+        if (formName === 'move_builder_variation') {
             board.disablePlayableMove();
         }
     });
@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             previousForm = document.getElementById('build_move_previous');
 
-            let save_variation_PGN_field = document.getElementById('variation_from_pgn_moves_PGN');
+            let save_variation_PGN_field = document.getElementById('move_builder_variation_variation_PGN');
             if (save_variation_PGN_field !== null) {
                 save_variation_PGN_field.value = board.getPGNMoves();
             }

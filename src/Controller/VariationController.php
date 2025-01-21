@@ -2,8 +2,7 @@
 
 namespace App\Controller;
 
-use App\Entity\Variation;
-use App\Form\VariationFromPGNMovesType;
+use App\Form\MoveBuilderVariationType;
 use App\Repository\NotationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -31,20 +30,17 @@ class VariationController extends AbstractController
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
-            $newVariation = new Variation();
-            $form = $this->createForm(VariationFromPGNMovesType::class, $newVariation);
-
+            $form = $this->createForm(MoveBuilderVariationType::class);
             $form->handleRequest($request);
 
             if ($form->isSubmitted() && $form->isValid()) {
 
+                $newVariation = $form->get('variation')->getData();
+                $selectedPercentHistory = $form->get('selectedPercentHistory')->getData();
+
                 $course = $newVariation->getCourse();
 
                 $this->denyAccessUnlessGranted('course.owns', $course);
-
-                $newVariation->setBlackOrientation($course->isBlackOrientation());
-
-                $newVariation->setName('repertoire');
 
                 $moves = $newVariation->getMoves();
 
@@ -78,7 +74,6 @@ class VariationController extends AbstractController
                  * Linking the moves to the notations that are already created
                  * Add percentage history
                  */
-                $selectedPercentHistory = $newVariation->getSelectedPercentHistory();
                 foreach ($newVariation->getMoves() as $key => $move) {
 
                     $selectedMultiplier = floatval($selectedPercentHistory[$key]);

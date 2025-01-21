@@ -6,8 +6,8 @@ use App\Entity\Course;
 use App\Entity\User;
 use App\Entity\Variation;
 use App\Form\BuildMoveType;
+use App\Form\MoveBuilderVariationType;
 use App\Form\StudyToggleType;
-use App\Form\VariationFromPGNMovesType;
 use App\Repository\CourseRepository;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
@@ -275,8 +275,12 @@ class CourseController extends AbstractController
             if ($canSave && (prev($canSaveHistory) || !$myTurn)) {
                 $variation = new Variation();
                 $variation->setCourse($course);
-                $variation->setSelectedPercentHistory($selectedPercentHistory);
-                $saveForm = $this->createForm(VariationFromPGNMovesType::class, $variation, [
+                $variation->setName('repertoire');
+                $variation->setBlackOrientation($course->isBlackOrientation());
+                $saveForm = $this->createForm(MoveBuilderVariationType::class, [
+                    'variation' => $variation,
+                    'selectedPercentHistory' => $selectedPercentHistory
+                ], [
                     'action' => $this->generateUrl('app_variation_new'),
                 ]);
             }
