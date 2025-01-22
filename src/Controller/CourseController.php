@@ -126,193 +126,193 @@ class CourseController extends AbstractController
             $form = $formFactory->createNamed('build_move' . (isset($LAN) ? "_$LAN" : ''), BuildMoveType::class);
             $form->handleRequest($request);
 
-            // TODO check if form submitted ?
-            $data = $form->getData();
+            if ($form->isSubmitted() && $form->isValid()) {
 
-            $FENHistory = $data['FENHistory'];
-            $LANHistory = $data['LANHistory'];
+                $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($FEN)->turn;
 
-            $selectedPercentHistory = $data['selectedPercentHistory'];
-            $totalSelectedPercent = 1;
-            $totalSelectedPercentHistory = array_map(function ($selectedPercent) use (&$totalSelectedPercent) {
-                $totalSelectedPercent *= floatval($selectedPercent);
-                return $totalSelectedPercent;
-            }, $selectedPercentHistory);
+                $FENHistory = $form->get('FENHistory')->getData();
+                $LANHistory = $form->get('LANHistory')->getData();
 
-            $canSaveHistory = $data['canSaveHistory'];
-            $canSave = empty($canSaveHistory) ? false : end($canSaveHistory);
+                $selectedPercentHistory = $form->get('selectedPercentHistory')->getData();
+                $totalSelectedPercent = 1;
+                $totalSelectedPercentHistory = array_map(function ($selectedPercent) use (&$totalSelectedPercent) {
+                    $totalSelectedPercent *= $selectedPercent;
+                    return $totalSelectedPercent;
+                }, $selectedPercentHistory);
 
-            $movesMerged = $data['movesMerged'];
-            $lastMovesMerged = array_reduce($movesMerged, function ($carry, $moveMerged) {
-                $carry[$moveMerged['move']->getVariation()->getId()] = $moveMerged;
-                return $carry;
-            }, []);
+                $canSaveHistory = $form->get('canSaveHistory')->getData();
+                $canSave = empty($canSaveHistory) ? false : end($canSaveHistory);
 
-            $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($FEN)->turn;
-
-            $movesSaved = $moveRepo->findByFENFromCourse($FEN, $course, 'SAN');
-
-            $moves = $mpRepo->findByFEN($FEN, $nbGames);
-            if (empty($moves)) {
-                $moves = $mbService->loadMoves($FEN, $nbGames);
-            }
-
-            if ($myTurn) {
-                $mMoves = $mpMasterRepo->findByFen($FEN, $nbMastersGames);
-                if (empty($mMoves)) {
-                    $mMoves = $mbService->loadMastersMoves($FEN, $nbMastersGames);
-                }
-
-                usort($moves, function ($move1, $move2) use ($mMoves, $movesSaved) {
-                    if (isset($movesSaved[$move1->getSan()]) xor isset($movesSaved[$move2->getSan()])) {
-                        return isset($movesSaved[$move1->getSan()]) ? -1 : 1;
-                    }
-                    $mMove1 = isset($mMoves[$move1->getSan()]) ? $mMoves[$move1->getSan()] : null;
-                    $mMove2 = isset($mMoves[$move2->getSan()]) ? $mMoves[$move2->getSan()] : null;
-                    $nbMastersGames1 = $mMove1 ? $mMove1->getTotal() : 0;
-                    $nbMastersGames2 = $mMove2 ? $mMove2->getTotal() : 0;
-                    if ($nbMastersGames1 === $nbMastersGames2) {
-                        return $move2->getTotal() - $move1->getTotal();
-                    }
-                    return $nbMastersGames2 - $nbMastersGames1;
-                });
-            } else {
-                usort($moves, function ($move1, $move2) {
-                    return $move2->getTotal() - $move1->getTotal();
-                });
-            }
-
-            $nextFENs = array_map(function ($move) {
-                return $move->getNextFEN();
-            }, $moves);
-
-            $masterNextFENsSaved = $mpMasterRepo->findGroupedByFEN($nextFENs, ['since' => '2021', 'until' => '2024']);
-            $nextFENsSaved = $mpRepo->findGroupedByFEN($nextFENs, ['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12']);
-
-            $movesSavedFENReached = $moveRepo->findByFENReachedFromCourse($nextFENs, $course, 'FEN');
-            $nextMovesPlayed = array_reduce(array_keys($movesSavedFENReached), function ($carry, $FENReached) use ($movesSavedFENReached) {
-                $carry[$FENReached] = array_reduce($movesSavedFENReached[$FENReached], function ($carry, $move) {
-                    $carry[$move->getNotation()->getFEN()] = $move;
+                $movesMerged = $form->get('movesMerged')->getData();
+                $lastMovesMerged = array_reduce($movesMerged, function ($carry, $moveMerged) {
+                    $carry[$moveMerged['move']->getVariation()->getId()] = $moveMerged;
                     return $carry;
                 }, []);
-                return $carry;
-            }, []);
 
-            $FENsToPreload = [];
-            $movesForms = [];
-            foreach ($moves as $move) {
+                $movesSaved = $moveRepo->findByFENFromCourse($FEN, $course, 'SAN');
 
-                $SAN = $move->getSan();
-                $nextLAN = $move->getLAN();
-                $FENReached = $move->getNextFEN();
-
-                $moveCanSave = $canSave || !isset($nextMovesPlayed[$FENReached]) || !isset($nextMovesPlayed[$FENReached][$FEN]);
-
-                /**
-                 * Selected Percent
-                 */
-                $moveSelectedPercent = isset($movesSaved[$SAN]) ? $movesSaved[$SAN]->getSelectedMultiplier() : ($myTurn ? 1 : $move->getTotal() / $nbGames);
-
-                $moveTotalSelectedPercent = $totalSelectedPercent * $moveSelectedPercent;
-
-                $moveMovesMerged = $movesMerged;
-
-                if (!isset($movesSaved[$SAN]) && isset($movesSavedFENReached[$FENReached])) {
-                    $moveToMerge = $movesSavedFENReached[$FENReached][0];
-                    if (isset($lastMovesMerged[$moveToMerge->getVariation()->getId()])) {
-                        $lastMoveMerged = $lastMovesMerged[$moveToMerge->getVariation()->getId()];
-                        $moveTotalSelectedPercent += $moveToMerge->getTotalSelectedMultiplier() * $totalSelectedPercentHistory[$lastMoveMerged['index']] / $lastMoveMerged['move']->getTotalSelectedMultiplier();
-                    } else {
-                        $moveTotalSelectedPercent += $moveToMerge->getTotalSelectedMultiplier();
-                    }
-                    $moveMovesMerged[] = ['move' => $moveToMerge, 'index' => count($selectedPercentHistory)];
+                $moves = $mpRepo->findByFEN($FEN, $nbGames);
+                if (empty($moves)) {
+                    $moves = $mbService->loadMoves($FEN, $nbGames);
                 }
-
-                $moveSelectedPercent = $moveTotalSelectedPercent / $totalSelectedPercent;
-
 
                 if ($myTurn) {
-                    $expected = isset($nbMastersGames) && $nbMastersGames > 0 && isset($mMoves) && isset($mMoves[$SAN]) ? $mMoves[$SAN]->getTotal() / $nbMastersGames : 0;
-                    $cover = $expected > 1 / 100;
-                    if (isset($movesSaved[$SAN])) {
-                        $cover = true;
+                    $mMoves = $mpMasterRepo->findByFen($FEN, $nbMastersGames);
+                    if (empty($mMoves)) {
+                        $mMoves = $mbService->loadMastersMoves($FEN, $nbMastersGames);
                     }
+
+                    usort($moves, function ($move1, $move2) use ($mMoves, $movesSaved) {
+                        if (isset($movesSaved[$move1->getSan()]) xor isset($movesSaved[$move2->getSan()])) {
+                            return isset($movesSaved[$move1->getSan()]) ? -1 : 1;
+                        }
+                        $mMove1 = isset($mMoves[$move1->getSan()]) ? $mMoves[$move1->getSan()] : null;
+                        $mMove2 = isset($mMoves[$move2->getSan()]) ? $mMoves[$move2->getSan()] : null;
+                        $nbMastersGames1 = $mMove1 ? $mMove1->getTotal() : 0;
+                        $nbMastersGames2 = $mMove2 ? $mMove2->getTotal() : 0;
+                        if ($nbMastersGames1 === $nbMastersGames2) {
+                            return $move2->getTotal() - $move1->getTotal();
+                        }
+                        return $nbMastersGames2 - $nbMastersGames1;
+                    });
                 } else {
-                    $expected = $totalSelectedPercent * $move->getTotal() / $nbGames;
-                    $cover = $expected > 1 / $course->getCoverage();
+                    usort($moves, function ($move1, $move2) {
+                        return $move2->getTotal() - $move1->getTotal();
+                    });
                 }
 
-                if ($cover) {
-                    $FENsToPreload[] = $FENReached;
+                $nextFENs = array_map(function ($move) {
+                    return $move->getNextFEN();
+                }, $moves);
+
+                $masterNextFENsSaved = $mpMasterRepo->findGroupedByFEN($nextFENs, ['since' => '2021', 'until' => '2024']);
+                $nextFENsSaved = $mpRepo->findGroupedByFEN($nextFENs, ['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12']);
+
+                $movesSavedFENReached = $moveRepo->findByFENReachedFromCourse($nextFENs, $course, 'FEN');
+                $nextMovesPlayed = array_reduce(array_keys($movesSavedFENReached), function ($carry, $FENReached) use ($movesSavedFENReached) {
+                    $carry[$FENReached] = array_reduce($movesSavedFENReached[$FENReached], function ($carry, $move) {
+                        $carry[$move->getNotation()->getFEN()] = $move;
+                        return $carry;
+                    }, []);
+                    return $carry;
+                }, []);
+
+                $FENsToPreload = [];
+                $movesForms = [];
+                foreach ($moves as $move) {
+
+                    $SAN = $move->getSan();
+                    $nextLAN = $move->getLAN();
+                    $FENReached = $move->getNextFEN();
+
+                    $moveCanSave = $canSave || !isset($nextMovesPlayed[$FENReached]) || !isset($nextMovesPlayed[$FENReached][$FEN]);
+
+                    /**
+                     * Selected Percent
+                     */
+                    $moveSelectedPercent = isset($movesSaved[$SAN]) ? $movesSaved[$SAN]->getSelectedMultiplier() : ($myTurn ? 1 : $move->getTotal() / $nbGames);
+
+                    $moveTotalSelectedPercent = $totalSelectedPercent * $moveSelectedPercent;
+
+                    $moveMovesMerged = $movesMerged;
+
+                    if (!isset($movesSaved[$SAN]) && isset($movesSavedFENReached[$FENReached])) {
+                        $moveToMerge = $movesSavedFENReached[$FENReached][0];
+                        if (isset($lastMovesMerged[$moveToMerge->getVariation()->getId()])) {
+                            $lastMoveMerged = $lastMovesMerged[$moveToMerge->getVariation()->getId()];
+                            $moveTotalSelectedPercent += $moveToMerge->getTotalSelectedMultiplier() * $totalSelectedPercentHistory[$lastMoveMerged['index']] / $lastMoveMerged['move']->getTotalSelectedMultiplier();
+                        } else {
+                            $moveTotalSelectedPercent += $moveToMerge->getTotalSelectedMultiplier();
+                        }
+                        $moveMovesMerged[] = ['move' => $moveToMerge, 'index' => count($selectedPercentHistory)];
+                    }
+
+                    $moveSelectedPercent = $moveTotalSelectedPercent / $totalSelectedPercent;
+
+
+                    if ($myTurn) {
+                        $expected = isset($nbMastersGames) && $nbMastersGames > 0 && isset($mMoves) && isset($mMoves[$SAN]) ? $mMoves[$SAN]->getTotal() / $nbMastersGames : 0;
+                        $cover = $expected > 1 / 100;
+                        if (isset($movesSaved[$SAN])) {
+                            $cover = true;
+                        }
+                    } else {
+                        $expected = $totalSelectedPercent * $move->getTotal() / $nbGames;
+                        $cover = $expected > 1 / $course->getCoverage();
+                    }
+
+                    if ($cover) {
+                        $FENsToPreload[] = $FENReached;
+                    }
+
+                    $form = $formFactory->createNamed("build_move_$nextLAN", BuildMoveType::class, [
+                        'FENHistory' => [...$FENHistory, $FEN],
+                        'LANHistory' => [...$LANHistory, $LAN],
+                        'selectedPercentHistory' => [...$selectedPercentHistory, $moveSelectedPercent],
+                        'movesMerged' => $moveMovesMerged,
+                        'canSaveHistory' => [...$canSaveHistory, $moveCanSave],
+                    ], [
+                        'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $FENReached, 'LAN' => $nextLAN]),
+                    ]);
+
+                    $movesForms[] = [
+                        'move' => $move,
+                        'form' => $form->createView(),
+                        'cover' => $cover,
+                        'expected' => $expected,
+                        'saved' => isset($movesSaved[$SAN]),
+                        'next_saved' => isset($movesSavedFENReached[$FENReached]),
+                    ];
                 }
 
-                $form = $formFactory->createNamed("build_move_$nextLAN", BuildMoveType::class, [
-                    'FENHistory' => [...$FENHistory, $FEN],
-                    'LANHistory' => [...$LANHistory, $LAN],
-                    'selectedPercentHistory' => [...$selectedPercentHistory, sprintf("%.7f", $moveSelectedPercent)],
-                    'movesMerged' => $moveMovesMerged,
-                    'canSaveHistory' => [...$canSaveHistory, $moveCanSave],
-                ], [
-                    'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $FENReached, 'LAN' => $nextLAN]),
-                ]);
+                $mbService->preloadMoves($FENsToPreload, $masterNextFENsSaved, $nextFENsSaved);
 
-                $movesForms[] = [
-                    'move' => $move,
-                    'form' => $form->createView(),
-                    'cover' => $cover,
-                    'expected' => $expected,
-                    'saved' => isset($movesSaved[$SAN]),
-                    'next_saved' => isset($movesSavedFENReached[$FENReached]),
-                ];
-            }
+                if ($canSave && (prev($canSaveHistory) || !$myTurn)) {
+                    $variation = new Variation();
+                    $variation->setCourse($course);
+                    $variation->setName('repertoire');
+                    $variation->setBlackOrientation($course->isBlackOrientation());
+                    $saveForm = $this->createForm(MoveBuilderVariationType::class, [
+                        'variation' => $variation,
+                        'selectedPercentHistory' => $selectedPercentHistory,
+                        'movesMerged' => array_map(function ($moveMerged) {
+                            return $moveMerged['move'];
+                        }, $movesMerged),
+                    ], [
+                        'action' => $this->generateUrl('app_variation_new'),
+                    ]);
+                }
 
-            $mbService->preloadMoves($FENsToPreload, $masterNextFENsSaved, $nextFENsSaved);
+                $lastTurnFEN = array_pop($FENHistory);
+                if (isset($lastTurnFEN) && !empty($selectedPercentHistory) && !empty($canSaveHistory)) {
+                    array_pop($selectedPercentHistory);
+                    array_pop($canSaveHistory);
+                    $movesMerged = array_filter($movesMerged, function ($moveMerged) use ($selectedPercentHistory) {
+                        return $moveMerged['index'] < count($selectedPercentHistory);
+                    });
 
-            if ($canSave && (prev($canSaveHistory) || !$myTurn)) {
-                $variation = new Variation();
-                $variation->setCourse($course);
-                $variation->setName('repertoire');
-                $variation->setBlackOrientation($course->isBlackOrientation());
-                $saveForm = $this->createForm(MoveBuilderVariationType::class, [
-                    'variation' => $variation,
-                    'selectedPercentHistory' => $selectedPercentHistory,
-                    'movesMerged' => array_map(function ($moveMerged) {
-                        return $moveMerged['move'];
-                    }, $movesMerged),
-                ], [
-                    'action' => $this->generateUrl('app_variation_new'),
-                ]);
-            }
+                    $lastTurnLAN = array_pop($LANHistory);
+                    $formName = isset($lastTurnLAN) ? "build_move_$lastTurnLAN" : 'build_move';
+                    $formAction = isset($lastTurnLAN) ? $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $lastTurnFEN, 'LAN' => $lastTurnLAN]) : $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'FEN' => $lastTurnFEN]);
+                    $previousForm = $formFactory->createNamed($formName, BuildMoveType::class, [
+                        'FENHistory' => $FENHistory,
+                        'LANHistory' => $LANHistory,
+                        'selectedPercentHistory' => $selectedPercentHistory,
+                        'movesMerged' => $movesMerged,
+                        'canSaveHistory' => $canSaveHistory,
+                    ], [
+                        'action' => $formAction,
+                    ]);
+                }
 
-            $lastTurnFEN = array_pop($FENHistory);
-            if (isset($lastTurnFEN) && !empty($selectedPercentHistory) && !empty($canSaveHistory)) {
-                array_pop($selectedPercentHistory);
-                array_pop($canSaveHistory);
-                $movesMerged = array_filter($movesMerged, function ($moveMerged) use ($selectedPercentHistory) {
-                    return $moveMerged['index'] < count($selectedPercentHistory);
-                });
-
-                $lastTurnLAN = array_pop($LANHistory);
-                $formName = isset($lastTurnLAN) ? "build_move_$lastTurnLAN" : 'build_move';
-                $formAction = isset($lastTurnLAN) ? $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $lastTurnFEN, 'LAN' => $lastTurnLAN]) : $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'FEN' => $lastTurnFEN]);
-                $previousForm = $formFactory->createNamed($formName, BuildMoveType::class, [
-                    'FENHistory' => $FENHistory,
-                    'LANHistory' => $LANHistory,
-                    'selectedPercentHistory' => $selectedPercentHistory,
-                    'movesMerged' => $movesMerged,
-                    'canSaveHistory' => $canSaveHistory,
-                ], [
-                    'action' => $formAction,
+                return $this->render('course/build_moves.html.twig', [
+                    'course' => $course,
+                    'my_turn' => $myTurn,
+                    'moves_forms' => $movesForms,
+                    'previous_form' => $previousForm ?? null,
+                    'save_form' => $saveForm ?? null,
                 ]);
             }
-
-            return $this->render('course/build_moves.html.twig', [
-                'course' => $course,
-                'my_turn' => $myTurn,
-                'moves_forms' => $movesForms,
-                'previous_form' => $previousForm ?? null,
-                'save_form' => $saveForm ?? null,
-            ]);
         }
     }
 

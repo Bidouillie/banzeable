@@ -87,7 +87,7 @@ class VariationController extends AbstractController
                 $totalSelectedMultiplier = 1;
                 foreach ($newVariation->getMoves() as $key => $move) {
 
-                    $selectedMultiplier = floatval($selectedPercentHistory[$key]);
+                    $selectedMultiplier = $selectedPercentHistory[$key];
                     $totalSelectedMultiplier *= $selectedMultiplier;
                     $move->setSelectedMultiplier($selectedMultiplier);
                     $move->setTotalSelectedMultiplier($totalSelectedMultiplier);
