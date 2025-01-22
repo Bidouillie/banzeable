@@ -13,6 +13,7 @@ use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
 use App\Repository\MoveRepository;
 use App\Service\MoveBuilderService;
+use App\Service\MoveLoaderService;
 use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -116,7 +117,7 @@ class CourseController extends AbstractController
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/{id}/build-moves/{FEN}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'FEN' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
     #[Route('/{id}/build-moves/{FEN}/{LAN}', name: 'app_course_build_moves_from_lan', requirements: ['id' => '\d+', 'FEN' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$', 'lan' => '^([a-h][1-8]){2}$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $FEN, ?string $LAN, Request $request, MovePopularityRepository $mpRepo, MovePopularityMasterRepository $mpMasterRepo, MoveRepository $moveRepo, MoveBuilderService $mbService, FormFactoryInterface $formFactory): Response
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $FEN, ?string $LAN, Request $request, MovePopularityRepository $mpRepo, MovePopularityMasterRepository $mpMasterRepo, MoveRepository $moveRepo, MoveBuilderService $mbService, MoveLoaderService $mlService, FormFactoryInterface $formFactory): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -153,13 +154,13 @@ class CourseController extends AbstractController
 
                 $moves = $mpRepo->findByFEN($FEN, $nbGames);
                 if (empty($moves)) {
-                    $moves = $mbService->loadMoves($FEN, $nbGames);
+                    $moves = $mlService->loadMoves($FEN, $nbGames);
                 }
 
                 if ($myTurn) {
                     $mMoves = $mpMasterRepo->findByFen($FEN, $nbMastersGames);
                     if (empty($mMoves)) {
-                        $mMoves = $mbService->loadMastersMoves($FEN, $nbMastersGames);
+                        $mMoves = $mlService->loadMastersMoves($FEN, $nbMastersGames);
                     }
 
                     usort($moves, function ($move1, $move2) use ($mMoves, $movesSaved) {
@@ -205,30 +206,11 @@ class CourseController extends AbstractController
                     $nextLAN = $move->getLAN();
                     $FENReached = $move->getNextFEN();
 
+                    $action = $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $FENReached, 'LAN' => $nextLAN]);
+
                     $moveCanSave = $canSave || !isset($nextMovesPlayed[$FENReached]) || !isset($nextMovesPlayed[$FENReached][$FEN]);
 
-                    /**
-                     * Selected Percent
-                     */
-                    $moveSelectedPercent = isset($movesSaved[$SAN]) ? $movesSaved[$SAN]->getSelectedMultiplier() : ($myTurn ? 1 : $move->getTotal() / $nbGames);
-
-                    $moveTotalSelectedPercent = $totalSelectedPercent * $moveSelectedPercent;
-
-                    $moveMovesMerged = $movesMerged;
-
-                    if (!isset($movesSaved[$SAN]) && isset($movesSavedFENReached[$FENReached])) {
-                        $moveToMerge = $movesSavedFENReached[$FENReached][0];
-                        if (isset($lastMovesMerged[$moveToMerge->getVariation()->getId()])) {
-                            $lastMoveMerged = $lastMovesMerged[$moveToMerge->getVariation()->getId()];
-                            $moveTotalSelectedPercent += $moveToMerge->getTotalSelectedMultiplier() * $totalSelectedPercentHistory[$lastMoveMerged['index']] / $lastMoveMerged['move']->getTotalSelectedMultiplier();
-                        } else {
-                            $moveTotalSelectedPercent += $moveToMerge->getTotalSelectedMultiplier();
-                        }
-                        $moveMovesMerged[] = ['move' => $moveToMerge, 'index' => count($selectedPercentHistory)];
-                    }
-
-                    $moveSelectedPercent = $moveTotalSelectedPercent / $totalSelectedPercent;
-
+                    $form = $mbService->buildMoveForm($move, "build_move_$nextLAN", $action, $myTurn, $nbGames, $FENHistory, $FEN, $LANHistory, $LAN, $selectedPercentHistory, $totalSelectedPercentHistory, $totalSelectedPercent, $canSaveHistory, $moveCanSave, $movesMerged, $lastMovesMerged, $movesSaved, $movesSavedFENReached);
 
                     if ($myTurn) {
                         $expected = isset($nbMastersGames) && $nbMastersGames > 0 && isset($mMoves) && isset($mMoves[$SAN]) ? $mMoves[$SAN]->getTotal() / $nbMastersGames : 0;
@@ -245,16 +227,6 @@ class CourseController extends AbstractController
                         $FENsToPreload[] = $FENReached;
                     }
 
-                    $form = $formFactory->createNamed("build_move_$nextLAN", BuildMoveType::class, [
-                        'FENHistory' => [...$FENHistory, $FEN],
-                        'LANHistory' => [...$LANHistory, $LAN],
-                        'selectedPercentHistory' => [...$selectedPercentHistory, $moveSelectedPercent],
-                        'movesMerged' => $moveMovesMerged,
-                        'canSaveHistory' => [...$canSaveHistory, $moveCanSave],
-                    ], [
-                        'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $FENReached, 'LAN' => $nextLAN]),
-                    ]);
-
                     $movesForms[] = [
                         'move' => $move,
                         'form' => $form->createView(),
@@ -265,7 +237,7 @@ class CourseController extends AbstractController
                     ];
                 }
 
-                $mbService->preloadMoves($FENsToPreload, $masterNextFENsSaved, $nextFENsSaved);
+                $mlService->preloadMoves($FENsToPreload, $masterNextFENsSaved, $nextFENsSaved);
 
                 if ($canSave && (prev($canSaveHistory) || !$myTurn)) {
                     $variation = new Variation();

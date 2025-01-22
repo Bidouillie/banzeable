@@ -2,141 +2,67 @@
 
 namespace App\Service;
 
+use App\Entity\Move;
 use App\Entity\MovePopularity;
-use App\Entity\MovePopularityMaster;
-use App\Message\LoadMastersMoves;
-use App\Message\LoadMoves;
-use App\Repository\MovePopularityMasterRepository;
-use App\Repository\MovePopularityRepository;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
+use App\Form\BuildMoveType;
+use Symfony\Component\Form\FormFactoryInterface;
 
 class MoveBuilderService
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly MovePopularityRepository $repo,
-        private readonly MovePopularityMasterRepository $masterRepo,
-        private readonly LichessApiService $lichessApi,
-        private readonly MessageBusInterface $bus,
+        private readonly FormFactoryInterface $formFactory,
     ) {}
 
-    public function loadMastersMoves(string $FEN, ?int &$nbGames = 0)
+    /**
+     * @param MovePopularity $move
+     * @param string $name
+     * @param string $action
+     * @param bool $myTurn
+     * @param int $nbGames
+     * @param array<string> $FENHistory
+     * @param string $FEN
+     * @param array<string> $LANHistory
+     * @param ?string $LAN
+     * @param array<float> $selectedPercentHistory
+     * @param array<float> $totalSelectedPercentHistory
+     * @param float $totalSelectedPercent
+     * @param array<bool> $canSaveHistory
+     * @param bool $canSave
+     * @param array $movesMerged
+     * @param array $lastMovesMerged
+     * @param array<Move> $movesSaved
+     * @param array<array<Move>> $movesSavedFENReached
+     */
+    public function buildMoveForm(MovePopularity $move, string $name, string $action, bool $myTurn, int $nbGames, array $FENHistory, string $FEN, array $LANHistory, ?string $LAN, array $selectedPercentHistory, array $totalSelectedPercentHistory, float $totalSelectedPercent, array $canSaveHistory, bool $canSave, array $movesMerged, array $lastMovesMerged, array $movesSaved, array $movesSavedFENReached)
     {
-        $responseMoves = $this->lichessApi->getMastersMoves($FEN);
+        $SAN = $move->getSan();
+        $FENReached = $move->getNextFEN();
 
-        if (isset($responseMoves)) {
+        $moveSelectedPercent = isset($movesSaved[$SAN]) ? $movesSaved[$SAN]->getSelectedMultiplier() : ($myTurn ? 1 : $move->getTotal() / $nbGames);
 
-            $movesSaved = array_reduce($this->masterRepo->findBy(['since' => '2021', 'until' => '2024', 'FEN' => $FEN]), function ($carry, $move) {
-                $carry[$move->getSan()] = $move;
-                return $carry;
-            }, []);
+        $moveTotalSelectedPercent = $totalSelectedPercent * $moveSelectedPercent;
 
-            $date = new \DateTime();
-            $moves = [];
-            foreach ($responseMoves as $move) {
-                /**
-                 * @var MovePopularityMaster $movePopularity
-                 */
-                $movePopularity = isset($movesSaved[$move['san']]) ? $movesSaved[$move['san']] : new MovePopularityMaster();
-                $movePopularity->setFEN($FEN);
-                $movePopularity->setSan($move['san']);
-                $movePopularity->setDateCreated($date);
-                $movePopularity->setWhite($move['white']);
-                $movePopularity->setBlack($move['black']);
-                $movePopularity->setDraws($move['draws']);
-
-                if (isset($move['opening']) && isset($move['opening']['name'])) {
-                    $movePopularity->setOpening($move['opening']['name']);
-                }
-
-                $this->em->persist($movePopularity);
-
-                if ($movePopularity->getSan() === '-') {
-                    $nbGames = $movePopularity->getTotal() ?? 0;
-                }
-                $moves[$movePopularity->getSan()] = $movePopularity;
+        if (!isset($movesSaved[$SAN]) && isset($movesSavedFENReached[$FENReached])) {
+            $moveToMerge = $movesSavedFENReached[$FENReached][0];
+            if (isset($lastMovesMerged[$moveToMerge->getVariation()->getId()])) {
+                $lastMoveMerged = $lastMovesMerged[$moveToMerge->getVariation()->getId()];
+                $moveTotalSelectedPercent += $moveToMerge->getTotalSelectedMultiplier() * $totalSelectedPercentHistory[$lastMoveMerged['index']] / $lastMoveMerged['move']->getTotalSelectedMultiplier();
+            } else {
+                $moveTotalSelectedPercent += $moveToMerge->getTotalSelectedMultiplier();
             }
-
-            $this->em->flush();
-
-            return $moves;
-        }
-    }
-
-    public function loadMoves(string $FEN, ?int &$nbGames = 0)
-    {
-        $responseMoves = $this->lichessApi->getLichessMoves($FEN);
-
-        if (isset($responseMoves)) {
-
-            $movesSaved = array_reduce($this->repo->findBy(['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12', 'FEN' => $FEN]), function ($carry, $move) {
-                $carry[$move->getSan()] = $move;
-                return $carry;
-            }, []);
-
-            $date = new \DateTime();
-            $moves = [];
-            foreach ($responseMoves as $move) {
-                /**
-                 * @var MovePopularity $movePopularity
-                 */
-                $movePopularity = isset($movesSaved[$move['san']]) ? $movesSaved[$move['san']] : new MovePopularity();
-                $movePopularity->setFEN($FEN);
-                $movePopularity->setSan($move['san']);
-                $movePopularity->setDateCreated($date);
-                $movePopularity->setWhite($move['white']);
-                $movePopularity->setBlack($move['black']);
-                $movePopularity->setDraws($move['draws']);
-
-                $this->em->persist($movePopularity);
-
-                if ($movePopularity->getSan() === '-') {
-                    $nbGames = $movePopularity->getTotal() ?? 0;
-                } else {
-                    $moves[] = $movePopularity;
-                }
-            }
-
-            $this->em->flush();
-
-            return $moves;
-        }
-    }
-
-    public function preloadMoves(string|array $FENs, $masterFENSaved, $FENSaved)
-    {
-        if (!is_array($FENs)) {
-            $FENs = [$FENs];
+            $movesMerged[] = ['move' => $moveToMerge, 'index' => count($selectedPercentHistory)];
         }
 
-        $messages = [];
+        $moveSelectedPercent = $moveTotalSelectedPercent / $totalSelectedPercent;
 
-        foreach ($FENs as $FEN) {
-            if (!in_array($FEN, $masterFENSaved)) {
-                $movePopularity = new MovePopularityMaster();
-                $movePopularity->setFEN($FEN);
-                $movePopularity->setSan('-');
-                $movePopularity->setDateCreated(new \DateTime());
-
-                $this->em->persist($movePopularity);
-                $messages[] = new LoadMastersMoves($FEN);
-            }
-            if (!in_array($FEN, $FENSaved)) {
-                $movePopularity = new MovePopularity();
-                $movePopularity->setFEN($FEN);
-                $movePopularity->setSan('-');
-                $movePopularity->setDateCreated(new \DateTime());
-
-                $this->em->persist($movePopularity);
-                $messages[] = new LoadMoves($FEN);
-            }
-        }
-
-        $this->em->flush();
-
-        foreach ($messages as $message) {
-            $this->bus->dispatch($message);
-        }
+        return $this->formFactory->createNamed($name, BuildMoveType::class, [
+            'FENHistory' => [...$FENHistory, $FEN],
+            'LANHistory' => [...$LANHistory, $LAN],
+            'selectedPercentHistory' => [...$selectedPercentHistory, $moveSelectedPercent],
+            'movesMerged' => $movesMerged,
+            'canSaveHistory' => [...$canSaveHistory, $canSave],
+        ], [
+            'action' => $action,
+        ]);
     }
 }
