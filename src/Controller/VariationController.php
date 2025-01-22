@@ -37,12 +37,22 @@ class VariationController extends AbstractController
 
                 $newVariation = $form->get('variation')->getData();
                 $selectedPercentHistory = $form->get('selectedPercentHistory')->getData();
+                $movesMerged = $form->get('movesMerged')->getData();
 
                 $course = $newVariation->getCourse();
 
                 $this->denyAccessUnlessGranted('course.owns', $course);
 
                 $moves = $newVariation->getMoves();
+
+                $FENsReachedToMerge = array_map(function ($move) {
+                    return $move->getFENReached();
+                }, $movesMerged->getValues());
+
+                $variationsMultipliersToMerge = [];
+                foreach ($FENsReachedToMerge as $FENReachedToMerge) {
+                    $variationsMultipliersToMerge[$FENReachedToMerge] = ['multiplier' => null, 'variations' => []];
+                }
 
                 /**
                  * Remove last move if not played by playing side
@@ -74,10 +84,17 @@ class VariationController extends AbstractController
                  * Linking the moves to the notations that are already created
                  * Add percentage history
                  */
+                $totalSelectedMultiplier = 1;
                 foreach ($newVariation->getMoves() as $key => $move) {
 
                     $selectedMultiplier = floatval($selectedPercentHistory[$key]);
+                    $totalSelectedMultiplier *= $selectedMultiplier;
                     $move->setSelectedMultiplier($selectedMultiplier);
+                    $move->setTotalSelectedMultiplier($totalSelectedMultiplier);
+
+                    if (in_array($move->getFENReached(), $FENsReachedToMerge)) {
+                        $variationsMultipliersToMerge[$move->getFENReached()]['multiplier'] = $totalSelectedMultiplier;
+                    }
 
                     $notation = $move->getNotation();
                     if (isset($orderedNotations[$notation->getFEN()]) && isset($orderedNotations[$notation->getFEN()][$notation->getText()])) {
@@ -92,13 +109,17 @@ class VariationController extends AbstractController
 
                 /**
                  * Get saved variations and order their moves in a tree
+                 * Add them to variations to merge
                  */
                 $orderedMoves = [];
                 foreach ($course->getVariations() as $variation) {
                     $bufferOrderedMoves = &$orderedMoves;
                     foreach ($variation->getMoves() as $move) {
+                        if (in_array($move->getFENReached(), $FENsReachedToMerge)) {
+                            $variationsMultipliersToMerge[$move->getFENReached()]['variations'][] = $variation;
+                        }
                         $notation = $move->getNotation();
-                        $SAN = $move->getNotation()->getText();
+                        $SAN = $notation->getText();
                         if (!isset($bufferOrderedMoves[$SAN])) {
                             $bufferOrderedMoves[$SAN] = [];
                         }
@@ -136,6 +157,24 @@ class VariationController extends AbstractController
                     }
                 } elseif (!isset($orderedMoves['-'])) {
                     $em->persist($newVariation);
+                }
+
+                /**
+                 * Update multiplier of merged variations
+                 */
+                foreach ($variationsMultipliersToMerge as $FENReachedToMerge => $variationsMultiplierToMerge) {
+                    if (isset($variationsMultiplierToMerge['multiplier'])) {
+                        foreach ($variationsMultiplierToMerge['variations'] as $variationToMerge) {
+                            $multiplier = 1;
+                            foreach ($variationToMerge->getMoves() as $move) {
+                                if ($move->getFENReached() === $FENReachedToMerge) {
+                                    $multiplier = $variationsMultiplierToMerge['multiplier'] / $move->getTotalSelectedMultiplier();
+                                    $move->setSelectedMultiplier($move->getSelectedMultiplier() * $multiplier);
+                                }
+                                $move->setTotalSelectedMultiplier($move->getTotalSelectedMultiplier() * $multiplier);
+                            }
+                        }
+                    }
                 }
 
                 $em->flush();

@@ -18,6 +18,43 @@ class MoveRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return Move[]
+     */
+    public function findByFENFromCourse(string|array $FEN, Course $course, string $byKey = null)
+    {
+        $qb = $this->createQueryBuilder('move')
+            ->innerJoin('move.notation', 'notation')
+            ->innerJoin('move.variation', 'variation')
+            ->where('variation.course = :course');
+
+        if (is_array($FEN)) {
+            $qb->andWhere('notation.FEN IN (:FEN)');
+        } else {
+            $qb->andWhere('notation.FEN = :FEN');
+        }
+
+        $qb->setParameter('course', $course)
+            ->setParameter('FEN', $FEN);
+
+        $moves = $qb->getQuery()->getResult();
+
+        switch ($byKey) {
+            case 'FEN':
+                return array_reduce($moves, function ($carry, $move) {
+                    $carry[$move->getNotation()->getFEN()] = $move;
+                    return $carry;
+                }, []);
+            case 'SAN':
+                return array_reduce($moves, function ($carry, $move) {
+                    $carry[$move->getNotation()->getText()] = $move;
+                    return $carry;
+                }, []);
+        }
+
+        return $moves;
+    }
+
+    /**
      * @return Move[][]
      */
     public function findByFENReachedFromCourse(string|array $FEN, Course $course, string $byKey = null)

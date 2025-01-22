@@ -36,6 +36,9 @@ class Move
     #[ORM\Column(nullable: true)]
     private ?float $selectedMultiplier = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?float $totalSelectedMultiplier = null;
+
     #[ORM\Column(name: 'fen_reached', length: 255)]
     private ?string $FENReached = null;
 
@@ -113,6 +116,18 @@ class Move
     public function setSelectedMultiplier(?float $selectedMultiplier): static
     {
         $this->selectedMultiplier = $selectedMultiplier;
+
+        return $this;
+    }
+
+    public function getTotalSelectedMultiplier(): ?float
+    {
+        return $this->totalSelectedMultiplier;
+    }
+
+    public function setTotalSelectedMultiplier(?float $totalSelectedMultiplier): static
+    {
+        $this->totalSelectedMultiplier = $totalSelectedMultiplier;
 
         return $this;
     }

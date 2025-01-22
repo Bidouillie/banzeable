@@ -12,7 +12,6 @@ use App\Repository\CourseRepository;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
 use App\Repository\MoveRepository;
-use App\Repository\NotationRepository;
 use App\Service\MoveBuilderService;
 use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
@@ -117,7 +116,7 @@ class CourseController extends AbstractController
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/{id}/build-moves/{FEN}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'FEN' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
     #[Route('/{id}/build-moves/{FEN}/{LAN}', name: 'app_course_build_moves_from_lan', requirements: ['id' => '\d+', 'FEN' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$', 'lan' => '^([a-h][1-8]){2}$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $FEN, ?string $LAN, Request $request, MovePopularityRepository $mpRepo, MovePopularityMasterRepository $mpMasterRepo, MoveRepository $moveRepo, NotationRepository $notationRepo, MoveBuilderService $mbService, FormFactoryInterface $formFactory): Response
+    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $FEN, ?string $LAN, Request $request, MovePopularityRepository $mpRepo, MovePopularityMasterRepository $mpMasterRepo, MoveRepository $moveRepo, MoveBuilderService $mbService, FormFactoryInterface $formFactory): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -134,7 +133,11 @@ class CourseController extends AbstractController
             $LANHistory = $data['LANHistory'];
 
             $selectedPercentHistory = $data['selectedPercentHistory'];
-            $selectedPercent = empty($selectedPercentHistory) ? 1 : end($selectedPercentHistory);
+            $totalSelectedPercent = 1;
+            $totalSelectedPercentHistory = array_map(function ($selectedPercent) use (&$totalSelectedPercent) {
+                $totalSelectedPercent *= floatval($selectedPercent);
+                return $totalSelectedPercent;
+            }, $selectedPercentHistory);
 
             $canSaveHistory = $data['canSaveHistory'];
             $canSave = empty($canSaveHistory) ? false : end($canSaveHistory);
@@ -147,7 +150,7 @@ class CourseController extends AbstractController
 
             $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($FEN)->turn;
 
-            $movesSaved = $notationRepo->findByFENFromCourse($FEN, $course, 'SAN');
+            $movesSaved = $moveRepo->findByFENFromCourse($FEN, $course, 'SAN');
 
             $moves = $mpRepo->findByFEN($FEN, $nbGames);
             if (empty($moves)) {
@@ -203,59 +206,52 @@ class CourseController extends AbstractController
                 $nextLAN = $move->getLAN();
                 $FENReached = $move->getNextFEN();
 
-                $cover = false;
-                $expected = 0;
-                if ($myTurn) {
-                    if (!empty($movesSaved)) {
-                        if (isset($movesSaved[$SAN])) {
-                            $cover = true;
-                        }
-                    } else {
-                        if (isset($mMoves) && isset($mMoves[$SAN])) {
-                            $cover = $mMoves[$SAN]->getTotal() > $nbMastersGames / 100;
-                        }
-                    }
-                    $expected = isset($nbMastersGames) && $nbMastersGames > 0 && isset($mMoves) && isset($mMoves[$SAN]) ? $mMoves[$SAN]->getTotal() / $nbMastersGames : 0;
-                } else {
-                    $cover = $selectedPercent * $move->getTotal() / $nbGames > 1 / $course->getCoverage();
-                    $expected = $selectedPercent * $move->getTotal() / $nbGames;
-                }
+                $moveCanSave = $canSave || !isset($nextMovesPlayed[$FENReached]) || !isset($nextMovesPlayed[$FENReached][$FEN]);
 
-                $moveFENHistory = $FENHistory;
-                $moveFENHistory[] = $FEN;
-                $moveLANHistory = $LANHistory;
-                $moveLANHistory[] = $LAN;
+                /**
+                 * Selected Percent
+                 */
+                $moveSelectedPercent = isset($movesSaved[$SAN]) ? $movesSaved[$SAN]->getSelectedMultiplier() : ($myTurn ? 1 : $move->getTotal() / $nbGames);
 
-                $moveSelectedPercentHistory = $selectedPercentHistory;
+                $moveTotalSelectedPercent = $totalSelectedPercent * $moveSelectedPercent;
+
                 $moveMovesMerged = $movesMerged;
 
-                $moveSelectedPercent = $selectedPercent * ($myTurn ? 1 : $move->getTotal() / $nbGames);
                 if (!isset($movesSaved[$SAN]) && isset($movesSavedFENReached[$FENReached])) {
                     $moveToMerge = $movesSavedFENReached[$FENReached][0];
                     if (isset($lastMovesMerged[$moveToMerge->getVariation()->getId()])) {
                         $lastMoveMerged = $lastMovesMerged[$moveToMerge->getVariation()->getId()];
-                        $moveSelectedPercent += $moveToMerge->getSelectedMultiplier() * $selectedPercentHistory[$lastMoveMerged['index']] / $lastMoveMerged['move']->getSelectedMultiplier();
+                        $moveTotalSelectedPercent += $moveToMerge->getTotalSelectedMultiplier() * $totalSelectedPercentHistory[$lastMoveMerged['index']] / $lastMoveMerged['move']->getTotalSelectedMultiplier();
                     } else {
-                        $moveSelectedPercent += $moveToMerge->getSelectedMultiplier();
+                        $moveTotalSelectedPercent += $moveToMerge->getTotalSelectedMultiplier();
                     }
                     $moveMovesMerged[] = ['move' => $moveToMerge, 'index' => count($selectedPercentHistory)];
                 }
 
-                $moveSelectedPercentHistory[] = $moveSelectedPercent;
+                $moveSelectedPercent = $moveTotalSelectedPercent / $totalSelectedPercent;
+
+
+                if ($myTurn) {
+                    $expected = isset($nbMastersGames) && $nbMastersGames > 0 && isset($mMoves) && isset($mMoves[$SAN]) ? $mMoves[$SAN]->getTotal() / $nbMastersGames : 0;
+                    $cover = $expected > 1 / 100;
+                    if (isset($movesSaved[$SAN])) {
+                        $cover = true;
+                    }
+                } else {
+                    $expected = $totalSelectedPercent * $move->getTotal() / $nbGames;
+                    $cover = $expected > 1 / $course->getCoverage();
+                }
 
                 if ($cover) {
                     $FENsToPreload[] = $FENReached;
                 }
 
-                $moveCanSaveHistory = $canSaveHistory;
-                $moveCanSaveHistory[] = $canSave || !isset($nextMovesPlayed[$FENReached]) || !isset($nextMovesPlayed[$FENReached][$FEN]);
-
                 $form = $formFactory->createNamed("build_move_$nextLAN", BuildMoveType::class, [
-                    'FENHistory' => $moveFENHistory,
-                    'LANHistory' => $moveLANHistory,
-                    'selectedPercentHistory' => $moveSelectedPercentHistory,
+                    'FENHistory' => [...$FENHistory, $FEN],
+                    'LANHistory' => [...$LANHistory, $LAN],
+                    'selectedPercentHistory' => [...$selectedPercentHistory, sprintf("%.7f", $moveSelectedPercent)],
                     'movesMerged' => $moveMovesMerged,
-                    'canSaveHistory' => $moveCanSaveHistory,
+                    'canSaveHistory' => [...$canSaveHistory, $moveCanSave],
                 ], [
                     'action' => $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $FENReached, 'LAN' => $nextLAN]),
                 ]);
@@ -279,7 +275,10 @@ class CourseController extends AbstractController
                 $variation->setBlackOrientation($course->isBlackOrientation());
                 $saveForm = $this->createForm(MoveBuilderVariationType::class, [
                     'variation' => $variation,
-                    'selectedPercentHistory' => $selectedPercentHistory
+                    'selectedPercentHistory' => $selectedPercentHistory,
+                    'movesMerged' => array_map(function ($moveMerged) {
+                        return $moveMerged['move'];
+                    }, $movesMerged),
                 ], [
                     'action' => $this->generateUrl('app_variation_new'),
                 ]);
