@@ -2,7 +2,7 @@
 
 namespace App\Form;
 
-use App\Entity\Move;
+use App\Entity\VariationMove;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
@@ -28,7 +28,7 @@ class MoveBuilderVariationType extends AbstractType
                 ],
             ])
             ->add('movesMerged', EntityType::class, [
-                'class' => Move::class,
+                'class' => VariationMove::class,
                 'multiple' => true,
                 'required' => false,
                 'choice_label' => 'id',

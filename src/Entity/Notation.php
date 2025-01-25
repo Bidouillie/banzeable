@@ -25,9 +25,9 @@ class Notation
     private ?string $text = null;
 
     /**
-     * @var Collection<int, Move>
+     * @var Collection<int, VariationMove>
      */
-    #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'notation')]
+    #[ORM\OneToMany(targetEntity: VariationMove::class, mappedBy: 'notation')]
     private Collection $moves;
 
     public function __construct()
@@ -65,14 +65,14 @@ class Notation
     }
 
     /**
-     * @return Collection<int, Move>
+     * @return Collection<int, VariationMove>
      */
     public function getMoves(): Collection
     {
         return $this->moves;
     }
 
-    public function addMove(Move $move): static
+    public function addMove(VariationMove $move): static
     {
         if (!$this->moves->contains($move)) {
             $this->moves->add($move);
@@ -82,7 +82,7 @@ class Notation
         return $this;
     }
 
-    public function removeMove(Move $move): static
+    public function removeMove(VariationMove $move): static
     {
         if ($this->moves->removeElement($move)) {
             // set the owning side to null (unless already changed)

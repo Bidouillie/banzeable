@@ -34,9 +34,9 @@ class Variation extends PGNBase
     private ?Chapter $chapter = null;
 
     /**
-     * @var Collection<int, Move>
+     * @var Collection<int, VariationMove>
      */
-    #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'variation', cascade: ['persist'], orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: VariationMove::class, mappedBy: 'variation', cascade: ['persist'], orphanRemoval: true)]
     #[Serializer\Groups(['move'])]
     private Collection $moves;
 
@@ -155,7 +155,7 @@ class Variation extends PGNBase
     }
 
     /**
-     * @return Collection<int, Move>
+     * @return Collection<int, VariationMove>
      */
     public function getMoves(): Collection
     {
@@ -167,7 +167,7 @@ class Variation extends PGNBase
         $board = $this->getFEN() ? FenToBoardFactory::create($this->getFEN()) : new Board();
 
         foreach (explode(' ', $moves) as $moveText) {
-            $move = new Move();
+            $move = new VariationMove();
             $notation = new Notation();
 
             $notation->setFEN($board->toFen());
@@ -183,7 +183,7 @@ class Variation extends PGNBase
         return $this;
     }
 
-    public function addMove(Move $move): static
+    public function addMove(VariationMove $move): static
     {
         if (!$this->moves->contains($move)) {
             $this->moves->add($move);
@@ -193,7 +193,7 @@ class Variation extends PGNBase
         return $this;
     }
 
-    public function removeMove(Move $move): static
+    public function removeMove(VariationMove $move): static
     {
         if ($this->moves->removeElement($move)) {
             // set the owning side to null (unless already changed)

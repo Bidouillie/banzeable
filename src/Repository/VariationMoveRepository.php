@@ -3,22 +3,22 @@
 namespace App\Repository;
 
 use App\Entity\Course;
-use App\Entity\Move;
+use App\Entity\VariationMove;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<Move>
+ * @extends ServiceEntityRepository<VariationMove>
  */
-class MoveRepository extends ServiceEntityRepository
+class VariationMoveRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, Move::class);
+        parent::__construct($registry, VariationMove::class);
     }
 
     /**
-     * @return Move[]
+     * @return VariationMove[]
      */
     public function findFromCourse(Course $course)
     {
@@ -32,7 +32,7 @@ class MoveRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return Move[]
+     * @return VariationMove[]
      */
     public function findByFENFromCourse(string|array $FEN, Course $course, string $byKey = null)
     {
@@ -69,7 +69,7 @@ class MoveRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return Move[][]
+     * @return VariationMove[][]
      */
     public function findByFENReachedFromCourse(string|array $FEN, Course $course, string $byKey = null)
     {

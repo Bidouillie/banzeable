@@ -2,15 +2,15 @@
 
 namespace App\Entity;
 
-use App\Repository\MoveRepository;
+use App\Repository\VariationMoveRepository;
 use Chess\FenToBoardFactory;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation as Serializer;
 
-#[ORM\Entity(repositoryClass: MoveRepository::class)]
-class Move
+#[ORM\Entity(repositoryClass: VariationMoveRepository::class)]
+class VariationMove
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]

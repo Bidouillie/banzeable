@@ -2,7 +2,7 @@
 
 namespace App\Form;
 
-use App\Entity\Move;
+use App\Entity\VariationMove;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
@@ -15,7 +15,7 @@ class MoveIndexType extends AbstractType
     {
         $builder
             ->add('move', EntityType::class, [
-                'class' => Move::class,
+                'class' => VariationMove::class,
                 'choice_label' => 'id',
             ])
             ->add('index', IntegerType::class)

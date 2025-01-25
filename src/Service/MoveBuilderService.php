@@ -2,7 +2,7 @@
 
 namespace App\Service;
 
-use App\Entity\Move;
+use App\Entity\VariationMove;
 use App\Entity\MovePopularity;
 use App\Form\BuildMoveType;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -30,8 +30,8 @@ class MoveBuilderService
      * @param bool $canSave
      * @param array $movesMerged
      * @param array $lastMovesMerged
-     * @param array<Move> $movesSaved
-     * @param array<array<Move>> $movesSavedFENReached
+     * @param array<VariationMove> $movesSaved
+     * @param array<array<VariationMove>> $movesSavedFENReached
      */
     public function buildMoveForm(MovePopularity $move, string $name, string $action, bool $myTurn, int $nbGames, array $FENHistory, string $FEN, array $LANHistory, ?string $LAN, array $selectedPercentHistory, array $totalSelectedPercentHistory, float $totalSelectedPercent, array $canSaveHistory, bool $canSave, array $movesMerged, array $lastMovesMerged, array $movesSaved, array $movesSavedFENReached)
     {

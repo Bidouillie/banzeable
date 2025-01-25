@@ -5,7 +5,7 @@ namespace App\Controller;
 use App\Entity\Variation;
 use App\Form\MoveBuilderVariationType;
 use App\Repository\MovePopularityRepository;
-use App\Repository\MoveRepository;
+use App\Repository\VariationMoveRepository;
 use App\Repository\NotationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -28,7 +28,7 @@ class VariationController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/new', name: 'app_variation_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $em, MoveRepository $moveRepo, NotationRepository $notationRepo, MovePopularityRepository $mpRepo): Response
+    public function new(Request $request, EntityManagerInterface $em, VariationMoveRepository $moveRepo, NotationRepository $notationRepo, MovePopularityRepository $mpRepo): Response
     {
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
