@@ -38,10 +38,40 @@ class MovePopularityRepository extends ServiceEntityRepository
         return $moves;
     }
 
+    // TODO search by whole id (variant, speeds...)
+    /**
+     * @return array<array{moves:array<MovePopularity>,nbGames:int}>
+     */
+    public function findGroupedByFENSAN(array $FENs)
+    {
+        $qb = $this->createQueryBuilder('a')
+            ->andWhere('a.FEN in (:FENs)')
+            ->setParameter('FENs', $FENs);
+
+        $moves = $qb->getQuery()->getResult();
+
+        $movesGrouped = [];
+
+        foreach ($moves as $move) {
+            if (!isset($movesGrouped[$move->getFEN()])) {
+                $movesGrouped[$move->getFEN()] = [
+                    'moves' => [],
+                ];
+            }
+            if ($move->getSan() === '-') {
+                $movesGrouped[$move->getFEN()]['nbGames'] = $move->getTotal() ?? 0;
+            } else {
+                $movesGrouped[$move->getFEN()]['moves'][$move->getSAN()] = $move;
+            }
+        }
+
+        return $movesGrouped;
+    }
+
     /**
      * @return string[]
      */
-    public function findGroupedByFEN(string|array $FEN, array $criteria = [])
+    public function findByFENGrouped(string|array $FEN, array $criteria = [])
     {
         $qb = $this->createQueryBuilder('move')
             ->select('move.FEN');

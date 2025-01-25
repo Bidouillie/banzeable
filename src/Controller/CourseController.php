@@ -186,8 +186,8 @@ class CourseController extends AbstractController
                     return $move->getNextFEN();
                 }, $moves);
 
-                $masterNextFENsSaved = $mpMasterRepo->findGroupedByFEN($nextFENs, ['since' => '2021', 'until' => '2024']);
-                $nextFENsSaved = $mpRepo->findGroupedByFEN($nextFENs, ['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12']);
+                $masterNextFENsSaved = $mpMasterRepo->findByFENGrouped($nextFENs, ['since' => '2021', 'until' => '2024']);
+                $nextFENsSaved = $mpRepo->findByFENGrouped($nextFENs, ['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12']);
 
                 $movesSavedFENReached = $moveRepo->findByFENReachedFromCourse($nextFENs, $course, 'FEN');
                 $nextMovesPlayed = array_reduce(array_keys($movesSavedFENReached), function ($carry, $FENReached) use ($movesSavedFENReached) {
@@ -231,6 +231,7 @@ class CourseController extends AbstractController
                         'move' => $move,
                         'form' => $form->createView(),
                         'cover' => $cover,
+                        'coverage' => isset($nextMovesPlayed[$FENReached]) && isset($nextMovesPlayed[$FENReached][$FEN]) ? $nextMovesPlayed[$FENReached][$FEN]->getCoverage() : 0,
                         'expected' => $expected,
                         'saved' => isset($movesSaved[$SAN]),
                         'next_saved' => isset($movesSavedFENReached[$FENReached]),

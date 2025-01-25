@@ -42,6 +42,9 @@ class Move
     #[ORM\Column(name: 'fen_reached', length: 255)]
     private ?string $FENReached = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?float $coverage = null;
+
     public function __construct()
     {
         $this->alternatives = new ArrayCollection();
@@ -140,6 +143,18 @@ class Move
     public function setFENReached(?string $FENReached): static
     {
         $this->FENReached = $FENReached;
+
+        return $this;
+    }
+
+    public function getCoverage(): ?float
+    {
+        return $this->coverage;
+    }
+
+    public function setCoverage(?float $coverage): static
+    {
+        $this->coverage = $coverage;
 
         return $this;
     }

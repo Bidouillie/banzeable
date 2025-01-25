@@ -23,7 +23,8 @@
                 </div>
             {% endif %}
             <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-p-2">
-                <div class="tw-col-span-4">Move</div>
+                <div class="tw-col-span-2">Move</div>
+                <div class="tw-col-span-2">{% if not my_turn %}Coverage{% endif %}</div>
                 <div class="tw-col-span-2">{% if my_turn %}Masters{% else %}Expected{% endif %}</div>
                 <div class="tw-col-span-2">Peer results</div>
             </div>
@@ -32,9 +33,16 @@
                 {% set form = move_form.form %}
                 <a href="#" class="list-group-item list-group-item-action build_move {% if not move_form.cover %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.LAN }}" onclick="return false">
                     {{ form_start(form) }}
-                    <div class="tw-grid tw-grid-cols-8 tw-gap-7">
-                        <div class="tw-col-span-4">{{ move.san }}{% if move_form.saved %} ✅{% elseif move_form.next_saved %} ✔{% endif %}</div>
-                        <div class="tw-col-span-2">
+                    <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-items-center">
+                        <div class="tw-col-span-2 tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif move_form.next_saved %} ✔{% endif %}</div>
+                        <div class="tw-col-span-2 tw-flex tw-items-center">
+                        {% if not my_turn %}
+                            <div class="progress tw-grow" style="height: 7px">
+                                <div class="progress-bar bg-info" style="width:{{ (move_form.coverage * 100)|round }}%"></div>
+                            </div>
+                        {% endif %}
+                        </div>
+                        <div class="tw-col-span-2 tw-flex tw-items-center">
                             {% if true and not my_turn %}
                                 {% if move_form.expected >= 1 / 1000 %}
                                     1 in {{ (1 / move_form.expected)|round }} games

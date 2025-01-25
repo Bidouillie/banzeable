@@ -46,7 +46,7 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
     /**
      * @return string[]
      */
-    public function findGroupedByFEN(string|array $FEN, array $criteria = [])
+    public function findByFENGrouped(string|array $FEN, array $criteria = [])
     {
         $qb = $this->createQueryBuilder('move')
             ->select('move.FEN')

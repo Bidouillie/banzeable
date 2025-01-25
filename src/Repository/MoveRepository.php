@@ -20,6 +20,20 @@ class MoveRepository extends ServiceEntityRepository
     /**
      * @return Move[]
      */
+    public function findFromCourse(Course $course)
+    {
+        $qb = $this->createQueryBuilder('move')
+            ->innerJoin('move.variation', 'variation')
+            ->where('variation.course = :course');
+
+        $qb->setParameter('course', $course);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * @return Move[]
+     */
     public function findByFENFromCourse(string|array $FEN, Course $course, string $byKey = null)
     {
         $qb = $this->createQueryBuilder('move')

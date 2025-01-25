@@ -2,7 +2,10 @@
 
 namespace App\Controller;
 
+use App\Entity\Variation;
 use App\Form\MoveBuilderVariationType;
+use App\Repository\MovePopularityRepository;
+use App\Repository\MoveRepository;
 use App\Repository\NotationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -25,7 +28,7 @@ class VariationController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/new', name: 'app_variation_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $em, NotationRepository $repo): Response
+    public function new(Request $request, EntityManagerInterface $em, MoveRepository $moveRepo, NotationRepository $notationRepo, MovePopularityRepository $mpRepo): Response
     {
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
@@ -35,6 +38,9 @@ class VariationController extends AbstractController
 
             if ($form->isSubmitted() && $form->isValid()) {
 
+                /**
+                 * @var Variation $newVariation
+                 */
                 $newVariation = $form->get('variation')->getData();
                 $selectedPercentHistory = $form->get('selectedPercentHistory')->getData();
                 $movesMerged = $form->get('movesMerged')->getData();
@@ -69,7 +75,7 @@ class VariationController extends AbstractController
                     $FENs[] = $move->getNotation()->getFEN();
                 }
 
-                $notations = $repo->findByFEN($FENs);
+                $notations = $notationRepo->findByFEN($FENs);
 
                 $orderedNotations = [];
                 foreach ($notations as $notation) {
@@ -176,6 +182,96 @@ class VariationController extends AbstractController
                         }
                     }
                 }
+
+                /**
+                 * @var Variation $variation
+                 */
+                $variation = $variation ?? $newVariation;
+
+                /**
+                 * Update coverage of moves
+                 */
+                $moves = array_unique(array_merge($moveRepo->findFromCourse($course), $variation->getMoves()->getValues()), SORT_REGULAR);
+
+                $FENsReached = array_map(function ($move) {
+                    return $move->getFENReached();
+                }, $moves);
+
+                $movesByFENSAN = [];
+                foreach ($moves as $move) {
+                    if (!isset($movesByFENSAN[$move->getNotation()->getFEN()])) {
+                        $movesByFENSAN[$move->getNotation()->getFEN()] = [];
+                    }
+                    if (!isset($movesByFENSAN[$move->getNotation()->getFEN()][$move->getNotation()->getText()])) {
+                        $movesByFENSAN[$move->getNotation()->getFEN()][$move->getNotation()->getText()] = [];
+                    }
+                    $movesByFENSAN[$move->getNotation()->getFEN()][$move->getNotation()->getText()][] = $move;
+                }
+
+                $movePopularitiesByFENSAN = $mpRepo->findGroupedByFENSAN($FENsReached);
+
+                foreach ($movesByFENSAN as $movesBySAN) {
+                    foreach ($movesBySAN as $moves) {
+                        foreach ($moves as $move) {
+                            if (isset($movePopularitiesByFENSAN[$move->getFENReached()])) {
+
+                                $movePopularitiesBySAN = $movePopularitiesByFENSAN[$move->getFENReached()]['moves'];
+
+                                if (!isset($movePopularitiesByFENSAN[$move->getFENReached()]['coverage'])) {
+
+                                    $nbGames = $movePopularitiesByFENSAN[$move->getFENReached()]['nbGames'];
+                                    $total = 0;
+                                    $totalSaved = 0;
+                                    $covered = true;
+                                    foreach ($movePopularitiesBySAN as $movePopularity) {
+                                        if ($move->getTotalSelectedMultiplier() * $movePopularity->getTotal() / $nbGames > 1 / $course->getCoverage()) {
+                                            $total += $move->getTotalSelectedMultiplier() * $movePopularity->getTotal();
+                                            $totalSaved += isset($movesByFENSAN[$movePopularity->getFEN()]) && isset($movesByFENSAN[$movePopularity->getFEN()][$movePopularity->getSan()]) ? $move->getTotalSelectedMultiplier() * $movePopularity->getTotal() : 0;
+                                            $covered = false;
+                                        }
+                                    }
+                                    $movePopularitiesByFENSAN[$move->getFENReached()]['coverage'] = $covered ? 1 : $totalSaved / $total;
+                                }
+                                $move->setCoverage($movePopularitiesByFENSAN[$move->getFENReached()]['coverage']);
+                            }
+                        }
+                    }
+                }
+
+                /*
+                foreach ($course->getVariations() as $variation) {
+                    $moves = $variation->getMoves();
+                    $nextMove = null;
+                    for ($i = $moves->count() - 1; $i >= 0; $i--) {
+                        $move = $moves->get($i);
+
+                        if (isset($nextMove)) {
+
+                            $movePopularitiesBySAN = $movePopularitiesByFENSAN[$move->getFENReached()]['moves'];
+
+                            $coverage = $move->getCoverage();
+
+                            $nbGames = $movePopularitiesByFENSAN[$move->getFENReached()]['nbGames'];
+                            $total = 0;
+                            $totalSaved = 0;
+                            $covered = true;
+                            foreach ($movePopularitiesBySAN as $movePopularity) {
+                                if (isset($movesByFENSAN[$movePopularity->getFEN()]) && isset($movesByFENSAN[$movePopularity->getFEN()][$movePopularity->getSan()])) {
+                                }
+                                if ($move->getTotalSelectedMultiplier() * $movePopularity->getTotal() / $nbGames > 1 / $course->getCoverage()) {
+                                    $total += $move->getTotalSelectedMultiplier() * $movePopularity->getTotal();
+                                    $totalSaved += isset($movesByFENSAN[$movePopularity->getFEN()]) && isset($movesByFENSAN[$movePopularity->getFEN()][$movePopularity->getSan()]) ? $move->getTotalSelectedMultiplier() * $movePopularity->getTotal() : 0;
+                                    $covered = false;
+                                }
+                            }
+                            $movePopularitiesByFENSAN[$move->getFENReached()]['coverage'] = $covered ? 1 : $totalSaved / $total;
+                        }
+
+                        $nextMove = $move;
+                    }
+                }
+                */
+
 
                 $em->flush();
             }
