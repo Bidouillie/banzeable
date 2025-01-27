@@ -60,10 +60,24 @@ class Course
     #[ORM\OneToMany(targetEntity: Variation::class, mappedBy: 'course', orphanRemoval: true)]
     private Collection $variations;
 
+    /**
+     * @var Collection<int, Position>
+     */
+    #[ORM\OneToMany(targetEntity: Position::class, mappedBy: 'course', orphanRemoval: true)]
+    private Collection $positions;
+
+    /**
+     * @var Collection<int, Move>
+     */
+    #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'course', orphanRemoval: true)]
+    private Collection $repertoireMoves;
+
     public function __construct()
     {
         $this->owners = new ArrayCollection();
         $this->variations = new ArrayCollection();
+        $this->positions = new ArrayCollection();
+        $this->repertoireMoves = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -233,6 +247,66 @@ class Course
             // set the owning side to null (unless already changed)
             if ($variation->getCourse() === $this) {
                 $variation->setCourse(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Position>
+     */
+    public function getPositions(): Collection
+    {
+        return $this->positions;
+    }
+
+    public function addPosition(Position $position): static
+    {
+        if (!$this->positions->contains($position)) {
+            $this->positions->add($position);
+            $position->setCourse($this);
+        }
+
+        return $this;
+    }
+
+    public function removePosition(Position $position): static
+    {
+        if ($this->positions->removeElement($position)) {
+            // set the owning side to null (unless already changed)
+            if ($position->getCourse() === $this) {
+                $position->setCourse(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Move>
+     */
+    public function getRepertoireMoves(): Collection
+    {
+        return $this->repertoireMoves;
+    }
+
+    public function addRepertoireMove(Move $repertoireMove): static
+    {
+        if (!$this->repertoireMoves->contains($repertoireMove)) {
+            $this->repertoireMoves->add($repertoireMove);
+            $repertoireMove->setCourse($this);
+        }
+
+        return $this;
+    }
+
+    public function removeRepertoireMove(Move $repertoireMove): static
+    {
+        if ($this->repertoireMoves->removeElement($repertoireMove)) {
+            // set the owning side to null (unless already changed)
+            if ($repertoireMove->getCourse() === $this) {
+                $repertoireMove->setCourse(null);
             }
         }
 
