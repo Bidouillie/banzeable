@@ -6,27 +6,17 @@ use App\Entity\Course;
 use App\Entity\User;
 use App\Entity\Variation;
 use App\Form\BuildMovesType;
-use App\Form\BuildMoveType;
-use App\Form\MoveBuilderVariationType;
 use App\Form\StudyToggleType;
 use App\Repository\CourseRepository;
-use App\Repository\MovePopularityMasterRepository;
-use App\Repository\MovePopularityRepository;
-use App\Repository\VariationMoveRepository;
-use App\Service\MoveBuilderService;
-use App\Service\MoveLoaderService;
-use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
-use Symfony\UX\Turbo\TurboBundle;
 
 #[Route('/course')]
 class CourseController extends AbstractController
@@ -114,181 +104,6 @@ class CourseController extends AbstractController
             'course_encoded' => $serializer->serialize($course, 'json', ['groups' => ['Default']]),
             'form' => $form,
         ]);
-    }
-
-    #[IsGranted('IS_AUTHENTICATED')]
-    #[Route('/{id}/build-moves/{FEN}', name: 'app_course_build_moves', requirements: ['id' => '\d+', 'FEN' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    #[Route('/{id}/build-moves/{FEN}/{LAN}', name: 'app_course_build_moves_from_lan', requirements: ['id' => '\d+', 'FEN' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$', 'lan' => '^([a-h][1-8]){2}$'])]
-    public function buildMoves(#[MapEntity(id: 'id')] ?Course $course, ?string $FEN, ?string $LAN, Request $request, MovePopularityRepository $mpRepo, MovePopularityMasterRepository $mpMasterRepo, VariationMoveRepository $moveRepo, MoveBuilderService $mbService, MoveLoaderService $mlService, FormFactoryInterface $formFactory): Response
-    {
-        $this->denyAccessUnlessGranted('course.owns', $course);
-
-        if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
-            $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
-
-            $form = $formFactory->createNamed('build_move' . (isset($LAN) ? "_$LAN" : ''), BuildMoveType::class);
-            $form->handleRequest($request);
-
-            if ($form->isSubmitted() && $form->isValid()) {
-
-                $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($FEN)->turn;
-
-                $FENHistory = $form->get('FENHistory')->getData();
-                $LANHistory = $form->get('LANHistory')->getData();
-
-                $selectedPercentHistory = $form->get('selectedPercentHistory')->getData();
-                $totalSelectedPercent = 1;
-                $totalSelectedPercentHistory = array_map(function ($selectedPercent) use (&$totalSelectedPercent) {
-                    $totalSelectedPercent *= $selectedPercent;
-                    return $totalSelectedPercent;
-                }, $selectedPercentHistory);
-
-                $canSaveHistory = $form->get('canSaveHistory')->getData();
-                $canSave = empty($canSaveHistory) ? false : end($canSaveHistory);
-
-                $movesMerged = $form->get('movesMerged')->getData();
-                $lastMovesMerged = array_reduce($movesMerged, function ($carry, $moveMerged) {
-                    $carry[$moveMerged['move']->getVariation()->getId()] = $moveMerged;
-                    return $carry;
-                }, []);
-
-                $movesSaved = $moveRepo->findByFENFromCourse($FEN, $course, 'SAN');
-
-                $moves = $mpRepo->findByFenSan($FEN, $nbGames);
-                if (empty($moves)) {
-                    $moves = $mlService->loadMoves($FEN, $nbGames);
-                }
-
-                if ($myTurn) {
-                    $mMoves = $mpMasterRepo->findByFenSan($FEN, $nbMastersGames);
-                    if (empty($mMoves)) {
-                        $mMoves = $mlService->loadMastersMoves($FEN, $nbMastersGames);
-                    }
-
-                    usort($moves, function ($move1, $move2) use ($mMoves, $movesSaved) {
-                        if (isset($movesSaved[$move1->getSan()]) xor isset($movesSaved[$move2->getSan()])) {
-                            return isset($movesSaved[$move1->getSan()]) ? -1 : 1;
-                        }
-                        $mMove1 = isset($mMoves[$move1->getSan()]) ? $mMoves[$move1->getSan()] : null;
-                        $mMove2 = isset($mMoves[$move2->getSan()]) ? $mMoves[$move2->getSan()] : null;
-                        $nbMastersGames1 = $mMove1 ? $mMove1->getTotal() : 0;
-                        $nbMastersGames2 = $mMove2 ? $mMove2->getTotal() : 0;
-                        if ($nbMastersGames1 === $nbMastersGames2) {
-                            return $move2->getTotal() - $move1->getTotal();
-                        }
-                        return $nbMastersGames2 - $nbMastersGames1;
-                    });
-                } else {
-                    usort($moves, function ($move1, $move2) {
-                        return $move2->getTotal() - $move1->getTotal();
-                    });
-                }
-
-                $nextFENs = array_map(function ($move) {
-                    return $move->getNextFen();
-                }, $moves);
-
-                $masterNextFENsSaved = $mpMasterRepo->findByFENGrouped($nextFENs, ['since' => '2021', 'until' => '2024']);
-                $nextFENsSaved = $mpRepo->findByFENGrouped($nextFENs, ['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12']);
-
-                $movesSavedFENReached = $moveRepo->findByFENReachedFromCourse($nextFENs, $course, 'FEN');
-                $nextMovesPlayed = array_reduce(array_keys($movesSavedFENReached), function ($carry, $FENReached) use ($movesSavedFENReached) {
-                    $carry[$FENReached] = array_reduce($movesSavedFENReached[$FENReached], function ($carry, $move) {
-                        $carry[$move->getNotation()->getFEN()] = $move;
-                        return $carry;
-                    }, []);
-                    return $carry;
-                }, []);
-
-                $FENsToPreload = [];
-                $movesForms = [];
-                foreach ($moves as $move) {
-
-                    $SAN = $move->getSan();
-                    $nextLAN = $move->getLan();
-                    $FENReached = $move->getNextFen();
-
-                    $action = $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $FENReached, 'LAN' => $nextLAN]);
-
-                    $moveCanSave = $canSave || !isset($nextMovesPlayed[$FENReached]) || !isset($nextMovesPlayed[$FENReached][$FEN]);
-
-                    $form = $mbService->buildMoveForm($move, "build_move_$nextLAN", $action, $myTurn, $nbGames, $FENHistory, $FEN, $LANHistory, $LAN, $selectedPercentHistory, $totalSelectedPercentHistory, $totalSelectedPercent, $canSaveHistory, $moveCanSave, $movesMerged, $lastMovesMerged, $movesSaved, $movesSavedFENReached);
-
-                    if ($myTurn) {
-                        $expected = isset($nbMastersGames) && $nbMastersGames > 0 && isset($mMoves) && isset($mMoves[$SAN]) ? $mMoves[$SAN]->getTotal() / $nbMastersGames : 0;
-                        $cover = $expected > 1 / 100;
-                        if (isset($movesSaved[$SAN])) {
-                            $cover = true;
-                        }
-                    } else {
-                        $expected = $totalSelectedPercent * $move->getTotal() / $nbGames;
-                        $cover = $expected > 1 / $course->getCoverage();
-                    }
-
-                    if ($cover) {
-                        $FENsToPreload[] = $FENReached;
-                    }
-
-                    $movesForms[] = [
-                        'move' => $move,
-                        'form' => $form->createView(),
-                        'cover' => $cover,
-                        'coverage' => isset($nextMovesPlayed[$FENReached]) && isset($nextMovesPlayed[$FENReached][$FEN]) ? $nextMovesPlayed[$FENReached][$FEN]->getCoverage() : 0,
-                        'expected' => $expected,
-                        'saved' => isset($movesSaved[$SAN]),
-                        'next_saved' => isset($movesSavedFENReached[$FENReached]),
-                    ];
-                }
-
-                $mlService->preloadMoves($FENsToPreload, $masterNextFENsSaved, $nextFENsSaved);
-
-                if ($canSave && (prev($canSaveHistory) || !$myTurn)) {
-                    $variation = new Variation();
-                    $variation->setCourse($course);
-                    $variation->setName('repertoire');
-                    $variation->setBlackOrientation($course->isBlackOrientation());
-                    $saveForm = $this->createForm(MoveBuilderVariationType::class, [
-                        'variation' => $variation,
-                        'selectedPercentHistory' => $selectedPercentHistory,
-                        'movesMerged' => array_map(function ($moveMerged) {
-                            return $moveMerged['move'];
-                        }, $movesMerged),
-                    ], [
-                        'action' => $this->generateUrl('app_variation_new'),
-                    ]);
-                }
-
-                $lastTurnFEN = array_pop($FENHistory);
-                if (isset($lastTurnFEN) && !empty($selectedPercentHistory) && !empty($canSaveHistory)) {
-                    array_pop($selectedPercentHistory);
-                    array_pop($canSaveHistory);
-                    $movesMerged = array_filter($movesMerged, function ($moveMerged) use ($selectedPercentHistory) {
-                        return $moveMerged['index'] < count($selectedPercentHistory);
-                    });
-
-                    $lastTurnLAN = array_pop($LANHistory);
-                    $formName = isset($lastTurnLAN) ? "build_move_$lastTurnLAN" : 'build_move';
-                    $formAction = isset($lastTurnLAN) ? $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $lastTurnFEN, 'LAN' => $lastTurnLAN]) : $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'FEN' => $lastTurnFEN]);
-                    $previousForm = $formFactory->createNamed($formName, BuildMoveType::class, [
-                        'FENHistory' => $FENHistory,
-                        'LANHistory' => $LANHistory,
-                        'selectedPercentHistory' => $selectedPercentHistory,
-                        'movesMerged' => $movesMerged,
-                        'canSaveHistory' => $canSaveHistory,
-                    ], [
-                        'action' => $formAction,
-                    ]);
-                }
-
-                return $this->render('course/build_moves.html.twig', [
-                    'course' => $course,
-                    'my_turn' => $myTurn,
-                    'moves_forms' => $movesForms,
-                    'previous_form' => $previousForm ?? null,
-                    'save_form' => $saveForm ?? null,
-                ]);
-            }
-        }
     }
 
     #[IsGranted('IS_AUTHENTICATED')]

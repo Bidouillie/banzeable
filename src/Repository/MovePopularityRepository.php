@@ -17,33 +17,6 @@ class MovePopularityRepository extends ServiceEntityRepository
     }
 
     // TODO search by whole id (variant, speeds...)
-    public function findByFenSan(string $fen, &$nbGames = null)
-    {
-        $qb = $this->createQueryBuilder('mp')
-            ->andWhere('mp.fen = :fen')
-            ->setParameter('fen', $fen);
-
-        /**
-         * @var MovePopularity[] $moves
-         */
-        $moves = $qb->getQuery()->getResult();
-
-        /**
-         * @var array<string,MovePopularity> $moves
-         */
-        $moves = array_reduce($moves, function ($carry, $move) use (&$nbGames) {
-            if ($move->getSan() === '-') {
-                $nbGames = $move->getTotal() ?? 0;
-            } else {
-                $carry[$move->getSan()] = $move;
-            }
-            return $carry;
-        }, []);
-
-        return $moves;
-    }
-
-    // TODO search by whole id (variant, speeds...)
     public function findByFenLan(string $fen, &$nbGames = null)
     {
         $qb = $this->createQueryBuilder('mp')

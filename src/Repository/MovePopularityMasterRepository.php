@@ -20,30 +20,6 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
     /**
      * @return array<string,MovePopularityMaster>
      */
-    public function findByFenSan(string $fen, &$nbGames = null)
-    {
-        $qb = $this->createQueryBuilder('mp')
-            ->where('mp.fen = :fen')
-            ->setParameter('fen', $fen);
-
-        $moves = $qb->getQuery()->getResult();
-
-        $moves = array_reduce($moves, function ($carry, $move) use (&$nbGames) {
-            if ($move->getSan() === '-') {
-                $nbGames = $move->getTotal() ?? 0;
-            } else {
-                $carry[$move->getSan()] = $move;
-            }
-            return $carry;
-        }, []);
-
-        return $moves;
-    }
-
-    // TODO search by whole id (variant, speeds...)
-    /**
-     * @return array<string,MovePopularityMaster>
-     */
     public function findByFenLan(string $fen, &$nbGames = null)
     {
         $qb = $this->createQueryBuilder('mp')
