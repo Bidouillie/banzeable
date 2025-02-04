@@ -17,13 +17,10 @@
 							<div id="board"></div>
         					<div class="js-course" data-course="{{ course_encoded }}"></div>
 						</div>
-						<div class="progress mt-3">
-							<div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" style="width:0%"></div>
-						</div>
 					</div>
 				</div>
 				<div class="tw-col-span-6" id="course_build-moves_{{ course.id }}">
-					{{ form_start(form, {'attr': {'id': 'course_build_start'}}) }}
+					{{ form_start(form) }}
 					{{ form_end(form) }}
 				</div>
                 {#<--div class="tw-col-span-3">

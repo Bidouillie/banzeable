@@ -75,7 +75,7 @@ class VariationController extends AbstractController
                     $FENs[] = $move->getNotation()->getFEN();
                 }
 
-                $notations = $notationRepo->findByFEN($FENs);
+                $notations = $notationRepo->findByFenSan($FENs);
 
                 $orderedNotations = [];
                 foreach ($notations as $notation) {
@@ -208,7 +208,7 @@ class VariationController extends AbstractController
                     $movesByFENSAN[$move->getNotation()->getFEN()][$move->getNotation()->getText()][] = $move;
                 }
 
-                $movePopularitiesByFENSAN = $mpRepo->findGroupedByFENSAN($FENsReached);
+                $movePopularitiesByFENSAN = $mpRepo->findGroupedByFenSan($FENsReached);
 
                 foreach ($movesByFENSAN as $movesBySAN) {
                     foreach ($movesBySAN as $moves) {

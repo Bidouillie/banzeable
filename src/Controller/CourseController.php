@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Course;
 use App\Entity\User;
 use App\Entity\Variation;
+use App\Form\BuildMovesType;
 use App\Form\BuildMoveType;
 use App\Form\MoveBuilderVariationType;
 use App\Form\StudyToggleType;
@@ -95,15 +96,16 @@ class CourseController extends AbstractController
     #[Route('/{id}/build', name: 'app_course_build', requirements: ['id' => '\d+'])]
     public function build(#[MapEntity(id: 'id')] ?Course $course, SerializerInterface $serializer): Response
     {
+        // TODO Check if the course is a repertoire
         $this->denyAccessUnlessGranted('course.owns', $course);
 
-        $FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
+        $fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
 
         $form = $this->createForm(
-            BuildMoveType::class,
+            BuildMovesType::class,
             null,
             [
-                'action' => $this->generateUrl('app_course_build_moves', ['id' => $course->getId(), 'FEN' => $FEN]),
+                'action' => $this->generateUrl('app_position_build_moves', ['course' => $course->getId(), 'baseFen' => $fen]),
             ]
         );
 
@@ -152,13 +154,13 @@ class CourseController extends AbstractController
 
                 $movesSaved = $moveRepo->findByFENFromCourse($FEN, $course, 'SAN');
 
-                $moves = $mpRepo->findByFEN($FEN, $nbGames);
+                $moves = $mpRepo->findByFenSan($FEN, $nbGames);
                 if (empty($moves)) {
                     $moves = $mlService->loadMoves($FEN, $nbGames);
                 }
 
                 if ($myTurn) {
-                    $mMoves = $mpMasterRepo->findByFen($FEN, $nbMastersGames);
+                    $mMoves = $mpMasterRepo->findByFenSan($FEN, $nbMastersGames);
                     if (empty($mMoves)) {
                         $mMoves = $mlService->loadMastersMoves($FEN, $nbMastersGames);
                     }
@@ -183,7 +185,7 @@ class CourseController extends AbstractController
                 }
 
                 $nextFENs = array_map(function ($move) {
-                    return $move->getNextFEN();
+                    return $move->getNextFen();
                 }, $moves);
 
                 $masterNextFENsSaved = $mpMasterRepo->findByFENGrouped($nextFENs, ['since' => '2021', 'until' => '2024']);
@@ -203,8 +205,8 @@ class CourseController extends AbstractController
                 foreach ($moves as $move) {
 
                     $SAN = $move->getSan();
-                    $nextLAN = $move->getLAN();
-                    $FENReached = $move->getNextFEN();
+                    $nextLAN = $move->getLan();
+                    $FENReached = $move->getNextFen();
 
                     $action = $this->generateUrl('app_course_build_moves_from_lan', ['id' => $course->getId(), 'FEN' => $FENReached, 'LAN' => $nextLAN]);
 

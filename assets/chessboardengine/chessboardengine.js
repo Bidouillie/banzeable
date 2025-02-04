@@ -140,7 +140,7 @@ export class ChessboardEngine {
     _fireMoveEvent(event) {
         if (this.#movePlayedCallback) {
             let move = this._chess.currentMove();
-            this.#movePlayedCallback({ index: move === null ? 0 : move.ply, san: move?.san, ...event });
+            this.#movePlayedCallback({ index: move === null ? 0 : move.ply, lan: move?.lan, san: move?.san, ...event });
         }
     }
 

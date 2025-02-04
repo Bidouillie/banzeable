@@ -12,6 +12,7 @@ let board;
 
 let formSubmitting = null;
 let buildingFormLinks = null;
+let form = null
 let previousForm = null;
 
 function build_move(event) {
@@ -42,10 +43,10 @@ function mouse_leave() {
 
 function on_move_played(event) {
     console.log(event);
-    for (let i = 0; i < buildingFormLinks.length; i++) {
-        if (buildingFormLinks[i].getAttribute('data-san') === event.san) {
-            buildingFormLinks[i].querySelector('form').requestSubmit();
-        }
+    if (!event.undo) {
+        let moves = form.querySelector('#build_moves_moves').querySelectorAll('input');
+        moves[moves.length - 1].value = event.lan;
+        form.requestSubmit();
     }
 }
 
@@ -55,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     board = new AnalysisChessboardEngine(document.getElementById('board'), course.blackOrientation ? 'b' : 'w', null, [], fen);
 
-    document.querySelector('form[name="build_move"]').requestSubmit();
+    document.querySelector('form[name="build_moves"]').requestSubmit();
 
     document.addEventListener('turbo:submit-start', (event) => {
         console.log('submit-start');
@@ -76,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
             previousForm.removeEventListener('submit', build_previous_move);
         }
 
-        if (formName === 'move_builder_variation') {
+        if (formSubmitting.formElement.id === 'save-moves') {
             board.disablePlayableMove();
         }
     });
@@ -92,9 +93,11 @@ document.addEventListener('DOMContentLoaded', function () {
         let formName = formSubmitting.formElement.getAttribute('name');
 
         if (formName.startsWith('build_move')) {
-            buildingFormLinks = document.querySelectorAll('a.build_move');
+            buildingFormLinks = document.querySelectorAll('a.build_moves');
 
-            previousForm = document.getElementById('build_move_previous');
+            form = document.getElementById('build_moves');
+
+            previousForm = document.getElementById('build_moves_previous');
 
             let save_variation_PGN_field = document.getElementById('move_builder_variation_variation_PGN');
             if (save_variation_PGN_field !== null) {
@@ -112,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        if(previousForm !== null) {
+        if (previousForm !== null) {
             previousForm.addEventListener('submit', build_previous_move);
         }
 

@@ -21,7 +21,7 @@ class MovePopularityMaster
 
     #[ORM\Id]
     #[ORM\Column(length: 255)]
-    private ?string $FEN = null;
+    private ?string $fen = null;
 
     #[ORM\Id]
     #[ORM\Column(length: 255)]
@@ -73,25 +73,25 @@ class MovePopularityMaster
         return $this;
     }
 
-    public function getFEN(): ?string
+    public function getFen(): ?string
     {
-        return $this->FEN;
+        return $this->fen;
     }
 
-    public function setFen(string $FEN): static
+    public function setFen(string $fen): static
     {
-        $this->FEN = $FEN;
+        $this->fen = $fen;
 
         return $this;
     }
 
-    public function getNextFEN(): ?string
+    public function getNextFen(): ?string
     {
         if (isset($this->board)) {
             return $this->board->toFen();
         }
-        if (isset($this->FEN) && isset($this->san)) {
-            $this->board = FenToBoardFactory::create($this->FEN);
+        if (isset($this->fen) && isset($this->san)) {
+            $this->board = FenToBoardFactory::create($this->fen);
             $this->board->play($this->board->turn, $this->san);
             return $this->board->toFen();
         }
@@ -110,14 +110,14 @@ class MovePopularityMaster
         return $this;
     }
 
-    public function getLAN(): ?string
+    public function getLan(): ?string
     {
         if (isset($this->board)) {
             $last = end($this->board->history);
             return $last['from'] . $last['to'];
         }
-        if (isset($this->FEN) && isset($this->san)) {
-            $this->board = FenToBoardFactory::create($this->FEN);
+        if (isset($this->fen) && isset($this->san)) {
+            $this->board = FenToBoardFactory::create($this->fen);
             $this->board->play($this->board->turn, $this->san);
             $last = end($this->board->history);
             return $last['from'] . $last['to'];

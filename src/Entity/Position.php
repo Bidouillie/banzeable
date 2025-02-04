@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\PositionRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: PositionRepository::class)]
@@ -14,21 +15,24 @@ class Position
     #[ORM\Column(length: 255)]
     private ?string $fen = null;
 
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 9, options: ['default' => '1'])]
+    private ?string $expectedPercentage = null;
+
     #[ORM\Id]
     #[ORM\ManyToOne(inversedBy: 'positions')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Course $course = null;
 
     /**
-     * @var Collection<int, Move>
+     * @var Collection<int,Move>
      */
-    #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'positionFrom', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'positionTo', orphanRemoval: true)]
     private Collection $previousMoves;
 
     /**
-     * @var Collection<int, Move>
+     * @var Collection<int,Move>
      */
-    #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'positionTo', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'positionFrom', orphanRemoval: true)]
     private Collection $nextMoves;
 
     public function __construct()
@@ -49,6 +53,18 @@ class Position
         return $this;
     }
 
+    public function getExpectedPercentage(): ?float
+    {
+        return isset($this->expectedPercentage) ? floatval($this->expectedPercentage) : null;
+    }
+
+    public function setExpectedPercentage(string $expectedPercentage): static
+    {
+        $this->expectedPercentage = $expectedPercentage;
+
+        return $this;
+    }
+
     public function getCourse(): ?Course
     {
         return $this->course;
@@ -62,7 +78,7 @@ class Position
     }
 
     /**
-     * @return Collection<int, Move>
+     * @return Collection<int,Move>
      */
     public function getPreviousMoves(): Collection
     {
@@ -73,7 +89,7 @@ class Position
     {
         if (!$this->previousMoves->contains($previousMove)) {
             $this->previousMoves->add($previousMove);
-            $previousMove->setPositionFrom($this);
+            $previousMove->setPositionTo($this);
         }
 
         return $this;
@@ -92,7 +108,7 @@ class Position
     }
 
     /**
-     * @return Collection<int, Move>
+     * @return Collection<int,Move>
      */
     public function getNextMoves(): Collection
     {
@@ -103,7 +119,7 @@ class Position
     {
         if (!$this->nextMoves->contains($nextMove)) {
             $this->nextMoves->add($nextMove);
-            $nextMove->setPositionTo($this);
+            $nextMove->setPositionFrom($this);
         }
 
         return $this;
@@ -119,5 +135,23 @@ class Position
         }
 
         return $this;
+    }
+
+    //TODO optimize
+    public function isAncestorPosition(Position $position)
+    {
+        if ($this->getFen() === $position->getFen()) {
+            return true;
+        }
+
+        if (count($this->getPreviousMoves()) < 1) {
+            return false;
+        }
+
+        $found = false;
+        foreach ($this->getPreviousMoves() as $move) {
+            $found = $found || ($move->getPositionFrom() !== null && $move->getPositionFrom()->isAncestorPosition($position));
+        }
+        return $found;
     }
 }

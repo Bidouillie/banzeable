@@ -17,80 +17,140 @@ class MovePopularityRepository extends ServiceEntityRepository
     }
 
     // TODO search by whole id (variant, speeds...)
-    /**
-     * @return MovePopularity[]
-     */
-    public function findByFEN(string $FEN, &$nbGames)
+    public function findByFenSan(string $fen, &$nbGames = null)
     {
-        $qb = $this->createQueryBuilder('a')
-            ->andWhere('a.FEN = :FEN')
-            ->setParameter('FEN', $FEN);
+        $qb = $this->createQueryBuilder('mp')
+            ->andWhere('mp.fen = :fen')
+            ->setParameter('fen', $fen);
 
+        /**
+         * @var MovePopularity[] $moves
+         */
         $moves = $qb->getQuery()->getResult();
 
-        foreach ($moves as $key => $move) {
+        /**
+         * @var array<string,MovePopularity> $moves
+         */
+        $moves = array_reduce($moves, function ($carry, $move) use (&$nbGames) {
             if ($move->getSan() === '-') {
                 $nbGames = $move->getTotal() ?? 0;
-                unset($moves[$key]);
+            } else {
+                $carry[$move->getSan()] = $move;
             }
-        }
+            return $carry;
+        }, []);
 
         return $moves;
     }
 
     // TODO search by whole id (variant, speeds...)
-    /**
-     * @return array<array{moves:array<MovePopularity>,nbGames:int}>
-     */
-    public function findGroupedByFENSAN(array $FENs)
+    public function findByFenLan(string $fen, &$nbGames = null)
     {
-        $qb = $this->createQueryBuilder('a')
-            ->andWhere('a.FEN in (:FENs)')
-            ->setParameter('FENs', $FENs);
+        $qb = $this->createQueryBuilder('mp')
+            ->andWhere('mp.fen = :fen')
+            ->setParameter('fen', $fen);
 
+        /**
+         * @var MovePopularity[] $moves
+         */
+        $moves = $qb->getQuery()->getResult();
+
+        /**
+         * @var array<string,MovePopularity> $moves
+         */
+        $moves = array_reduce($moves, function ($carry, $move) use (&$nbGames) {
+            if ($move->getSan() === '-') {
+                $nbGames = $move->getTotal() ?? 0;
+            } else {
+                $carry[$move->getLan()] = $move;
+            }
+            return $carry;
+        }, []);
+
+        return $moves;
+    }
+
+    // TODO search by whole id (variant, speeds...)
+    public function findGroupedByFenSan(array $fens)
+    {
+        $qb = $this->createQueryBuilder('mp')
+            ->andWhere('mp.fen in (:fens)')
+            ->setParameter('fens', $fens);
+
+        /**
+         * @var MovePopularity[] $moves
+         */
         $moves = $qb->getQuery()->getResult();
 
         $movesGrouped = [];
-
         foreach ($moves as $move) {
-            if (!isset($movesGrouped[$move->getFEN()])) {
-                $movesGrouped[$move->getFEN()] = [
+            if (!isset($movesGrouped[$move->getFen()])) {
+                $movesGrouped[$move->getFen()] = [
                     'moves' => [],
                 ];
             }
             if ($move->getSan() === '-') {
-                $movesGrouped[$move->getFEN()]['nbGames'] = $move->getTotal() ?? 0;
+                $movesGrouped[$move->getFen()]['nbGames'] = $move->getTotal() ?? 0;
             } else {
-                $movesGrouped[$move->getFEN()]['moves'][$move->getSAN()] = $move;
+                $movesGrouped[$move->getFen()]['moves'][$move->getSan()] = $move;
             }
         }
 
         return $movesGrouped;
     }
 
-    /**
-     * @return string[]
-     */
+    // TODO search by whole id (variant, speeds...)
+    public function findGroupedByFenLan(array $fens)
+    {
+        $qb = $this->createQueryBuilder('mp')
+            ->andWhere('mp.fen in (:fens)')
+            ->setParameter('fens', $fens);
+
+        /**
+         * @var MovePopularity[] $moves
+         */
+        $moves = $qb->getQuery()->getResult();
+
+        $movesGrouped = [];
+        foreach ($moves as $move) {
+            if (!isset($movesGrouped[$move->getFen()])) {
+                $movesGrouped[$move->getFen()] = [
+                    'moves' => [],
+                ];
+            }
+            if ($move->getSan() === '-') {
+                $movesGrouped[$move->getFen()]['nbGames'] = $move->getTotal() ?? 0;
+            } else {
+                $movesGrouped[$move->getFen()]['moves'][$move->getLan()] = $move;
+            }
+        }
+
+        return $movesGrouped;
+    }
+
     public function findByFENGrouped(string|array $FEN, array $criteria = [])
     {
-        $qb = $this->createQueryBuilder('move')
-            ->select('move.FEN');
+        $qb = $this->createQueryBuilder('mp')
+            ->select('mp.FEN');
 
         if (is_array($FEN)) {
-            $qb->andWhere('move.FEN IN (:FEN)');
+            $qb->andWhere('mp.FEN IN (:FEN)');
         } else {
-            $qb->andWhere('move.FEN = :FEN');
+            $qb->andWhere('mp.FEN = :FEN');
         }
         foreach (array_keys($criteria) as $key) {
-            $qb->andWhere("move.$key = :$key");
+            $qb->andWhere("mp.$key = :$key");
         }
-        $qb->addGroupBy('move.FEN');
+        $qb->addGroupBy('mp.FEN');
 
         $qb->setParameter('FEN', $FEN);
         foreach ($criteria as $key => $value) {
             $qb->setParameter($key, $value);
         }
 
+        /**
+         * @var string[] $moves
+         */
         $moves = $qb->getQuery()->getSingleColumnResult();
 
         return $moves;

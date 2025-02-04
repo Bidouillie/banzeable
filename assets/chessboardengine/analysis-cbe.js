@@ -33,14 +33,13 @@ export class AnalysisChessboardEngine extends ChessboardEngine {
             this._fireMoveEvent();
             this.#switchTurn();
         }
-        return false;
     }
 
     undoMove() {
-        if (this._undoMove()) {
-            this._fireMoveEvent({ undo: true });
+        let move = this._undoMove();
+        if (move) {
+            this._fireMoveEvent({ undo: true, lan: move.lan, san: move.san });
             this.#switchTurn();
         }
-        return false;
     }
 }

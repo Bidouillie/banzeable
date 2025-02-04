@@ -43,31 +43,31 @@ class Course
     private ?int $coverage = null;
 
     /**
-     * @var Collection<int, User>
+     * @var Collection<int,User>
      */
     #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'courses')]
     private Collection $owners;
 
     /**
-     * @var Collection<int, User>
+     * @var Collection<int,User>
      */
     #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'studies')]
     private Collection $students;
 
     /**
-     * @var Collection<int, Variation>
+     * @var Collection<int,Variation>
      */
     #[ORM\OneToMany(targetEntity: Variation::class, mappedBy: 'course', orphanRemoval: true)]
     private Collection $variations;
 
     /**
-     * @var Collection<int, Position>
+     * @var Collection<int,Position>
      */
     #[ORM\OneToMany(targetEntity: Position::class, mappedBy: 'course', orphanRemoval: true)]
     private Collection $positions;
 
     /**
-     * @var Collection<int, Move>
+     * @var Collection<int,Move>
      */
     #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'course', orphanRemoval: true)]
     private Collection $repertoireMoves;
@@ -170,7 +170,7 @@ class Course
     }
 
     /**
-     * @return Collection<int, User>
+     * @return Collection<int,User>
      */
     public function getOwners(): Collection
     {
@@ -197,7 +197,7 @@ class Course
     }
 
     /**
-     * @return Collection<int, User>
+     * @return Collection<int,User>
      */
     public function getStudents(): Collection
     {
@@ -224,7 +224,7 @@ class Course
     }
 
     /**
-     * @return Collection<int, Variation>
+     * @return Collection<int,Variation>
      */
     public function getVariations(): Collection
     {
@@ -254,11 +254,26 @@ class Course
     }
 
     /**
-     * @return Collection<int, Position>
+     * @return Collection<int,Position>
      */
     public function getPositions(): Collection
     {
         return $this->positions;
+    }
+
+    /**
+     * @return array<string,array{position:Position,previousMoves:Move[],nextMoves:Move[]}>
+     */
+    public function getPositionsByFen(): array
+    {
+        return array_reduce($this->getPositions()->getValues(), function ($carry, Position $position) {
+            $carry[$position->getFen()] = [
+                'position' => $position,
+                'previousMoves' => [],
+                'nextMoves' => [],
+            ];
+            return $carry;
+        }, []);
     }
 
     public function addPosition(Position $position): static
@@ -284,11 +299,25 @@ class Course
     }
 
     /**
-     * @return Collection<int, Move>
+     * @return Collection<int,Move>
      */
     public function getRepertoireMoves(): Collection
     {
         return $this->repertoireMoves;
+    }
+
+    /**
+     * @return array<string,array<string,Move>>
+     */
+    public function getRepertoireMovesByFen(): array
+    {
+        return array_reduce($this->getRepertoireMoves()->getValues(), function ($carry, Move $move) {
+            if (!isset($carry[$move->getFenFrom()])) {
+                $carry[$move->getFenFrom()] = [];
+            }
+            $carry[$move->getFenFrom()][$move->getFenTo()] = $move;
+            return $carry;
+        }, []);
     }
 
     public function addRepertoireMove(Move $repertoireMove): static

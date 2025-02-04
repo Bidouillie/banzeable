@@ -3,6 +3,9 @@
 namespace App\Entity;
 
 use App\Repository\MoveRepository;
+use Chess\FenToBoardFactory;
+use Chess\Variant\AbstractBoard;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: MoveRepository::class)]
@@ -17,22 +20,31 @@ class Move
     private ?string $fenTo = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $san = null;
+    private ?string $lan = null;
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 9)]
+    private ?string $selectedPercentage = null;
 
     #[ORM\Id]
     #[ORM\ManyToOne(inversedBy: 'repertoireMoves')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Course $course = null;
 
-    #[ORM\ManyToOne(inversedBy: 'previousMoves')]
+    #[ORM\ManyToOne(inversedBy: 'nextMoves')]
     #[ORM\JoinColumn(name: 'course_id', referencedColumnName: 'course_id', nullable: false)]
     #[ORM\JoinColumn(name: 'fen_from', referencedColumnName: 'fen', nullable: false)]
     private ?Position $positionFrom = null;
 
-    #[ORM\ManyToOne(inversedBy: 'nextMoves')]
+    #[ORM\ManyToOne(inversedBy: 'previousMoves')]
     #[ORM\JoinColumn(name: 'course_id', referencedColumnName: 'course_id', nullable: false)]
     #[ORM\JoinColumn(name: 'fen_to', referencedColumnName: 'fen', nullable: false)]
     private ?Position $positionTo = null;
+
+    private ?MovePopularity $popularity = null;
+
+    private ?MovePopularityMaster $popularityMaster = null;
+
+    private ?AbstractBoard $board = null;
 
     public function getFenFrom(): ?string
     {
@@ -58,14 +70,40 @@ class Move
         return $this;
     }
 
-    public function getSan(): ?string
+    public function getLan(): ?string
     {
-        return $this->san;
+        return $this->lan;
     }
 
-    public function setSan(string $san): static
+    public function setLan(string $lan): static
     {
-        $this->san = $san;
+        $this->lan = $lan;
+
+        return $this;
+    }
+
+    public function getSan(): ?string
+    {
+        if (isset($this->board)) {
+            $last = end($this->board->history);
+            return $last['pgn'];
+        }
+        if (isset($this->fenFrom) && isset($this->lan)) {
+            $this->board = FenToBoardFactory::create($this->fenFrom);
+            $this->board->playLan($this->board->turn, $this->lan);
+            $last = end($this->board->history);
+            return $last['pgn'];
+        }
+    }
+
+    public function getSelectedPercentage(): ?float
+    {
+        return isset($this->selectedPercentage) ? floatval($this->selectedPercentage) : null;
+    }
+
+    public function setSelectedPercentage(string $selectedPercentage): static
+    {
+        $this->selectedPercentage = $selectedPercentage;
 
         return $this;
     }
@@ -90,6 +128,7 @@ class Move
     public function setPositionFrom(?Position $positionFrom): static
     {
         $this->positionFrom = $positionFrom;
+        $this->fenFrom = $positionFrom->getFen();
 
         return $this;
     }
@@ -102,7 +141,37 @@ class Move
     public function setPositionTo(?Position $positionTo): static
     {
         $this->positionTo = $positionTo;
+        $this->fenTo = $positionTo->getFen();
 
         return $this;
+    }
+
+    public function getPopularity(): ?MovePopularity
+    {
+        return $this->popularity;
+    }
+
+    public function setPopularity(?MovePopularity $popularity): static
+    {
+        $this->popularity = $popularity;
+
+        return $this;
+    }
+
+    public function getPopularityMaster(): ?MovePopularityMaster
+    {
+        return $this->popularityMaster;
+    }
+
+    public function setPopularityMaster(?MovePopularityMaster $popularityMaster): static
+    {
+        $this->popularityMaster = $popularityMaster;
+
+        return $this;
+    }
+
+    public function isMyTurn(): bool
+    {
+        return ($this->getCourse()->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($this->getFenFrom())->turn;
     }
 }
