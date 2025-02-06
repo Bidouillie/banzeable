@@ -16,11 +16,19 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
         parent::__construct($registry, MovePopularityMaster::class);
     }
 
+    /**
+     * @return MovePopularityMaster[]
+     */
+    public function findBy(array $criteria, array|null $orderBy = null, int|null $limit = null, int|null $offset = null): array
+    {
+        return parent::findBy($criteria, $orderBy, $limit, $offset);
+    }
+
     // TODO search by whole id (variant, speeds...)
     /**
      * @return array<string,MovePopularityMaster>
      */
-    public function findByFenLan(string $fen, &$nbGames = null)
+    public function findGroupedByLan(string $fen, &$nbGames = null)
     {
         $qb = $this->createQueryBuilder('mp')
             ->where('mp.fen = :fen')
@@ -29,7 +37,7 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
         $moves = $qb->getQuery()->getResult();
 
         $moves = array_reduce($moves, function ($carry, $move) use (&$nbGames) {
-            if ($move->getSan() === '-') {
+            if ($move->getLan() === '-') {
                 $nbGames = $move->getTotal() ?? 0;
             } else {
                 $carry[$move->getLan()] = $move;
@@ -43,23 +51,23 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
     /**
      * @return string[]
      */
-    public function findByFENGrouped(string|array $FEN, array $criteria = [])
+    public function findByFenGrouped(string|array $fen, array $criteria = [])
     {
         $qb = $this->createQueryBuilder('move')
-            ->select('move.FEN')
-            ->where('move.FEN');
+            ->select('move.fen')
+            ->where('move.fen');
 
-        if (is_array($FEN)) {
-            $qb->where('move.FEN IN (:FEN)');
+        if (is_array($fen)) {
+            $qb->where('move.fen IN (:fen)');
         } else {
-            $qb->where('move.FEN = :FEN');
+            $qb->where('move.fen = :fen');
         }
         foreach (array_keys($criteria) as $key) {
             $qb->andWhere("move.$key = :$key");
         }
-        $qb->addGroupBy('move.FEN');
+        $qb->addGroupBy('move.fen');
 
-        $qb->setParameter('FEN', $FEN);
+        $qb->setParameter('fen', $fen);
         foreach ($criteria as $key => $value) {
             $qb->setParameter($key, $value);
         }

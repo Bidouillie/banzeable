@@ -25,7 +25,7 @@ class MovePopularityMaster
 
     #[ORM\Id]
     #[ORM\Column(length: 255)]
-    private ?string $san = null;
+    private ?string $lan = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $date_created = null;
@@ -44,7 +44,8 @@ class MovePopularityMaster
 
     private ?AbstractBoard $board = null;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->setSince('2021');
         $this->setUntil('2024');
     }
@@ -90,26 +91,39 @@ class MovePopularityMaster
         if (isset($this->board)) {
             return $this->board->toFen();
         }
-        if (isset($this->fen) && isset($this->san)) {
+        if (isset($this->fen) && isset($this->lan)) {
             $this->board = FenToBoardFactory::create($this->fen);
-            $this->board->play($this->board->turn, $this->san);
+            $this->board->play($this->board->turn, $this->lan);
             return $this->board->toFen();
         }
         return null;
     }
 
-    public function getSan(): ?string
+    public function getLan(): ?string
     {
-        return $this->san;
+        return $this->lan;
     }
 
-    public function setSan(string $san): static
+    public function setLan(string $lan): static
     {
-        $this->san = $san;
+        $this->lan = $lan;
 
         return $this;
     }
 
+    public function getSan(): ?string
+    {
+        if (!isset($this->board) && isset($this->fen) && isset($this->lan)) {
+            $this->board = FenToBoardFactory::create($this->fen);
+            $this->board->playLan($this->board->turn, $this->lan);
+        }
+        if (isset($this->board)) {
+            $last = end($this->board->history);
+            return $last['pgn'];
+        }
+    }
+
+    /*
     public function getLan(): ?string
     {
         if (isset($this->board)) {
@@ -124,6 +138,7 @@ class MovePopularityMaster
         }
         return null;
     }
+    */
 
     public function getDateCreated(): ?\DateTimeInterface
     {

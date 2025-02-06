@@ -9,6 +9,7 @@ use App\Entity\MovePopularityMaster;
 use App\Entity\Position;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
+use Chess\FenToBoardFactory;
 
 class MoveBuilderService
 {
@@ -28,17 +29,21 @@ class MoveBuilderService
     public function buildMoves(Course $course, string $fen, array $movesPopularities = null, array $movesPopularitiesMaster = null)
     {
         if (!isset($movesPopularities)) {
-            $movesPopularities = $this->mpRepo->findByFenLan($fen);
+            $movesPopularities = $this->mpRepo->findGroupedByLan($fen);
         }
         if (!isset($movesPopularitiesMaster)) {
-            $movesPopularitiesMaster = $this->mpMasterRepo->findByFenLan($fen);
+            $movesPopularitiesMaster = $this->mpMasterRepo->findGroupedByLan($fen);
         }
 
         $moves = [];
         foreach ($movesPopularities as $movePopularity) {
+            $board = FenToBoardFactory::create($fen);
+            $board->playLan($board->turn, $movePopularity->getLan());
+
             $move = new Move();
             $move->setCourse($course);
             $move->setFenFrom($fen);
+            $move->setFenTo($board->toFen());
             $move->setLan($movePopularity->getLan());
             $move->setPopularity($movePopularity);
             if (isset($movesPopularitiesMaster[$movePopularity->getLan()])) {

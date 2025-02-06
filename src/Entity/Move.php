@@ -84,13 +84,11 @@ class Move
 
     public function getSan(): ?string
     {
-        if (isset($this->board)) {
-            $last = end($this->board->history);
-            return $last['pgn'];
-        }
-        if (isset($this->fenFrom) && isset($this->lan)) {
+        if (!isset($this->board) && isset($this->fenFrom) && isset($this->lan)) {
             $this->board = FenToBoardFactory::create($this->fenFrom);
             $this->board->playLan($this->board->turn, $this->lan);
+        }
+        if (isset($this->board)) {
             $last = end($this->board->history);
             return $last['pgn'];
         }

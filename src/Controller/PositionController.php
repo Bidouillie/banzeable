@@ -9,6 +9,7 @@ use App\Form\BuildMovesType;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
 use App\Service\MoveBuilderService;
+use App\Service\MoveLoaderService;
 use Chess\FenToBoardFactory;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -31,7 +32,7 @@ class PositionController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/load-moves/{course}/{baseFen}', name: 'app_position_build_moves', requirements: ['course' => '\d+', 'baseFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMoves(?Course $course, ?string $baseFen, Request $request, MovePopularityRepository $mpRepo, MovePopularityMasterRepository $mpMasterRepo, MoveBuilderService $mbService): Response
+    public function buildMoves(?Course $course, ?string $baseFen, Request $request, MovePopularityRepository $mpRepo, MovePopularityMasterRepository $mpMasterRepo, MoveBuilderService $mbService, MoveLoaderService $mlService): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -174,13 +175,15 @@ class PositionController extends AbstractController
                 $movesPopularities = $movePopularitiesByFenLan[$fen]['moves'];
                 $nbGames = $movePopularitiesByFenLan[$fen]['nbGames'];
 
-                $movePopularitiesMasterBySan = $mpMasterRepo->findByFenLan($fen, $nbMastersGames);
+                $movePopularitiesMasterByLan = $mpMasterRepo->findGroupedByLan($fen, $nbMastersGames);
 
-                $movesToPlay = $mbService->buildMoves($course, $fen, $movesPopularities, $movePopularitiesMasterBySan);
+                $movesToPlay = $mbService->buildMoves($course, $fen, $movesPopularities, $movePopularitiesMasterByLan);
                 $movesForms = [];
+                $fens = [];
                 foreach ($movesToPlay as $move) {
                     $board = FenToBoardFactory::create($fen);
                     $board->playLan($board->turn, $move->getLan());
+                    $fens[] = $board->toFen();
                     $movesForms[] = [
                         'move' => $move,
                         'coverage' => 0,
@@ -188,6 +191,20 @@ class PositionController extends AbstractController
                         'next_saved' => isset($positionsSavedByFen[$board->toFen()]),
                     ];
                 }
+
+                $movesPopularitiesByFenLan = $mpRepo->findGroupedByFenLan($fens);
+                $movesPopularitiesMasterByFenGrouped = array_reduce($mpMasterRepo->findByFenGrouped($fens), function ($carry, $fen) {
+                    $carry[$fen] = $fen;
+                    return $carry;
+                }, []);
+
+                $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
+
+                $mlService->preloadMoves(array_map(function ($move) {
+                    return $move->getFenTo();
+                }, array_filter($movesToPlay, function ($move) use ($expectedPercentage, $nbGames, $nbMastersGames, $course, $myTurn) {
+                    return $myTurn ? ($move->getPopularityMaster() === null ? false : $move->getPopularityMaster()->getTotal() / $nbMastersGames > 1 / 100) : $expectedPercentage * $move->getPopularity()->getTotal() / $nbGames > 1 / $course->getCoverage();
+                })), $movesPopularitiesByFenLan, $movesPopularitiesMasterByFenGrouped);
 
                 /**
                  * Previous form

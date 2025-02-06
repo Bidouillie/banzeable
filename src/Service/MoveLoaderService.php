@@ -8,6 +8,7 @@ use App\Message\LoadMastersMoves;
 use App\Message\LoadMoves;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
+use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -21,26 +22,36 @@ class MoveLoaderService
         private readonly MessageBusInterface $bus,
     ) {}
 
-    public function loadMastersMoves(string $FEN, ?int &$nbGames = 0)
+    public function loadMastersMoves(string $fen, ?int &$nbGames = 0)
     {
-        $responseMoves = $this->lichessApi->getMastersMoves($FEN);
+        $responseMoves = $this->lichessApi->getMastersMoves($fen);
 
         if (isset($responseMoves)) {
 
-            $movesSaved = array_reduce($this->masterRepo->findBy(['since' => '2021', 'until' => '2024', 'FEN' => $FEN]), function ($carry, $move) {
-                $carry[$move->getSan()] = $move;
+            /**
+             * @var array<string,MovePopularityMaster> $movesSaved
+             */
+            $movesSaved = array_reduce($this->masterRepo->findBy(['since' => '2021', 'until' => '2024', 'fen' => $fen]), function ($carry, $move) {
+                $carry[$move->getLan()] = $move;
                 return $carry;
             }, []);
 
             $date = new \DateTime();
             $moves = [];
             foreach ($responseMoves as $move) {
-                /**
-                 * @var MovePopularityMaster $movePopularity
-                 */
-                $movePopularity = isset($movesSaved[$move['san']]) ? $movesSaved[$move['san']] : new MovePopularityMaster();
-                $movePopularity->setFEN($FEN);
-                $movePopularity->setSan($move['san']);
+
+                if ($move['san'] !== '-') {
+                    $board = FenToBoardFactory::create($fen);
+                    $board->play($board->turn, $move['san']);
+                    $last = end($board->history);
+                    $lan = $last['from'] . $last['to'];
+                } else {
+                    $lan = '-';
+                }
+
+                $movePopularity = isset($movesSaved[$lan]) ? $movesSaved[$lan] : new MovePopularityMaster();
+                $movePopularity->setFen($fen);
+                $movePopularity->setLan($lan);
                 $movePopularity->setDateCreated($date);
                 $movePopularity->setWhite($move['white']);
                 $movePopularity->setBlack($move['black']);
@@ -52,10 +63,10 @@ class MoveLoaderService
 
                 $this->em->persist($movePopularity);
 
-                if ($movePopularity->getSan() === '-') {
+                if ($movePopularity->getLan() === '-') {
                     $nbGames = $movePopularity->getTotal() ?? 0;
                 }
-                $moves[$movePopularity->getSan()] = $movePopularity;
+                $moves[$movePopularity->getLan()] = $movePopularity;
             }
 
             $this->em->flush();
@@ -64,26 +75,36 @@ class MoveLoaderService
         }
     }
 
-    public function loadMoves(string $FEN, ?int &$nbGames = 0)
+    public function loadMoves(string $fen, ?int &$nbGames = 0)
     {
-        $responseMoves = $this->lichessApi->getLichessMoves($FEN);
+        $responseMoves = $this->lichessApi->getLichessMoves($fen);
 
         if (isset($responseMoves)) {
 
-            $movesSaved = array_reduce($this->repo->findBy(['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12', 'FEN' => $FEN]), function ($carry, $move) {
-                $carry[$move->getSan()] = $move;
+            /**
+             * @var array<string,MovePopularity> $movesSaved
+             */
+            $movesSaved = array_reduce($this->repo->findBy(['speeds' => 'rapid', 'ratings' => '1600,1800', 'since' => '2021-01', 'until' => '2024-12', 'fen' => $fen]), function ($carry, $move) {
+                $carry[$move->getLan()] = $move;
                 return $carry;
             }, []);
 
             $date = new \DateTime();
             $moves = [];
             foreach ($responseMoves as $move) {
-                /**
-                 * @var MovePopularity $movePopularity
-                 */
-                $movePopularity = isset($movesSaved[$move['san']]) ? $movesSaved[$move['san']] : new MovePopularity();
-                $movePopularity->setFEN($FEN);
-                $movePopularity->setSan($move['san']);
+
+                if ($move['san'] !== '-') {
+                    $board = FenToBoardFactory::create($fen);
+                    $board->play($board->turn, $move['san']);
+                    $last = end($board->history);
+                    $lan = $last['from'] . $last['to'];
+                } else {
+                    $lan = '-';
+                }
+
+                $movePopularity = isset($movesSaved[$lan]) ? $movesSaved[$lan] : new MovePopularity();
+                $movePopularity->setFen($fen);
+                $movePopularity->setLan($lan);
                 $movePopularity->setDateCreated($date);
                 $movePopularity->setWhite($move['white']);
                 $movePopularity->setBlack($move['black']);
@@ -91,7 +112,7 @@ class MoveLoaderService
 
                 $this->em->persist($movePopularity);
 
-                if ($movePopularity->getSan() === '-') {
+                if ($movePopularity->getLan() === '-') {
                     $nbGames = $movePopularity->getTotal() ?? 0;
                 } else {
                     $moves[] = $movePopularity;
@@ -104,32 +125,35 @@ class MoveLoaderService
         }
     }
 
-    public function preloadMoves(string|array $FENs, $masterFENSaved, $FENSaved)
+    public function preloadMoves(string|array $fens, $fenSaved, $masterFenSaved)
     {
-        if (!is_array($FENs)) {
-            $FENs = [$FENs];
+        if (!is_array($fens)) {
+            $fens = [$fens];
         }
+
+        $this->em->clear();
 
         $messages = [];
 
-        foreach ($FENs as $FEN) {
-            if (!in_array($FEN, $masterFENSaved)) {
+        foreach ($fens as $fen) {
+
+            if (!isset($masterFenSaved[$fen])) {
                 $movePopularity = new MovePopularityMaster();
-                $movePopularity->setFEN($FEN);
-                $movePopularity->setSan('-');
+                $movePopularity->setFen($fen);
+                $movePopularity->setLan('-');
                 $movePopularity->setDateCreated(new \DateTime());
 
                 $this->em->persist($movePopularity);
-                $messages[] = new LoadMastersMoves($FEN);
+                $messages[] = new LoadMastersMoves($fen);
             }
-            if (!in_array($FEN, $FENSaved)) {
+            if (!isset($fenSaved[$fen])) {
                 $movePopularity = new MovePopularity();
-                $movePopularity->setFEN($FEN);
-                $movePopularity->setSan('-');
+                $movePopularity->setFen($fen);
+                $movePopularity->setLan('-');
                 $movePopularity->setDateCreated(new \DateTime());
 
                 $this->em->persist($movePopularity);
-                $messages[] = new LoadMoves($FEN);
+                $messages[] = new LoadMoves($fen);
             }
         }
 

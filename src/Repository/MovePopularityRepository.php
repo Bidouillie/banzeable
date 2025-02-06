@@ -16,8 +16,16 @@ class MovePopularityRepository extends ServiceEntityRepository
         parent::__construct($registry, MovePopularity::class);
     }
 
+    /**
+     * @return MovePopularity[]
+     */
+    public function findBy(array $criteria, array|null $orderBy = null, int|null $limit = null, int|null $offset = null): array
+    {
+        return parent::findBy($criteria, $orderBy, $limit, $offset);
+    }
+
     // TODO search by whole id (variant, speeds...)
-    public function findByFenLan(string $fen, &$nbGames = null)
+    public function findGroupedByLan(string $fen, &$nbGames = null)
     {
         $qb = $this->createQueryBuilder('mp')
             ->andWhere('mp.fen = :fen')
@@ -32,7 +40,7 @@ class MovePopularityRepository extends ServiceEntityRepository
          * @var array<string,MovePopularity> $moves
          */
         $moves = array_reduce($moves, function ($carry, $move) use (&$nbGames) {
-            if ($move->getSan() === '-') {
+            if ($move->getLan() === '-') {
                 $nbGames = $move->getTotal() ?? 0;
             } else {
                 $carry[$move->getLan()] = $move;
@@ -62,7 +70,7 @@ class MovePopularityRepository extends ServiceEntityRepository
                     'moves' => [],
                 ];
             }
-            if ($move->getSan() === '-') {
+            if ($move->getLan() === '-') {
                 $movesGrouped[$move->getFen()]['nbGames'] = $move->getTotal() ?? 0;
             } else {
                 $movesGrouped[$move->getFen()]['moves'][$move->getSan()] = $move;
@@ -91,7 +99,7 @@ class MovePopularityRepository extends ServiceEntityRepository
                     'moves' => [],
                 ];
             }
-            if ($move->getSan() === '-') {
+            if ($move->getLan() === '-') {
                 $movesGrouped[$move->getFen()]['nbGames'] = $move->getTotal() ?? 0;
             } else {
                 $movesGrouped[$move->getFen()]['moves'][$move->getLan()] = $move;

@@ -21,10 +21,10 @@ final class LoadMastersMovesHandler
 
     public function __invoke(LoadMastersMoves $message): void
     {
-        $this->logger->info("Handling LoadMastersMoves $message->FEN");
+        $this->logger->info("Handling LoadMastersMoves $message->fen");
 
-        if (!$this->mlService->loadMastersMoves($message->FEN)) {
-            $this->logger->error("Handling LoadMastersMoves $message->FEN failed");
+        if (!$this->mlService->loadMastersMoves($message->fen)) {
+            $this->logger->error("Handling LoadMastersMoves $message->fen failed");
         }
     }
 }
