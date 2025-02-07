@@ -104,18 +104,18 @@ class MoveController extends AbstractController
                     $em->persist($move);
                 }
 
-                $fens = array_unique(array_merge(array_reduce($movesPlayed, function ($carry, $move) {
-                    $carry[] = $move->getFenFrom();
-                    $carry[] = $move->getFenTo();
-                    return $carry;
-                }, []), [$baseFen]));
-
-                $movePopularitiesByFenLan = $mpRepo->findGroupedByFenLan($fens);
-
                 if (!isset($basePosition)) {
                     $basePosition = empty($movesPlayed) ? $positions[$baseFen] : $positions[end($movesPlayed)->getFenTo()];
                 }
                 $newMovesPlayed = isset($keyBase) ? array_slice($movesPlayed, $keyBase) : [];
+
+                $fens = array_unique(array_merge(array_reduce($newMovesPlayed, function ($carry, $move) {
+                    $carry[] = $move->getFenFrom();
+                    $carry[] = $move->getFenTo();
+                    return $carry;
+                }, []), [$basePosition->getFen()]));
+
+                $movePopularitiesByFenLan = $mpRepo->findGroupedByFenLan($fens);
 
                 /**
                  * Expected percentage

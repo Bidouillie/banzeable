@@ -28,6 +28,8 @@ class MoveLoaderService
 
         if (isset($responseMoves)) {
 
+            $this->em->clear();
+
             /**
              * @var array<string,MovePopularityMaster> $movesSaved
              */
@@ -80,6 +82,8 @@ class MoveLoaderService
         $responseMoves = $this->lichessApi->getLichessMoves($fen);
 
         if (isset($responseMoves)) {
+
+            $this->em->clear();
 
             /**
              * @var array<string,MovePopularity> $movesSaved

@@ -104,18 +104,18 @@ class PositionController extends AbstractController
                     $move->setFenTo($fenTo);
                 }
 
-                $fens = array_unique(array_merge(array_reduce($movesPlayed, function ($carry, $move) {
-                    $carry[] = $move->getFenFrom();
-                    $carry[] = $move->getFenTo();
-                    return $carry;
-                }, []), [$baseFen]));
-
-                $movePopularitiesByFenLan = $mpRepo->findGroupedByFenLan($fens);
-
                 if (!isset($basePosition)) {
                     $basePosition = empty($movesPlayed) ? $positions[$baseFen] : $positions[end($movesPlayed)->getFenTo()];
                 }
                 $newMovesPlayed = isset($keyBase) ? array_slice($movesPlayed, $keyBase) : [];
+
+                $fens = array_unique(array_merge(array_reduce($newMovesPlayed, function ($carry, $move) {
+                    $carry[] = $move->getFenFrom();
+                    $carry[] = $move->getFenTo();
+                    return $carry;
+                }, []), [$basePosition->getFen()]));
+
+                $movePopularitiesByFenLan = $mpRepo->findGroupedByFenLan($fens);
 
                 /**
                  * Expected percentage
@@ -172,8 +172,12 @@ class PositionController extends AbstractController
 
                 $fen = empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo();
 
-                $movesPopularities = $movePopularitiesByFenLan[$fen]['moves'];
-                $nbGames = $movePopularitiesByFenLan[$fen]['nbGames'];
+                if (isset($movePopularitiesByFenLan[$fen])) {
+                    $movesPopularities = $movePopularitiesByFenLan[$fen]['moves'];
+                    $nbGames = $movePopularitiesByFenLan[$fen]['nbGames'];
+                } else {
+                    $movesPopularities = $mlService->loadMoves($fen, $nbGames);
+                }
 
                 $movePopularitiesMasterByLan = $mpMasterRepo->findGroupedByLan($fen, $nbMastersGames);
 
@@ -192,7 +196,10 @@ class PositionController extends AbstractController
                     ];
                 }
 
-                $movesPopularitiesByFenLan = $mpRepo->findGroupedByFenLan($fens);
+                $movesPopularitiesByFenLan = array_reduce($mpRepo->findByFenGrouped($fens), function ($carry, $fen) {
+                    $carry[$fen] = $fen;
+                    return $carry;
+                }, []);
                 $movesPopularitiesMasterByFenGrouped = array_reduce($mpMasterRepo->findByFenGrouped($fens), function ($carry, $fen) {
                     $carry[$fen] = $fen;
                     return $carry;

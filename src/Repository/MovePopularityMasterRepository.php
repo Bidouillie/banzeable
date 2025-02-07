@@ -53,25 +53,27 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
      */
     public function findByFenGrouped(string|array $fen, array $criteria = [])
     {
-        $qb = $this->createQueryBuilder('move')
-            ->select('move.fen')
-            ->where('move.fen');
+        $qb = $this->createQueryBuilder('mp')
+            ->select('mp.fen');
 
         if (is_array($fen)) {
-            $qb->where('move.fen IN (:fen)');
+            $qb->andWhere('mp.fen IN (:fen)');
         } else {
-            $qb->where('move.fen = :fen');
+            $qb->andWhere('mp.fen = :fen');
         }
         foreach (array_keys($criteria) as $key) {
-            $qb->andWhere("move.$key = :$key");
+            $qb->andWhere("mp.$key = :$key");
         }
-        $qb->addGroupBy('move.fen');
+        $qb->addGroupBy('mp.fen');
 
         $qb->setParameter('fen', $fen);
         foreach ($criteria as $key => $value) {
             $qb->setParameter($key, $value);
         }
 
+        /**
+         * @var string[] $moves
+         */
         $moves = $qb->getQuery()->getSingleColumnResult();
 
         return $moves;
