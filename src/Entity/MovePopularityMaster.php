@@ -190,7 +190,10 @@ class MovePopularityMaster
 
     public function getTotal(): ?int
     {
-        return $this->getWhite() + $this->getBlack() + $this->getDraws();
+        if (isset($this->white) && isset($this->black) && isset($this->draws)) {
+            return $this->white + $this->black + $this->draws;
+        }
+        return null;
     }
 
     public function getOpening(): ?string

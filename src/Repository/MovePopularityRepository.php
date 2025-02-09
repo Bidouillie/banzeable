@@ -25,6 +25,9 @@ class MovePopularityRepository extends ServiceEntityRepository
     }
 
     // TODO search by whole id (variant, speeds...)
+    /**
+     * @return null|array<string,MovePopularity>
+     */
     public function findGroupedByLan(string $fen, &$nbGames = null)
     {
         $qb = $this->createQueryBuilder('mp')
@@ -36,19 +39,24 @@ class MovePopularityRepository extends ServiceEntityRepository
          */
         $moves = $qb->getQuery()->getResult();
 
-        /**
-         * @var array<string,MovePopularity> $moves
-         */
-        $moves = array_reduce($moves, function ($carry, $move) use (&$nbGames) {
-            if ($move->getLan() === '-') {
-                $nbGames = $move->getTotal() ?? 0;
-            } else {
-                $carry[$move->getLan()] = $move;
-            }
-            return $carry;
-        }, []);
+        if (empty($moves)) {
+            return null;
+        }
 
-        return $moves;
+        $movesGrouped = [];
+        foreach ($moves as $move) {
+            if ($move->getLan() === '-') {
+                $total = $move->getTotal();
+                if (!isset($total)) {
+                    return null;
+                }
+                $nbGames = $total;
+            } else {
+                $movesGrouped[$move->getLan()] = $move;
+            }
+        }
+
+        return $movesGrouped;
     }
 
     // TODO search by whole id (variant, speeds...)

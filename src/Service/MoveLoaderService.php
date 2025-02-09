@@ -28,8 +28,6 @@ class MoveLoaderService
 
         if (isset($responseMoves)) {
 
-            $this->em->clear();
-
             /**
              * @var array<string,MovePopularityMaster> $movesSaved
              */
@@ -83,8 +81,6 @@ class MoveLoaderService
 
         if (isset($responseMoves)) {
 
-            $this->em->clear();
-
             /**
              * @var array<string,MovePopularity> $movesSaved
              */
@@ -134,8 +130,6 @@ class MoveLoaderService
         if (!is_array($fens)) {
             $fens = [$fens];
         }
-
-        $this->em->clear();
 
         $messages = [];
 
