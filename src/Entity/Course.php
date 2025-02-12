@@ -262,7 +262,7 @@ class Course
     }
 
     /**
-     * @return array<string,array{position:Position,previousMoves:Move[],nextMoves:Move[]}>
+     * @return array<string,array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>}>
      */
     public function getPositionsByFen(): array
     {

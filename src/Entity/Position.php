@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\PositionRepository;
+use Chess\FenToBoardFactory;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -17,6 +18,9 @@ class Position
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 9, options: ['default' => '1'])]
     private ?string $expectedPercentage = null;
+
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 9, options: ['default' => '0'])]
+    private ?string $completion = null;
 
     #[ORM\Id]
     #[ORM\ManyToOne(inversedBy: 'positions')]
@@ -61,6 +65,18 @@ class Position
     public function setExpectedPercentage(string $expectedPercentage): static
     {
         $this->expectedPercentage = $expectedPercentage;
+
+        return $this;
+    }
+
+    public function getCompletion(): ?float
+    {
+        return isset($this->completion) ? floatval($this->completion) : null;
+    }
+
+    public function setCompletion(string $completion): static
+    {
+        $this->completion = $completion;
 
         return $this;
     }
@@ -153,5 +169,10 @@ class Position
             $found = $found || ($move->getPositionFrom() !== null && $move->getPositionFrom()->isAncestorPosition($position));
         }
         return $found;
+    }
+
+    public function isMyTurn(): bool
+    {
+        return ($this->getCourse()->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($this->getFen())->turn;
     }
 }

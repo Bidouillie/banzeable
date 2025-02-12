@@ -15,6 +15,26 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class MoveBuilderService
 {
+    /**
+     * @var Course $course
+     */
+    private $course;
+
+    /**
+     * @var array<string,array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
+     */
+    private $positions;
+
+    /**
+     * @var array<string,array{moves:array<string,MovePopularity>,nbGames:int}> $movePopularitiesByFenLan
+     */
+    private $movePopularitiesByFenLan;
+
+    /**
+     * @var array<string,string> $fens
+     */
+    private $fens;
+
     public function __construct(
         private readonly MovePopularityRepository $mpRepo,
         private readonly MovePopularityMasterRepository $mpMasterRepo,
@@ -25,8 +45,12 @@ class MoveBuilderService
      * @param Course $course
      * @param string $baseFen
      * @param array<Move> $movesPlayed
+     * @param array<Move> $newMovesPlayed
+     * @param array<string,array{moves:array<string,MovePopularity>,nbGames:int}> $movePopularitiesByFenLan
+     * 
+     * @return Position
      */
-    public function populateMoves(Course $course, string $baseFen, array &$movesPlayed)
+    public function populateMoves(Course $course, string $baseFen, array &$movesPlayed, &$newMovesPlayed, &$movePopularitiesByFenLan = null)
     {
         $movesSavedByFen = $course->getRepertoireMovesByFen();
         $positionsSavedByFen = $course->getPositionsByFen();
@@ -38,8 +62,8 @@ class MoveBuilderService
 
         foreach ($movesSavedByFen as $fenFrom => $movesSavedByFenTo) {
             foreach ($movesSavedByFenTo as $fenTo => $move) {
-                $positionsSavedByFen[$fenFrom]['nextMoves'][] = $move;
-                $positionsSavedByFen[$fenTo]['previousMoves'][] = $move;
+                $positionsSavedByFen[$fenFrom]['nextMoves'][$move->getLan()] = $move;
+                $positionsSavedByFen[$fenTo]['previousMoves'][$move->getLan()] = $move;
             }
         }
 
@@ -125,7 +149,7 @@ class MoveBuilderService
                             $moveBuffer->setSelectedPercentage($expectedPercentage * $selectedPercentage / $moveBuffer->getPositionFrom()->getExpectedPercentage());
                         }
                     }
-                    $this->updateExpectedPercentageRecursive($positionReached, $positionsSavedByFen);
+                    $this->updateExpectedPercentage($positionsSavedByFen, $positionReached);
                 }
 
                 $move->setSelectedPercentage($selectedPercentage);
@@ -141,24 +165,24 @@ class MoveBuilderService
             }
         }
 
-        return $newMovesPlayed;
+        $basePosition = empty($newMovesPlayed) ? (empty($movesPlayed) ? $positionsSavedByFen[$baseFen]['position'] : end($movesPlayed)->getPositionTo()) : end($newMovesPlayed)->getPositionFrom();
+
+        return $basePosition;
     }
 
     /**
-     * @param  Course $course
-     * @param  string $fen
-     * @param  array<string,MovePopularity>|null $movesPopularities
-     * @param  array<string,MovePopularityMaster>|null $movesPopularitiesMaster
+     * @param Course $course
+     * @param string $fen
+     * @param array<string,MovePopularity>|null $movesPopularities
+     * @param array<string,MovePopularityMaster>|null $movesPopularitiesMaster
+     * @param array<string,array<string,Move>> $movesSavedByFen
      * 
      * @return Move[]
      */
-    public function buildMoves(Course $course, string $fen, array $movesPopularities = null, array $movesPopularitiesMaster = null)
+    public function buildMoves(Course $course, string $fen, array $movesPopularities = null, array $movesPopularitiesMaster = null, array $movesSavedByFen)
     {
         if (!isset($movesPopularities)) {
             $movesPopularities = $this->mpRepo->findGroupedByLan($fen) ?? [];
-        }
-        if (!isset($movesPopularitiesMaster)) {
-            $movesPopularitiesMaster = $this->mpMasterRepo->findGroupedByLan($fen) ?? [];
         }
 
         $moves = [];
@@ -166,11 +190,16 @@ class MoveBuilderService
             $board = FenToBoardFactory::create($fen);
             $board->playLan($board->turn, $movePopularity->getLan());
 
-            $move = new Move();
-            $move->setCourse($course);
-            $move->setFenFrom($fen);
-            $move->setFenTo($board->toFen());
-            $move->setLan($movePopularity->getLan());
+            if (isset($movesSavedByFen[$fen][$board->toFen()])) {
+                $move = $movesSavedByFen[$fen][$board->toFen()];
+            } else {
+                $move = new Move();
+                $move->setCourse($course);
+                $move->setFenFrom($fen);
+                $move->setFenTo($board->toFen());
+                $move->setLan($movePopularity->getLan());
+            }
+
             $move->setPopularity($movePopularity);
             if (isset($movesPopularitiesMaster[$movePopularity->getLan()])) {
                 $move->setPopularityMaster($movesPopularitiesMaster[$movePopularity->getLan()]);
@@ -182,20 +211,114 @@ class MoveBuilderService
     }
 
     /**
-     * @param array{position:Position,previousMoves:Move[],nextMoves:Move[]} $position
-     * @param array<string,array{position:Position,previousMoves:Move[],nextMoves:Move[]}> $positions
+     * @param array<string,array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
+     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
      */
-    public function updateExpectedPercentageRecursive(array $position, array $positions)
+    public function updateExpectedPercentage(array $positions, array $position)
+    {
+        $this->positions = $positions;
+        return $this->updateExpectedPercentageRecursive($position);
+    }
+
+    /**
+     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
+     */
+    private function updateExpectedPercentageRecursive(array $position)
     {
         if (count($position['previousMoves']) > 0) {
             $expectedPercentage = 0;
             foreach ($position['previousMoves'] as $move) {
-                $expectedPercentage += $positions[$move->getFenFrom()]['position']->getExpectedPercentage() * $move->getSelectedPercentage();
+                $expectedPercentage += $this->positions[$move->getFenFrom()]['position']->getExpectedPercentage() * $move->getSelectedPercentage();
             }
             $position['position']->setExpectedPercentage($expectedPercentage);
         }
         foreach ($position['nextMoves'] as $move) {
-            self::updateExpectedPercentageRecursive($positions[$move->getFenTo()], $positions);
+            self::updateExpectedPercentageRecursive($this->positions[$move->getFenTo()]);
+        }
+    }
+
+    /**
+     * @param Course $course
+     * @param array<string,array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
+     * @param array<string,array{moves:array<string,MovePopularity>,nbGames:int}> $movePopularitiesByFenLan
+     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
+     */
+    public function updateCompletion(Course $course, array $positions, array $movePopularitiesByFenLan, array $position)
+    {
+        $this->course = $course;
+        $this->positions = $positions;
+        $this->movePopularitiesByFenLan = $movePopularitiesByFenLan;
+        return $this->updateCompletionRecursive($position);
+    }
+
+    /**
+     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
+     */
+    private function updateCompletionRecursive(array $position)
+    {
+        if ($position['position']->isMyTurn()) {
+            $completion = 0;
+            foreach ($position['nextMoves'] as $move) {
+                $completion += self::updateCompletionRecursive($this->positions[$move->getFenTo()]);
+            }
+            $myMoveCompletionPercentage = (1 / $this->course->getCoverage()) / max($position['position']->getExpectedPercentage(), 1 / $this->course->getCoverage());
+            $completion /= count($position['nextMoves']);
+            $completion += $myMoveCompletionPercentage - $myMoveCompletionPercentage * $completion;
+
+            $position['position']->setCompletion($completion);
+        } else {
+            if (isset($this->movePopularitiesByFenLan[$position['position']->getFen()])) {
+                $completion = 0;
+                $expectedPercentage = $position['position']->getExpectedPercentage();
+                $nbGames = $this->movePopularitiesByFenLan[$position['position']->getFen()]['nbGames'];
+                $nbMovesToCover = $nbGamesToCover = 0;
+                foreach ($this->movePopularitiesByFenLan[$position['position']->getFen()]['moves'] as $move) {
+                    if ($expectedPercentage * $move->getTotal() / $nbGames > 1 / $this->course->getCoverage()) {
+                        $nbMovesToCover++;
+                        $nbGamesToCover += $move->getTotal();
+                    }
+                }
+                if ($nbMovesToCover > 0) {
+                    foreach ($position['nextMoves'] as $move) {
+                        if (isset($this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()])) {
+                            $nextPosition = $this->positions[$move->getFenTo()];
+                            $completion += self::updateCompletionRecursive($nextPosition) * $this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->getTotal();
+                        }
+                    }
+                    $completion /= $nbGamesToCover;
+                } else {
+                    $completion = 1;
+                }
+
+                $position['position']->setCompletion($completion);
+            }
+        }
+
+        return $position['position']->getCompletion();
+    }
+
+    /**
+     * @param array<string,array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
+     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
+     */
+    public function getFensOpponentTurn(array $positions, array $position)
+    {
+        $this->positions = $positions;
+        $this->fens = [];
+        $this->getFensOpponentTurnRecursive($position);
+        return $this->fens;
+    }
+
+    /**
+     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
+     */
+    private function getFensOpponentTurnRecursive(array $position)
+    {
+        if (!$position['position']->isMyTurn()) {
+            $this->fens[$position['position']->getFen()] = $position['position']->getFen();
+        }
+        foreach ($position['previousMoves'] as $move) {
+            self::getFensOpponentTurnRecursive($this->positions[$move->getFenFrom()]);
         }
     }
 }

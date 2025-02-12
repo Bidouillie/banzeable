@@ -51,26 +51,11 @@ class PositionController extends AbstractController
                 $movesSavedByFen = $course->getRepertoireMovesByFen();
                 $positionsSavedByFen = $course->getPositionsByFen();
 
-                $newMovesPlayed = $mbService->populateMoves($course, $baseFen, $movesPlayed);
+                $basePosition = $mbService->populateMoves($course, $baseFen, $movesPlayed, $newMovesPlayed);
 
                 $em->clear();
 
-                $basePosition = empty($newMovesPlayed) ? (empty($movesPlayed) ? $positionsSavedByFen[$baseFen]['position'] : end($movesPlayed)->getPositionTo()) : end($newMovesPlayed)->getPositionFrom();
-
                 $expectedPercentage = $basePosition->getExpectedPercentage();
-
-                /**
-                 * Save form
-                 * New base fen
-                 * 
-                 */
-                if (!empty($newMovesPlayed)) {
-                    $saveForm = $this->createForm(
-                        BuildMovesType::class,
-                        ['moves' => $movesPlayed],
-                        ['action' => $this->generateUrl('app_move_save_moves', ['course' => $course->getId(), 'baseFen' => $baseFen])]
-                    );
-                }
 
                 $fen = empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo();
 
@@ -78,7 +63,7 @@ class PositionController extends AbstractController
 
                 $movePopularitiesMasterByLan = $mpMasterRepo->findGroupedByLan($fen, $nbMastersGames) ?? [];
 
-                $movesToPlay = $mbService->buildMoves($course, $fen, $movesPopularities, $movePopularitiesMasterByLan);
+                $movesToPlay = $mbService->buildMoves($course, $fen, $movesPopularities, $movePopularitiesMasterByLan, $movesSavedByFen);
                 $movesForms = [];
                 $fens = [];
                 foreach ($movesToPlay as $move) {
@@ -87,7 +72,6 @@ class PositionController extends AbstractController
                     $fens[] = $board->toFen();
                     $movesForms[] = [
                         'move' => $move,
-                        'coverage' => 0,
                         'saved' => isset($movesSavedByFen[$fen][$board->toFen()]),
                         'next_saved' => isset($positionsSavedByFen[$board->toFen()]),
                     ];
@@ -119,6 +103,18 @@ class PositionController extends AbstractController
                     $previousForm = $this->createForm(BuildMovesType::class, ['moves' => [...$previousMovesPlayed]], [
                         'action' => $this->generateUrl('app_position_build_moves', ['course' => $course->getId(), 'baseFen' => $baseFen])
                     ]);
+                }
+
+                /**
+                 * Save form
+                 * New base fen
+                 */
+                if (!empty($newMovesPlayed)) {
+                    $saveForm = $this->createForm(
+                        BuildMovesType::class,
+                        ['moves' => $movesPlayed],
+                        ['action' => $this->generateUrl('app_move_save_moves', ['course' => $course->getId(), 'baseFen' => $baseFen])]
+                    );
                 }
 
                 return $this->render('position/build_moves.html.twig', [

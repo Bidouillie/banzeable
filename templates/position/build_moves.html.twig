@@ -23,10 +23,13 @@
                 </div>
             {% endif %}
             <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-p-2">
-                <div class="tw-col-span-2">Move</div>
-                <div class="tw-col-span-2">{% if not my_turn %}Peers{% endif %}</div>
-                <div class="tw-col-span-2">{% if my_turn %}Masters{% else %}Expected{% endif %}</div>
-                <div class="tw-col-span-2">Peer results</div>
+                <div class="{{ my_turn ? 'tw-col-span-2' : 'tw-col-span-1' }}">Move</div>
+                {% if not my_turn %}
+                    <div class="tw-col-span-1">Peers</div>
+                    <div class="tw-col-span-2">Coverage</div>
+                {% endif %}
+                <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }}">{% if my_turn %}Masters{% else %}Expected{% endif %}</div>
+                <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }}">Peer results</div>
             </div>
             {% if my_turn %}
             {% set moves_forms = moves_forms|sort((a, b) => (b.move.popularityMaster ? b.move.popularityMaster.total : 0) <=> (a.move.popularityMaster ? a.move.popularityMaster.total : 0))%}
@@ -42,16 +45,20 @@
                 {% set cover = expected > 1 / (my_turn ? 100 : move.course.coverage) %}
                 <a href="#" class="list-group-item list-group-item-action build_moves {% if not cover %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" onclick="return false">
                     <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-items-center">
-                        <div class="tw-col-span-2 tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif move_form.next_saved %} ✔{% endif %}</div>
-                        <div class="tw-col-span-2 tw-flex tw-items-center">
+                        <div class="{{ my_turn ? 'tw-col-span-2' : 'tw-col-span-1' }} tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif move_form.next_saved %} ✔{% endif %}</div>
                         {% if not my_turn %}
-                            {{ (popularity.total / nb_games)|format_number(style: 'percent') }}
-                            <!--div class="progress tw-grow" style="height: 7px">
-                                <div class="progress-bar bg-info" style="width:{{ (move_form.coverage * 100)|round }}%"></div>
-                            </div-->
+                            <div class="tw-col-span-1 tw-flex tw-items-center">
+                                {{ (popularity.total / nb_games)|format_number(style: 'percent') }}
+                            </div>
+                            <div class="tw-col-span-2 tw-flex tw-items-center">
+                            {% if move.positionTo %}
+                                <div class="progress tw-grow" style="height: 7px">
+                                    <div class="progress-bar bg-info" style="width:{{ (move.positionTo.completion * 100)|round }}%"></div>
+                                </div>
+                            {% endif %}
+                            </div>
                         {% endif %}
-                        </div>
-                        <div class="tw-col-span-2 tw-flex tw-items-center">
+                        <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }} tw-flex tw-items-center">
                             {% if true and not my_turn %}
                                 {% if expected > 0 %}
                                     1 in {{ (1 / expected)|round }} games
@@ -72,7 +79,7 @@
                                 {% endif %}
                             {% endif %}
                         </div>
-                        <div class="tw-col-span-2">
+                        <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }}">
                             <div class="tw-flex tw-flex-row tw-rounded-md tw-overflow-hidden">
                                 <div class="text-dark bg-light" style="width:{{ (popularity.white / popularity.total)|format_number(style: 'percent') }}">
                                     <small class="tw-px-3 tw-py-1">{{ (popularity.white / ((popularity.total)))|format_number(style: 'percent') }}</small>
