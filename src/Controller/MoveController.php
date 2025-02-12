@@ -6,7 +6,6 @@ use App\Entity\Course;
 use App\Form\BuildMovesType;
 use App\Repository\MovePopularityRepository;
 use App\Service\MoveBuilderService;
-use App\Service\MoveLoaderService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,7 +25,7 @@ class MoveController extends AbstractController
     }
 
     #[Route('/save-moves/{course}/{baseFen}', name: 'app_move_save_moves', requirements: ['course' => '\d+', 'baseFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function saveMoves(?Course $course, ?string $baseFen, Request $request, MovePopularityRepository $mpRepo, EntityManagerInterface $em, MoveBuilderService $mbService, MoveLoaderService $mlService): Response
+    public function saveMoves(?Course $course, ?string $baseFen, Request $request, MovePopularityRepository $mpRepo, EntityManagerInterface $em, MoveBuilderService $mbService): Response
     {
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
@@ -46,6 +45,9 @@ class MoveController extends AbstractController
 
                 $mbService->populateMoves($course, $baseFen, $moves, $newMoves);
 
+                /**
+                 * Completion
+                 */
                 $movesByFen = $movesSavedByFen;
                 foreach ($newMoves as $move) {
                     if (!isset($movesByFen[$move->getFenFrom()][$move->getFenTo()])) {
@@ -77,7 +79,10 @@ class MoveController extends AbstractController
                     }
                 }
 
-                $fens = $mbService->getFensOpponentTurn($positionsByFenLan, $positionsByFenLan[end($newMoves)->getFenTo()]);
+                $fens = [];
+                foreach ($positionsByFenLan as $position) {
+                    $fens[$position['position']->getFen()] = $position['position']->getFen();
+                }
                 $movePopularitiesByFenLan = $mpRepo->findGroupedByFenLan($fens);
 
                 $mbService->updateCompletion($course, $positionsByFenLan, $movePopularitiesByFenLan, $positionsByFenLan[$baseFen]);

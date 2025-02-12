@@ -165,7 +165,7 @@ class MoveBuilderService
             }
         }
 
-        $basePosition = empty($newMovesPlayed) ? (empty($movesPlayed) ? $positionsSavedByFen[$baseFen]['position'] : end($movesPlayed)->getPositionTo()) : end($newMovesPlayed)->getPositionFrom();
+        $basePosition = empty($newMovesPlayed) ? (empty($movesPlayed) ? $positionsSavedByFen[$baseFen]['position'] : end($movesPlayed)->getPositionTo()) : end($newMovesPlayed)->getPositionTo();
 
         return $basePosition;
     }
@@ -267,31 +267,29 @@ class MoveBuilderService
 
             $position['position']->setCompletion($completion);
         } else {
-            if (isset($this->movePopularitiesByFenLan[$position['position']->getFen()])) {
-                $completion = 0;
-                $expectedPercentage = $position['position']->getExpectedPercentage();
-                $nbGames = $this->movePopularitiesByFenLan[$position['position']->getFen()]['nbGames'];
-                $nbMovesToCover = $nbGamesToCover = 0;
-                foreach ($this->movePopularitiesByFenLan[$position['position']->getFen()]['moves'] as $move) {
-                    if ($expectedPercentage * $move->getTotal() / $nbGames > 1 / $this->course->getCoverage()) {
-                        $nbMovesToCover++;
-                        $nbGamesToCover += $move->getTotal();
-                    }
+            $completion = 0;
+            $expectedPercentage = $position['position']->getExpectedPercentage();
+            $nbGames = $this->movePopularitiesByFenLan[$position['position']->getFen()]['nbGames'];
+            $nbMovesToCover = $nbGamesToCover = 0;
+            foreach ($this->movePopularitiesByFenLan[$position['position']->getFen()]['moves'] as $move) {
+                if ($expectedPercentage * $move->getTotal() / $nbGames > 1 / $this->course->getCoverage()) {
+                    $nbMovesToCover++;
+                    $nbGamesToCover += $move->getTotal();
                 }
-                if ($nbMovesToCover > 0) {
-                    foreach ($position['nextMoves'] as $move) {
-                        if (isset($this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()])) {
-                            $nextPosition = $this->positions[$move->getFenTo()];
-                            $completion += self::updateCompletionRecursive($nextPosition) * $this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->getTotal();
-                        }
-                    }
-                    $completion /= $nbGamesToCover;
-                } else {
-                    $completion = 1;
-                }
-
-                $position['position']->setCompletion($completion);
             }
+            if ($nbMovesToCover > 0) {
+                foreach ($position['nextMoves'] as $move) {
+                    if (isset($this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()])) {
+                        $nextPosition = $this->positions[$move->getFenTo()];
+                        $completion += self::updateCompletionRecursive($nextPosition) * $this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->getTotal();
+                    }
+                }
+                $completion /= $nbGamesToCover;
+            } else {
+                $completion = 1;
+            }
+
+            $position['position']->setCompletion($completion);
         }
 
         return $position['position']->getCompletion();

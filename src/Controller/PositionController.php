@@ -53,11 +53,11 @@ class PositionController extends AbstractController
 
                 $basePosition = $mbService->populateMoves($course, $baseFen, $movesPlayed, $newMovesPlayed);
 
-                $em->clear();
-
                 $expectedPercentage = $basePosition->getExpectedPercentage();
 
                 $fen = empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo();
+
+                $em->clear();
 
                 $movesPopularities = $mpRepo->findGroupedByLan($fen, $nbGames) ?? $mlService->loadMoves($fen, $nbGames);
 
