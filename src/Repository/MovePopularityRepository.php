@@ -26,6 +26,9 @@ class MovePopularityRepository extends ServiceEntityRepository
 
     // TODO search by whole id (variant, speeds...)
     /**
+     * @param string $fen
+     * @param null|int $nbGames
+     * 
      * @return null|array<string,MovePopularity>
      */
     public function findGroupedByLan(string $fen, &$nbGames = null)

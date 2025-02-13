@@ -43,18 +43,31 @@ class MoveController extends AbstractController
                 $movesSavedByFen = $course->getRepertoireMovesByFen();
                 $positionsSavedByFen = $course->getPositionsByFen();
 
-                $mbService->populateMoves($course, $baseFen, $moves, $newMoves);
+                $mbService->populateMoves($course, $baseFen, $moves, $newMoves, $movePopularitiesByFenLan, $positions);
 
                 /**
-                 * Completion
+                 * Persist new positions and new moves
                  */
                 $movesByFen = $movesSavedByFen;
                 foreach ($newMoves as $move) {
                     if (!isset($movesByFen[$move->getFenFrom()][$move->getFenTo()])) {
+
+                        if (!isset($positionsSavedByFen[$move->getFenTo()])) {
+                            $em->persist($positions[$move->getFenTo()]);
+                        }
+
+                        $em->persist($move);
+
+                        $positions[$move->getFenFrom()]->addNextMove($move);
+                        $positions[$move->getFenTo()]->addPreviousMove($move);
+
                         $movesByFen[$move->getFenFrom()][$move->getFenTo()] = $move;
                     }
                 }
 
+                /**
+                 * Completion
+                 */
                 $positionsByFenLan = $positionsSavedByFen;
                 foreach ($movesByFen as $fenFrom => $movesByFenTo) {
                     foreach ($movesByFenTo as $fenTo => $move) {

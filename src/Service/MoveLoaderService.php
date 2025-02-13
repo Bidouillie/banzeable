@@ -136,6 +136,7 @@ class MoveLoaderService
         foreach ($fens as $fen) {
 
             if (!isset($masterFenSaved[$fen])) {
+                $flush = true;
                 $movePopularity = new MovePopularityMaster();
                 $movePopularity->setFen($fen);
                 $movePopularity->setLan('-');
@@ -145,6 +146,7 @@ class MoveLoaderService
                 $messages[] = new LoadMastersMoves($fen);
             }
             if (!isset($fenSaved[$fen])) {
+                $flush = true;
                 $movePopularity = new MovePopularity();
                 $movePopularity->setFen($fen);
                 $movePopularity->setLan('-');
@@ -155,7 +157,9 @@ class MoveLoaderService
             }
         }
 
-        $this->em->flush();
+        if(isset($flush)) {
+            $this->em->flush();
+        }
 
         foreach ($messages as $message) {
             $this->bus->dispatch($message);

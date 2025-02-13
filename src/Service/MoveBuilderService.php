@@ -10,7 +10,6 @@ use App\Entity\Position;
 use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
 use Chess\FenToBoardFactory;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class MoveBuilderService
@@ -38,7 +37,6 @@ class MoveBuilderService
     public function __construct(
         private readonly MovePopularityRepository $mpRepo,
         private readonly MovePopularityMasterRepository $mpMasterRepo,
-        private readonly EntityManagerInterface $em,
     ) {}
 
     /**
@@ -47,10 +45,11 @@ class MoveBuilderService
      * @param array<Move> $movesPlayed
      * @param array<Move> $newMovesPlayed
      * @param array<string,array{moves:array<string,MovePopularity>,nbGames:int}> $movePopularitiesByFenLan
+     * @param array<string,Position> $positions
      * 
-     * @return Position
+     * @return float
      */
-    public function populateMoves(Course $course, string $baseFen, array &$movesPlayed, &$newMovesPlayed, &$movePopularitiesByFenLan = null)
+    public function populateMoves(Course $course, string $baseFen, array &$movesPlayed, array &$newMovesPlayed = null, array &$movePopularitiesByFenLan = null, array &$positions = null)
     {
         $movesSavedByFen = $course->getRepertoireMovesByFen();
         $positionsSavedByFen = $course->getPositionsByFen();
@@ -102,13 +101,9 @@ class MoveBuilderService
                 $position->setFen($fenTo);
 
                 $positions[$fenTo] = $position;
-
-                $this->em->persist($position);
             }
 
             $move->setFenTo($fenTo);
-
-            $this->em->persist($move);
         }
 
         if (!isset($basePosition)) {
@@ -146,7 +141,7 @@ class MoveBuilderService
 
                     foreach ($positionReached['previousMoves'] as $moveBuffer) {
                         if ($moveBuffer !== $move) {
-                            $moveBuffer->setSelectedPercentage($expectedPercentage * $selectedPercentage / $moveBuffer->getPositionFrom()->getExpectedPercentage());
+                            $moveBuffer->setSelectedPercentage($expectedPercentage * $selectedPercentage / $positions[$moveBuffer->getFenFrom()]->getExpectedPercentage());
                         }
                     }
                     $this->updateExpectedPercentage($positionsSavedByFen, $positionReached);
@@ -158,28 +153,23 @@ class MoveBuilderService
             $expectedPercentage *= $move->getSelectedPercentage();
 
             $positions[$move->getFenTo()]->setExpectedPercentage($expectedPercentage);
-
-            if (!isset($movesSavedByFen[$move->getFenFrom()][$move->getFenTo()])) {
-                $positions[$move->getFenFrom()]->addNextMove($move);
-                $positions[$move->getFenTo()]->addPreviousMove($move);
-            }
         }
 
-        $basePosition = empty($newMovesPlayed) ? (empty($movesPlayed) ? $positionsSavedByFen[$baseFen]['position'] : end($movesPlayed)->getPositionTo()) : end($newMovesPlayed)->getPositionTo();
+        $basePosition = $positions[empty($newMovesPlayed) ? (empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo()) : end($newMovesPlayed)->getFenTo()];
 
-        return $basePosition;
+        return $basePosition->getExpectedPercentage();
     }
 
     /**
      * @param Course $course
      * @param string $fen
+     * @param array<string,array<string,Move>> $movesSavedByFen
      * @param array<string,MovePopularity>|null $movesPopularities
      * @param array<string,MovePopularityMaster>|null $movesPopularitiesMaster
-     * @param array<string,array<string,Move>> $movesSavedByFen
      * 
      * @return Move[]
      */
-    public function buildMoves(Course $course, string $fen, array $movesPopularities = null, array $movesPopularitiesMaster = null, array $movesSavedByFen)
+    public function buildMoves(Course $course, string $fen, array $movesSavedByFen, array $movesPopularities = null, array $movesPopularitiesMaster = null)
     {
         if (!isset($movesPopularities)) {
             $movesPopularities = $this->mpRepo->findGroupedByLan($fen) ?? [];

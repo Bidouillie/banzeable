@@ -74,9 +74,9 @@ class Position
         return isset($this->completion) ? floatval($this->completion) : null;
     }
 
-    public function setCompletion(string $completion): static
+    public function setCompletion(float $completion): static
     {
-        $this->completion = $completion;
+        $this->completion = number_format($completion, 9);
 
         return $this;
     }
