@@ -246,18 +246,15 @@ class MoveBuilderService
      */
     private function updateCompletionRecursive(array $position)
     {
+        $completion = 0;
         if ($position['position']->isMyTurn()) {
-            $completion = 0;
             foreach ($position['nextMoves'] as $move) {
                 $completion += self::updateCompletionRecursive($this->positions[$move->getFenTo()]);
             }
             $myMoveCompletionPercentage = (1 / $this->course->getCoverage()) / max($position['position']->getExpectedPercentage(), 1 / $this->course->getCoverage());
             $completion /= count($position['nextMoves']);
             $completion += $myMoveCompletionPercentage - $myMoveCompletionPercentage * $completion;
-
-            $position['position']->setCompletion($completion);
         } else {
-            $completion = 0;
             $expectedPercentage = $position['position']->getExpectedPercentage();
             $nbGames = $this->movePopularitiesByFenLan[$position['position']->getFen()]['nbGames'];
             $nbMovesToCover = $nbGamesToCover = 0;
@@ -267,20 +264,14 @@ class MoveBuilderService
                     $nbGamesToCover += $move->getTotal();
                 }
             }
-            if ($nbMovesToCover > 0) {
-                foreach ($position['nextMoves'] as $move) {
-                    if (isset($this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()])) {
-                        $nextPosition = $this->positions[$move->getFenTo()];
-                        $completion += self::updateCompletionRecursive($nextPosition) * $this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->getTotal();
-                    }
-                }
-                $completion /= $nbGamesToCover;
-            } else {
-                $completion = 1;
+            foreach ($position['nextMoves'] as $move) {
+                $nextPosition = $this->positions[$move->getFenTo()];
+                $completion += self::updateCompletionRecursive($nextPosition) * $this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->getTotal();
             }
-
-            $position['position']->setCompletion($completion);
+            $completion = $nbMovesToCover > 0 ? $completion / $nbGamesToCover : 1;
         }
+
+        $position['position']->setCompletion($completion);
 
         return $position['position']->getCompletion();
     }
