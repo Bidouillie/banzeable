@@ -558,16 +558,16 @@
         },
         {
             "name": "chesslablab/php-chess",
-            "version": "1.4.87",
+            "version": "1.5.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/chesslablab/php-chess.git",
-                "reference": "449ba6e440e53f9dd7df2a568967ff4d064a1702"
+                "reference": "0591c2d121b31717e387f8e59e669592f8d7d4c7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/chesslablab/php-chess/zipball/449ba6e440e53f9dd7df2a568967ff4d064a1702",
-                "reference": "449ba6e440e53f9dd7df2a568967ff4d064a1702",
+                "url": "https://api.github.com/repos/chesslablab/php-chess/zipball/0591c2d121b31717e387f8e59e669592f8d7d4c7",
+                "reference": "0591c2d121b31717e387f8e59e669592f8d7d4c7",
                 "shasum": ""
             },
             "require": {
@@ -597,7 +597,7 @@
                     "homepage": "https://github.com/chesslablab"
                 }
             ],
-            "description": "A chess library for PHP.",
+            "description": "A chess library for PHP offering move validation, common formats, multiple variants, UCI engine support, explanation of chess positions, image recognition and knowledge extraction from games.",
             "keywords": [
                 "PGN",
                 "api",
@@ -615,9 +615,9 @@
             ],
             "support": {
                 "issues": "https://github.com/chesslablab/php-chess/issues",
-                "source": "https://github.com/chesslablab/php-chess/tree/1.4.87"
+                "source": "https://github.com/chesslablab/php-chess/tree/1.5.19"
             },
-            "time": "2024-12-24T15:26:25+00:00"
+            "time": "2025-02-10T09:20:10+00:00"
         },
         {
             "name": "composer/semver",
