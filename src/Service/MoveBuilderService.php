@@ -246,58 +246,41 @@ class MoveBuilderService
      */
     private function updateCompletionRecursive(array $position)
     {
+        $nextMoves = $position['nextMoves'];
+        $position = $position['position'];
+
         $completion = 0;
-        if ($position['position']->isMyTurn()) {
-            foreach ($position['nextMoves'] as $move) {
+        if ($position->isMyTurn()) {
+            foreach ($nextMoves as $move) {
                 $completion += self::updateCompletionRecursive($this->positions[$move->getFenTo()]);
             }
-            $myMoveCompletionPercentage = (1 / $this->course->getCoverage()) / max($position['position']->getExpectedPercentage(), 1 / $this->course->getCoverage());
-            $completion /= count($position['nextMoves']);
+            $myMoveCompletionPercentage = (1 / $this->course->getCoverage()) / max($position->getExpectedPercentage(), 1 / $this->course->getCoverage());
+            $completion /= count($nextMoves);
             $completion += $myMoveCompletionPercentage - $myMoveCompletionPercentage * $completion;
         } else {
-            $expectedPercentage = $position['position']->getExpectedPercentage();
-            $nbGames = $this->movePopularitiesByFenLan[$position['position']->getFen()]['nbGames'];
+            $expectedPercentage = $position->getExpectedPercentage();
             $nbMovesToCover = $nbGamesToCover = 0;
-            foreach ($this->movePopularitiesByFenLan[$position['position']->getFen()]['moves'] as $move) {
-                if ($expectedPercentage * $move->getTotal() / $nbGames > 1 / $this->course->getCoverage()) {
+
+            $threshold = ($this->movePopularitiesByFenLan[$position->getFen()]['nbGames'] / $this->course->getCoverage()) / $expectedPercentage;
+
+            foreach ($this->movePopularitiesByFenLan[$position->getFen()]['moves'] as $move) {
+                if ($move->getTotal() >= $threshold) {
                     $nbMovesToCover++;
                     $nbGamesToCover += $move->getTotal();
                 }
             }
-            foreach ($position['nextMoves'] as $move) {
+            foreach ($nextMoves as $move) {
                 $nextPosition = $this->positions[$move->getFenTo()];
-                $completion += self::updateCompletionRecursive($nextPosition) * $this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->getTotal();
+                $nextPositionCompletion = self::updateCompletionRecursive($nextPosition);
+                if ($this->movePopularitiesByFenLan[$position->getFen()]['moves'][$move->getLan()]->getTotal() >= $threshold) {
+                    $completion += $nextPositionCompletion * $this->movePopularitiesByFenLan[$position->getFen()]['moves'][$move->getLan()]->getTotal();
+                }
             }
             $completion = $nbMovesToCover > 0 ? $completion / $nbGamesToCover : 1;
         }
 
-        $position['position']->setCompletion($completion);
+        $position->setCompletion($completion);
 
-        return $position['position']->getCompletion();
-    }
-
-    /**
-     * @param array<string,array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
-     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
-     */
-    public function getFensOpponentTurn(array $positions, array $position)
-    {
-        $this->positions = $positions;
-        $this->fens = [];
-        $this->getFensOpponentTurnRecursive($position);
-        return $this->fens;
-    }
-
-    /**
-     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
-     */
-    private function getFensOpponentTurnRecursive(array $position)
-    {
-        if (!$position['position']->isMyTurn()) {
-            $this->fens[$position['position']->getFen()] = $position['position']->getFen();
-        }
-        foreach ($position['previousMoves'] as $move) {
-            self::getFensOpponentTurnRecursive($this->positions[$move->getFenFrom()]);
-        }
+        return $position->getCompletion();
     }
 }
