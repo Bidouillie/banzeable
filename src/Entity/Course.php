@@ -162,6 +162,11 @@ class Course
         return $this->coverage;
     }
 
+    public function getTrueCoverage(): ?float
+    {
+        return isset($this->coverage) ? 1 / $this->coverage : null;
+    }
+
     public function setCoverage(?int $coverage): static
     {
         $this->coverage = $coverage;

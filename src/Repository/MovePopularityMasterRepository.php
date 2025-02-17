@@ -26,7 +26,10 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
 
     // TODO search by whole id (variant, speeds...)
     /**
-     * @return null|array<string,MovePopularityMaster>
+     * @param string $fen
+     * @param null|int $nbGames
+     * 
+     * @return null|false|array<string,MovePopularityMaster>
      */
     public function findGroupedByLan(string $fen, &$nbGames = null)
     {
@@ -48,7 +51,7 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
             if ($move->getLan() === '-') {
                 $total = $move->getTotal();
                 if (!isset($total)) {
-                    return null;
+                    return false;
                 }
                 $nbGames = $total;
             } else {
@@ -60,7 +63,7 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return string[]
+     * @return array<string,string>
      */
     public function findByFenGrouped(string|array $fen, array $criteria = [])
     {
@@ -87,6 +90,9 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
          */
         $moves = $qb->getQuery()->getSingleColumnResult();
 
-        return $moves;
+        return array_reduce($moves, function ($carry, $fen) {
+            $carry[$fen] = $fen;
+            return $carry;
+        }, []);
     }
 }

@@ -29,7 +29,7 @@ class MovePopularityRepository extends ServiceEntityRepository
      * @param string $fen
      * @param null|int $nbGames
      * 
-     * @return null|array<string,MovePopularity>
+     * @return null|false|array<string,MovePopularity>
      */
     public function findGroupedByLan(string $fen, &$nbGames = null)
     {
@@ -51,7 +51,7 @@ class MovePopularityRepository extends ServiceEntityRepository
             if ($move->getLan() === '-') {
                 $total = $move->getTotal();
                 if (!isset($total)) {
-                    return null;
+                    return false;
                 }
                 $nbGames = $total;
             } else {
@@ -111,7 +111,12 @@ class MovePopularityRepository extends ServiceEntityRepository
                 ];
             }
             if ($move->getLan() === '-') {
-                $movesGrouped[$move->getFen()]['nbGames'] = $move->getTotal() ?? 0;
+                $total = $move->getTotal();
+                if (isset($total)) {
+                    $movesGrouped[$move->getFen()]['nbGames'] = $total;
+                } else {
+                    $movesGrouped[$move->getFen()] = false;
+                }
             } else {
                 $movesGrouped[$move->getFen()]['moves'][$move->getLan()] = $move;
             }
@@ -120,6 +125,9 @@ class MovePopularityRepository extends ServiceEntityRepository
         return $movesGrouped;
     }
 
+    /**
+     * @return array<string,string>
+     */
     public function findByFenGrouped(string|array $fen, array $criteria = [])
     {
         $qb = $this->createQueryBuilder('mp')
@@ -145,6 +153,9 @@ class MovePopularityRepository extends ServiceEntityRepository
          */
         $moves = $qb->getQuery()->getSingleColumnResult();
 
-        return $moves;
+        return array_reduce($moves, function ($carry, $fen) {
+            $carry[$fen] = $fen;
+            return $carry;
+        }, []);
     }
 }

@@ -50,46 +50,62 @@ final class BuildMovesTerminateListener
 
                 $expectedPercentage = $this->mbService->populateMoves($course, $baseFen, $movesPlayed, $newMovesPlayed, $movePopularitiesByFenLan);
 
-                if (!empty($newMovesPlayed)) {
+                $fen = empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo();
 
-                    $fen = empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo();
+                $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
+                if ($myTurn) {
+                    $movePopularitiesMasterByLan = $this->mpMasterRepo->findGroupedByLan($fen, $nbMastersGames);
+                } else {
                     if (isset($movePopularitiesByFenLan[$fen])) {
-                        $movesPopularities = $movePopularitiesByFenLan[$fen]['moves'];
+                        $movesPopularitiesByLan = $movePopularitiesByFenLan[$fen]['moves'];
                         $nbGames = $movePopularitiesByFenLan[$fen]['nbGames'];
                     } else {
-                        $movesPopularities = $this->mpRepo->findGroupedByLan($fen, $nbGames) ?? [];
+                        $movesPopularitiesByLan = $this->mpRepo->findGroupedByLan($fen, $nbGames) ?? [];
+                    }
+                }
+
+                if (($myTurn && !empty($movePopularitiesMasterByLan)) || (!$myTurn && !empty($movesPopularitiesByLan))) {
+
+                    $movesToPlay = $this->mbService->buildMoves($course, $fen, $movesSavedByFen, $movesPopularitiesByLan ?? [], $movePopularitiesMasterByLan ?? []);
+                    $fens = [];
+                    foreach ($movesToPlay as $move) {
+                        $board = FenToBoardFactory::create($fen);
+                        $board->playLan($board->turn, $move->getLan());
+                        $fens[] = $board->toFen();
                     }
 
-                    if (!empty($movesPopularities)) {
+                    $movesPopularitiesByFenLan = $this->mpRepo->findByFenGrouped($fens);
+                    $movesPopularitiesMasterByFenGrouped = $this->mpMasterRepo->findByFenGrouped($fens);
 
-                        $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
+                    if ($myTurn) {
+                        $movesToPreload = array_filter($movesToPlay, function ($move) use ($nbMastersGames) {
+                            return $move->getPopularityMaster() !== null && $move->getPopularityMaster()->getTotal() / $nbMastersGames > 1 / 100;
+                        });
+                    } else {
+                        $movesToPreload = array_filter($movesToPlay, function ($move) use ($expectedPercentage, $nbGames, $course) {
+                            return $move->getPopularity() !== null && $expectedPercentage * $move->getPopularity()->getTotal() > $nbGames * $course->getTrueCoverage();
+                        });
+                    }
 
-                        $nbMastersGames = 0;
-                        $movePopularitiesMasterByLan = $myTurn ? ($this->mpMasterRepo->findGroupedByLan($fen, $nbMastersGames) ?? []) : [];
+                    $fensToPreload = array_map(function ($move) {
+                        return $move->getFenTo();
+                    }, $movesToPreload);
 
-                        $movesToPlay = $this->mbService->buildMoves($course, $fen, $movesSavedByFen, $movesPopularities, $movePopularitiesMasterByLan);
-                        $fens = [];
-                        foreach ($movesToPlay as $move) {
-                            $board = FenToBoardFactory::create($fen);
-                            $board->playLan($board->turn, $move->getLan());
-                            $fens[] = $board->toFen();
+                    $this->mlService->preloadMoves($fensToPreload, $movesPopularitiesByFenLan, $movesPopularitiesMasterByFenGrouped);
+                } else {
+
+                    $movesPopularitiesByFenLan = $this->mpRepo->findByFenGrouped($fen);
+                    $movesPopularitiesMasterByFenGrouped = $this->mpMasterRepo->findByFenGrouped($fen);
+
+                    if ($myTurn) {
+                        if (!isset($movePopularitiesMasterByLan)) {
+                            $this->mlService->preloadMoves($fen, $movesPopularitiesByFenLan, $movesPopularitiesMasterByFenGrouped);
                         }
-
-                        $movesPopularitiesByFenLan = array_reduce($this->mpRepo->findByFenGrouped($fens), function ($carry, $fen) {
-                            $carry[$fen] = $fen;
-                            return $carry;
-                        }, []);
-                        $movesPopularitiesMasterByFenGrouped = array_reduce($this->mpMasterRepo->findByFenGrouped($fens), function ($carry, $fen) {
-                            $carry[$fen] = $fen;
-                            return $carry;
-                        }, []);
-
-                        $this->mlService->preloadMoves(array_map(function ($move) {
-                            return $move->getFenTo();
-                        }, array_filter($movesToPlay, function ($move) use ($expectedPercentage, $nbGames, $nbMastersGames, $course, $myTurn) {
-                            return $myTurn ? ($move->getPopularityMaster() === null ? false : $move->getPopularityMaster()->getTotal() / $nbMastersGames > 1 / 100) : $expectedPercentage * $move->getPopularity()->getTotal() / $nbGames > 1 / $course->getCoverage();
-                        })), $movesPopularitiesByFenLan, $movesPopularitiesMasterByFenGrouped);
+                    } else {
+                        if (!isset($movesPopularitiesByLan)) {
+                            $this->mlService->preloadMoves($fen, $movesPopularitiesByFenLan, $movesPopularitiesMasterByFenGrouped);
+                        }
                     }
                 }
             }

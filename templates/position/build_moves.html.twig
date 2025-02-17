@@ -41,7 +41,7 @@
                 {% set move = move_form.move %}
                 {% set popularity = move.popularity %}
                 {% set expected = my_turn ? (move.popularityMaster ? move.popularityMaster.total / nb_masters_games : 0) : expected_percentage * popularity.total / nb_games %}
-                {% set cover = expected > 1 / (my_turn ? 100 : move.course.coverage) %}
+                {% set cover = expected > (my_turn ? 1 / 100 : move.course.trueCoverage) %}
                 <a href="#" class="list-group-item list-group-item-action build_moves {% if not cover %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" onclick="return false">
                     <div class="tw-grid tw-grid-cols-12 tw-gap-7 tw-items-center">
                         <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif move_form.next_saved %} ✔{% endif %}</div>

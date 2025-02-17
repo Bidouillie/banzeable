@@ -29,11 +29,6 @@ class MoveBuilderService
      */
     private $movePopularitiesByFenLan;
 
-    /**
-     * @var array<string,string> $fens
-     */
-    private $fens;
-
     public function __construct(
         private readonly MovePopularityRepository $mpRepo,
         private readonly MovePopularityMasterRepository $mpMasterRepo,
@@ -171,14 +166,19 @@ class MoveBuilderService
      */
     public function buildMoves(Course $course, string $fen, array $movesSavedByFen, array $movesPopularities = null, array $movesPopularitiesMaster = null)
     {
-        if (!isset($movesPopularities)) {
-            $movesPopularities = $this->mpRepo->findGroupedByLan($fen) ?? [];
+        $board = FenToBoardFactory::create($fen);
+        $pieces = $board->pieces($board->turn);
+
+        $lans = [];
+        foreach ($pieces as $piece) {
+            foreach ($board->legal($piece->sq) as $sq) {
+                $lans[] = $piece->sq . $sq;
+            }
         }
 
-        $moves = [];
-        foreach ($movesPopularities as $movePopularity) {
+        foreach ($lans as $lan) {
             $board = FenToBoardFactory::create($fen);
-            $board->playLan($board->turn, $movePopularity->getLan());
+            $board->playLan($board->turn, $lan);
 
             if (isset($movesSavedByFen[$fen][$board->toFen()])) {
                 $move = $movesSavedByFen[$fen][$board->toFen()];
@@ -187,13 +187,12 @@ class MoveBuilderService
                 $move->setCourse($course);
                 $move->setFenFrom($fen);
                 $move->setFenTo($board->toFen());
-                $move->setLan($movePopularity->getLan());
+                $move->setLan($lan);
             }
 
-            $move->setPopularity($movePopularity);
-            if (isset($movesPopularitiesMaster[$movePopularity->getLan()])) {
-                $move->setPopularityMaster($movesPopularitiesMaster[$movePopularity->getLan()]);
-            }
+            $move->setPopularity($movesPopularities[$lan] ?? null);
+            $move->setPopularityMaster($movesPopularitiesMaster[$lan] ?? null);
+
             $moves[] = $move;
         }
 
@@ -254,14 +253,14 @@ class MoveBuilderService
             foreach ($nextMoves as $move) {
                 $completion += self::updateCompletionRecursive($this->positions[$move->getFenTo()]);
             }
-            $myMoveCompletionPercentage = (1 / $this->course->getCoverage()) / max($position->getExpectedPercentage(), 1 / $this->course->getCoverage());
+            $myMoveCompletionPercentage = $this->course->getTrueCoverage() / max($position->getExpectedPercentage(), $this->course->getTrueCoverage());
             $completion /= count($nextMoves);
             $completion += $myMoveCompletionPercentage - $myMoveCompletionPercentage * $completion;
         } else {
             $expectedPercentage = $position->getExpectedPercentage();
             $nbMovesToCover = $nbGamesToCover = 0;
 
-            $threshold = ($this->movePopularitiesByFenLan[$position->getFen()]['nbGames'] / $this->course->getCoverage()) / $expectedPercentage;
+            $threshold = ($this->movePopularitiesByFenLan[$position->getFen()]['nbGames'] * $this->course->getTrueCoverage()) / $expectedPercentage;
 
             foreach ($this->movePopularitiesByFenLan[$position->getFen()]['moves'] as $move) {
                 if ($move->getTotal() >= $threshold) {

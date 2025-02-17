@@ -115,7 +115,7 @@ class MoveLoaderService
                 if ($movePopularity->getLan() === '-') {
                     $nbGames = $movePopularity->getTotal() ?? 0;
                 } else {
-                    $moves[] = $movePopularity;
+                    $moves[$movePopularity->getLan()] = $movePopularity;
                 }
             }
 
@@ -157,7 +157,7 @@ class MoveLoaderService
             }
         }
 
-        if(isset($flush)) {
+        if (isset($flush)) {
             $this->em->flush();
         }
 
