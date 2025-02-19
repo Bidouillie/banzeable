@@ -21,8 +21,6 @@ final class LoadMovesHandler
 
     public function __invoke(LoadMoves $message): void
     {
-        $this->logger->info("Handling LoadMoves $message->fen");
-
         if (!$this->mlService->loadMoves($message->fen)) {
             $this->logger->error("Handling LoadMoves $message->fen failed");
         }

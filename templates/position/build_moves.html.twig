@@ -31,23 +31,23 @@
                 <div class="{{ my_turn ? 'tw-col-span-5' : 'tw-col-span-4' }}">Peer results</div>
             </div>
             {% if my_turn %}
-            {% set moves_forms = moves_forms|sort((a, b) => (b.move.popularityMaster ? b.move.popularityMaster.total : 0) <=> (a.move.popularityMaster ? a.move.popularityMaster.total : 0))%}
+                {% set moves_forms = moves_forms|sort((a, b) => (a.move.popularityMaster or b.move.popularityMaster ? (b.move.popularityMaster ? b.move.popularityMaster.total : 0) <=> (a.move.popularityMaster ? a.move.popularityMaster.total : 0) : (b.move.popularity ? b.move.popularity.total : 0) <=> (a.move.popularity ? a.move.popularity.total : 0)))%}
             {% else %}
-            {% set moves_forms = moves_forms|sort((a, b) => b.move.popularity.total <=> a.move.popularity.total)%}
+                {% set moves_forms = moves_forms|sort((a, b) => (b.move.popularity ? b.move.popularity.total : 0) <=> (a.move.popularity ? a.move.popularity.total : 0))%}
             {% endif %}
             
             {{ form_start(form, {'attr': {'id': 'build_moves'}}) }}
             {% for move_form in moves_forms %}
                 {% set move = move_form.move %}
                 {% set popularity = move.popularity %}
-                {% set expected = my_turn ? (move.popularityMaster ? move.popularityMaster.total / nb_masters_games : 0) : expected_percentage * popularity.total / nb_games %}
-                {% set cover = expected > (my_turn ? 1 / 100 : move.course.trueCoverage) %}
+                {% set expected = my_turn ? (nb_masters_games is not null ? (move.popularityMaster ? move.popularityMaster.total / nb_masters_games : 0) : null) : (nb_games ? expected_percentage * (popularity ? popularity.total / nb_games : 0) : null) %}
+                {% set cover = (expected ?? 0) > (my_turn ? 1 / 100 : move.course.trueCoverage) %}
                 <a href="#" class="list-group-item list-group-item-action build_moves {% if not cover %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" onclick="return false">
                     <div class="tw-grid tw-grid-cols-12 tw-gap-7 tw-items-center">
                         <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif move_form.next_saved %} ✔{% endif %}</div>
                         {% if not my_turn %}
                             <!--div class="tw-col-span-1 tw-flex tw-items-center">
-                                {{ (popularity.total / nb_games)|format_number(style: 'percent') }}
+                                {{ (nb_games ? ((popularity ? popularity.total / nb_games : 0)|format_number(style: 'percent')) : null) }}
                             </div-->
                             <div class="tw-col-span-3 tw-flex tw-items-center">
                             {% if move.positionTo %}
@@ -59,35 +59,45 @@
                         {% endif %}
                         <div class="{{ my_turn ? 'tw-col-span-4' : 'tw-col-span-3' }} tw-flex tw-items-center">
                             {% if true and not my_turn %}
-                                {% if expected > 0 %}
-                                    1 in {{ (1 / expected)|round }} games
+                                {% if expected is not null %}
+                                    {% if expected > 0 %}
+                                        1 in {{ (1 / expected)|round }} games
+                                    {% else %}
+                                        1 in ∞ games
+                                    {% endif %}
                                 {% else %}
-                                    1 in ∞ games
+                                    1 in ? games
                                 {% endif %}
                             {% else %}
-                                {% if expected >= 1 / 100 %}
-                                    {{ (expected)|format_number(style: 'percent') }}
-                                {% elseif expected >= 1 / 1000 %}
-                                    &lt;{{ 0.01|format_number(style: 'percent') }}
-                                {% elseif expected >= 1 / 10000 %}
-                                    &lt;1‰
-                                {% elseif expected > 0 %}
-                                    &lt;1‱
+                                {% if expected is not null %}
+                                    {% if expected >= 1 / 100 %}
+                                        {{ (expected)|format_number(style: 'percent') }}
+                                    {% elseif expected >= 1 / 1000 %}
+                                        &lt;{{ 0.01|format_number(style: 'percent') }}
+                                    {% elseif expected >= 1 / 10000 %}
+                                        &lt;1‰
+                                    {% elseif expected > 0 %}
+                                        &lt;1‱
+                                    {% else %}
+                                        {{ 0|format_number(style: 'percent') }}
+                                    {% endif %}
                                 {% else %}
-                                    {{ 0|format_number(style: 'percent') }}
+                                    ?
                                 {% endif %}
                             {% endif %}
                         </div>
                         <div class="{{ my_turn ? 'tw-col-span-5' : 'tw-col-span-4' }}">
-                            <div class="tw-flex tw-flex-row tw-rounded-md tw-overflow-hidden">
-                                <div class="text-dark bg-light" style="width:{{ (popularity.white / popularity.total)|format_number(style: 'percent') }}">
-                                    <small class="tw-px-3 tw-py-1">{{ (popularity.white / ((popularity.total)))|format_number(style: 'percent') }}</small>
+                            {% if popularity is not null %}
+                                <div class="tw-flex tw-flex-row tw-rounded-md tw-overflow-hidden">
+                                    <div class="text-dark bg-light" style="width:{{ (popularity.white / popularity.total)|format_number(style: 'percent') }}">
+                                        <small class="tw-px-3 tw-py-1">{{ (popularity.white / ((popularity.total)))|format_number(style: 'percent') }}</small>
+                                    </div>
+                                    <div class="bg-secondary" style="width:{{ (popularity.draws / popularity.total)|format_number(style: 'percent') }}"><div class="tw-px-3 tw-py-1"></div></div>
+                                    <div class="text-end text-light bg-dark" style="width:{{ (popularity.black / popularity.total)|format_number(style: 'percent') }}">
+                                        <small class="tw-px-3 tw-py-1">{{ (popularity.black / popularity.total)|format_number(style: 'percent') }}</small>
+                                    </div>
                                 </div>
-                                <div class="bg-secondary" style="width:{{ (popularity.draws / popularity.total)|format_number(style: 'percent') }}"><div class="tw-px-3 tw-py-1"></div></div>
-                                <div class="text-end text-light bg-dark" style="width:{{ (popularity.black / popularity.total)|format_number(style: 'percent') }}">
-                                    <small class="tw-px-3 tw-py-1">{{ (popularity.black / popularity.total)|format_number(style: 'percent') }}</small>
-                                </div>
-                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </a>

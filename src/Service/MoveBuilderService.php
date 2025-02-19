@@ -41,8 +41,6 @@ class MoveBuilderService
      * @param array<Move> $newMovesPlayed
      * @param array<string,array{moves:array<string,MovePopularity>,nbGames:int}> $movePopularitiesByFenLan
      * @param array<string,Position> $positions
-     * 
-     * @return float
      */
     public function populateMoves(Course $course, string $baseFen, array &$movesPlayed, array &$newMovesPlayed = null, array &$movePopularitiesByFenLan = null, array &$positions = null)
     {
@@ -81,9 +79,9 @@ class MoveBuilderService
                 continue;
             }
 
-            if (!isset($basePosition)) {
+            if (!isset($baseSavedPosition)) {
                 $keyBase = $key;
-                $basePosition = $positions[$fenFrom];
+                $baseSavedPosition = $positions[$fenFrom];
             }
 
             $move->setCourse($course);
@@ -101,8 +99,8 @@ class MoveBuilderService
             $move->setFenTo($fenTo);
         }
 
-        if (!isset($basePosition)) {
-            $basePosition = empty($movesPlayed) ? $positions[$baseFen] : $positions[end($movesPlayed)->getFenTo()];
+        if (!isset($baseSavedPosition)) {
+            $baseSavedPosition = $positions[empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo()];
         }
         $newMovesPlayed = isset($keyBase) ? array_slice($movesPlayed, $keyBase) : [];
 
@@ -110,14 +108,14 @@ class MoveBuilderService
             $carry[] = $move->getFenFrom();
             $carry[] = $move->getFenTo();
             return $carry;
-        }, []), [$basePosition->getFen()]));
+        }, []), [$baseSavedPosition->getFen()]));
 
         $movePopularitiesByFenLan = $this->mpRepo->findGroupedByFenLan($fens);
 
         /**
          * Expected percentage
          */
-        $expectedPercentage = $basePosition->getExpectedPercentage();
+        $expectedPercentage = $baseSavedPosition->getExpectedPercentage();
         foreach ($newMovesPlayed as $move) {
             unset($positionReached);
             if (!isset($movesSavedByFen[$move->getFenFrom()][$move->getFenTo()])) {
@@ -125,6 +123,9 @@ class MoveBuilderService
                     $selectedPercentage = 1;
                 } else {
                     $selectedPercentage = 0;
+                    if (empty($movePopularitiesByFenLan[$move->getFenFrom()])) {
+                        return null;
+                    }
                     if (isset($movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()])) {
                         $selectedPercentage = $movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->getTotal() / $movePopularitiesByFenLan[$move->getFenFrom()]['nbGames'];
                     }
@@ -150,17 +151,17 @@ class MoveBuilderService
             $positions[$move->getFenTo()]->setExpectedPercentage($expectedPercentage);
         }
 
-        $basePosition = $positions[empty($newMovesPlayed) ? (empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo()) : end($newMovesPlayed)->getFenTo()];
+        $positionReached = $positions[empty($newMovesPlayed) ? (empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo()) : end($newMovesPlayed)->getFenTo()];
 
-        return $basePosition->getExpectedPercentage();
+        return $positionReached->getExpectedPercentage();
     }
 
     /**
      * @param Course $course
      * @param string $fen
      * @param array<string,array<string,Move>> $movesSavedByFen
-     * @param array<string,MovePopularity>|null $movesPopularities
-     * @param array<string,MovePopularityMaster>|null $movesPopularitiesMaster
+     * @param null|false|array<string,MovePopularity> $movesPopularities
+     * @param null|false|array<string,MovePopularityMaster> $movesPopularitiesMaster
      * 
      * @return Move[]
      */

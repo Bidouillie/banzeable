@@ -10,6 +10,7 @@ use App\Repository\MovePopularityMasterRepository;
 use App\Repository\MovePopularityRepository;
 use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 class MoveLoaderService
@@ -20,6 +21,7 @@ class MoveLoaderService
         private readonly MovePopularityMasterRepository $masterRepo,
         private readonly LichessApiService $lichessApi,
         private readonly MessageBusInterface $bus,
+        private readonly LoggerInterface $logger,
     ) {}
 
     public function loadMastersMoves(string $fen, ?int &$nbGames = 0)
@@ -106,9 +108,10 @@ class MoveLoaderService
                 $movePopularity->setFen($fen);
                 $movePopularity->setLan($lan);
                 $movePopularity->setDateCreated($date);
-                $movePopularity->setWhite($move['white']);
-                $movePopularity->setBlack($move['black']);
-                $movePopularity->setDraws($move['draws']);
+
+                $movePopularity->setWhite($move['white'] ?? 0);
+                $movePopularity->setBlack($move['black'] ?? 0);
+                $movePopularity->setDraws($move['draws'] ?? 0);
 
                 $this->em->persist($movePopularity);
 
@@ -125,8 +128,11 @@ class MoveLoaderService
         }
     }
 
-    public function preloadMoves(string|array $fens, $fenSaved, $masterFenSaved)
+    public function preloadMoves(string|array $fens, bool $masters)
     {
+        $fensSaved = $this->repo->findByFenGrouped($fens);
+        $masterFensSaved = $masters ? $this->masterRepo->findByFenGrouped($fens) : null;
+
         if (!is_array($fens)) {
             $fens = [$fens];
         }
@@ -135,7 +141,7 @@ class MoveLoaderService
 
         foreach ($fens as $fen) {
 
-            if (!isset($masterFenSaved[$fen])) {
+            if ($masters && !isset($masterFensSaved[$fen])) {
                 $flush = true;
                 $movePopularity = new MovePopularityMaster();
                 $movePopularity->setFen($fen);
@@ -145,7 +151,7 @@ class MoveLoaderService
                 $this->em->persist($movePopularity);
                 $messages[] = new LoadMastersMoves($fen);
             }
-            if (!isset($fenSaved[$fen])) {
+            if (!isset($fensSaved[$fen])) {
                 $flush = true;
                 $movePopularity = new MovePopularity();
                 $movePopularity->setFen($fen);
