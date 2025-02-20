@@ -2,14 +2,14 @@
 
 namespace App\Entity;
 
-use App\Repository\MovePopularityMasterRepository;
+use App\Repository\MovePopularityMastersRepository;
 use Chess\FenToBoardFactory;
 use Chess\Variant\AbstractBoard;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: MovePopularityMasterRepository::class)]
-class MovePopularityMaster
+#[ORM\Entity(repositoryClass: MovePopularityMastersRepository::class)]
+class MovePopularityMasters
 {
     #[ORM\Id]
     #[ORM\Column(length: 255)]

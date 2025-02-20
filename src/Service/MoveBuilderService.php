@@ -5,9 +5,9 @@ namespace App\Service;
 use App\Entity\Course;
 use App\Entity\Move;
 use App\Entity\MovePopularity;
-use App\Entity\MovePopularityMaster;
+use App\Entity\MovePopularityMasters;
 use App\Entity\Position;
-use App\Repository\MovePopularityMasterRepository;
+use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
 use Chess\FenToBoardFactory;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -31,7 +31,7 @@ class MoveBuilderService
 
     public function __construct(
         private readonly MovePopularityRepository $mpRepo,
-        private readonly MovePopularityMasterRepository $mpMasterRepo,
+        private readonly MovePopularityMastersRepository $mpMastersRepo,
     ) {}
 
     /**
@@ -161,11 +161,11 @@ class MoveBuilderService
      * @param string $fen
      * @param array<string,array<string,Move>> $movesSavedByFen
      * @param null|false|array<string,MovePopularity> $movesPopularities
-     * @param null|false|array<string,MovePopularityMaster> $movesPopularitiesMaster
+     * @param null|false|array<string,MovePopularityMasters> $movesPopularitiesMasters
      * 
      * @return Move[]
      */
-    public function buildMoves(Course $course, string $fen, array $movesSavedByFen, array $movesPopularities = null, array $movesPopularitiesMaster = null)
+    public function buildCandidateMoves(Course $course, string $fen, array $movesSavedByFen, array $movesPopularities = null, array $movesPopularitiesMasters = null)
     {
         $board = FenToBoardFactory::create($fen);
         $pieces = $board->pieces($board->turn);
@@ -192,7 +192,7 @@ class MoveBuilderService
             }
 
             $move->setPopularity($movesPopularities[$lan] ?? null);
-            $move->setPopularityMaster($movesPopularitiesMaster[$lan] ?? null);
+            $move->setPopularityMasters($movesPopularitiesMasters[$lan] ?? null);
 
             $moves[] = $move;
         }

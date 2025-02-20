@@ -42,7 +42,7 @@ class Move
 
     private ?MovePopularity $popularity = null;
 
-    private ?MovePopularityMaster $popularityMaster = null;
+    private ?MovePopularityMasters $popularityMasters = null;
 
     private ?AbstractBoard $board = null;
 
@@ -156,14 +156,14 @@ class Move
         return $this;
     }
 
-    public function getPopularityMaster(): ?MovePopularityMaster
+    public function getPopularityMasters(): ?MovePopularityMasters
     {
-        return $this->popularityMaster;
+        return $this->popularityMasters;
     }
 
-    public function setPopularityMaster(?MovePopularityMaster $popularityMaster): static
+    public function setPopularityMasters(?MovePopularityMasters $popularityMasters): static
     {
-        $this->popularityMaster = $popularityMaster;
+        $this->popularityMasters = $popularityMasters;
 
         return $this;
     }

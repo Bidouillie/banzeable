@@ -2,22 +2,22 @@
 
 namespace App\Repository;
 
-use App\Entity\MovePopularityMaster;
+use App\Entity\MovePopularityMasters;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<MovePopularity>
  */
-class MovePopularityMasterRepository extends ServiceEntityRepository
+class MovePopularityMastersRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, MovePopularityMaster::class);
+        parent::__construct($registry, MovePopularityMasters::class);
     }
 
     /**
-     * @return MovePopularityMaster[]
+     * @return MovePopularityMasters[]
      */
     public function findBy(array $criteria, array|null $orderBy = null, int|null $limit = null, int|null $offset = null): array
     {
@@ -29,7 +29,7 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
      * @param string $fen
      * @param null|int $nbGames
      * 
-     * @return null|false|array<string,MovePopularityMaster>
+     * @return null|false|array<string,MovePopularityMasters>
      */
     public function findGroupedByLan(string $fen, &$nbGames = null)
     {
@@ -38,7 +38,7 @@ class MovePopularityMasterRepository extends ServiceEntityRepository
             ->setParameter('fen', $fen);
 
         /**
-         * @var MovePopularityMaster[] $moves
+         * @var MovePopularityMasters[] $moves
          */
         $moves = $qb->getQuery()->getResult();
 

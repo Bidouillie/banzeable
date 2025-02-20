@@ -6,7 +6,7 @@ use App\Entity\Course;
 use App\Entity\Move;
 use App\Message\PreloadMoves;
 use App\Repository\CourseRepository;
-use App\Repository\MovePopularityMasterRepository;
+use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
 use App\Service\MoveBuilderService;
 use App\Service\MoveLoaderService;
@@ -21,7 +21,7 @@ final class PreloadMovesHandler
     public function __construct(
         private CourseRepository $courseRepo,
         private MovePopularityRepository $mpRepo,
-        private MovePopularityMasterRepository $mpMasterRepo,
+        private MovePopularityMastersRepository $mpMastersRepo,
         private EntityManagerInterface $em,
         private MoveBuilderService $mbService,
         private MoveLoaderService $mlService,
@@ -57,7 +57,7 @@ final class PreloadMovesHandler
         $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
         if ($myTurn) {
-            $movePopularitiesMasterByLan = $this->mpMasterRepo->findGroupedByLan($fen, $nbMastersGames);
+            $movePopularitiesMastersByLan = $this->mpMastersRepo->findGroupedByLan($fen, $nbMastersGames);
         } else {
             if (isset($movePopularitiesByFenLan[$fen])) {
                 $movesPopularitiesByLan = $movePopularitiesByFenLan[$fen]['moves'];
@@ -67,13 +67,13 @@ final class PreloadMovesHandler
             }
         }
 
-        if (($myTurn && !empty($movePopularitiesMasterByLan)) || (!$myTurn && !empty($movesPopularitiesByLan))) {
+        if (($myTurn && !empty($movePopularitiesMastersByLan)) || (!$myTurn && !empty($movesPopularitiesByLan))) {
 
-            $movesToPlay = $this->mbService->buildMoves($course, $fen, $movesSavedByFen, $movesPopularitiesByLan ?? [], $movePopularitiesMasterByLan ?? []);
+            $movesToPlay = $this->mbService->buildCandidateMoves($course, $fen, $movesSavedByFen, $movesPopularitiesByLan ?? [], $movePopularitiesMastersByLan ?? []);
 
             if ($myTurn) {
                 $movesToPreload = array_filter($movesToPlay, function ($move) use ($nbMastersGames) {
-                    return $move->getPopularityMaster() !== null && $move->getPopularityMaster()->getTotal() / $nbMastersGames > 1 / 100;
+                    return $move->getPopularityMasters() !== null && $move->getPopularityMasters()->getTotal() / $nbMastersGames > 1 / 100;
                 });
             } else {
                 $movesToPreload = array_filter($movesToPlay, function ($move) use ($expectedPercentage, $nbGames, $course) {
@@ -89,7 +89,7 @@ final class PreloadMovesHandler
         } else {
 
             if ($myTurn) {
-                if (!isset($movePopularitiesMasterByLan)) {
+                if (!isset($movePopularitiesMastersByLan)) {
                     $this->mlService->preloadMoves($fen, true);
                 }
             } else {

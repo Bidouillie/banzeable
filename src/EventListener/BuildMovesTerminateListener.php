@@ -14,6 +14,7 @@ final class BuildMovesTerminateListener
     public function onKernelTerminate(TerminateEvent $event): void
     {
         $request = $event->getRequest();
+        $request->query->getint('test', 1);
         if ($request->get('_route') === 'app_position_build_moves') {
         }
     }

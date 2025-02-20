@@ -3,7 +3,7 @@
 namespace App\MessageHandler;
 
 use App\Message\LoadMastersMoves;
-use App\Repository\MovePopularityMasterRepository;
+use App\Repository\MovePopularityMastersRepository;
 use App\Service\MoveLoaderService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -13,7 +13,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final class LoadMastersMovesHandler
 {
     public function __construct(
-        private MovePopularityMasterRepository $repo,
+        private MovePopularityMastersRepository $repo,
         private EntityManagerInterface $em,
         private MoveLoaderService $mlService,
         private LoggerInterface $logger,

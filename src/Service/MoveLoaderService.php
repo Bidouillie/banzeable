@@ -3,10 +3,10 @@
 namespace App\Service;
 
 use App\Entity\MovePopularity;
-use App\Entity\MovePopularityMaster;
+use App\Entity\MovePopularityMasters;
 use App\Message\LoadMastersMoves;
 use App\Message\LoadMoves;
-use App\Repository\MovePopularityMasterRepository;
+use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
 use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,7 +18,7 @@ class MoveLoaderService
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly MovePopularityRepository $repo,
-        private readonly MovePopularityMasterRepository $masterRepo,
+        private readonly MovePopularityMastersRepository $mastersRepo,
         private readonly LichessApiService $lichessApi,
         private readonly MessageBusInterface $bus,
         private readonly LoggerInterface $logger,
@@ -31,9 +31,9 @@ class MoveLoaderService
         if (isset($responseMoves)) {
 
             /**
-             * @var array<string,MovePopularityMaster> $movesSaved
+             * @var array<string,MovePopularityMasters> $movesSaved
              */
-            $movesSaved = array_reduce($this->masterRepo->findBy(['since' => '2021', 'until' => '2024', 'fen' => $fen]), function ($carry, $move) {
+            $movesSaved = array_reduce($this->mastersRepo->findBy(['since' => '2021', 'until' => '2024', 'fen' => $fen]), function ($carry, $move) {
                 $carry[$move->getLan()] = $move;
                 return $carry;
             }, []);
@@ -51,7 +51,7 @@ class MoveLoaderService
                     $lan = '-';
                 }
 
-                $movePopularity = isset($movesSaved[$lan]) ? $movesSaved[$lan] : new MovePopularityMaster();
+                $movePopularity = isset($movesSaved[$lan]) ? $movesSaved[$lan] : new MovePopularityMasters();
                 $movePopularity->setFen($fen);
                 $movePopularity->setLan($lan);
                 $movePopularity->setDateCreated($date);
@@ -131,7 +131,7 @@ class MoveLoaderService
     public function preloadMoves(string|array $fens, bool $masters)
     {
         $fensSaved = $this->repo->findByFenGrouped($fens);
-        $masterFensSaved = $masters ? $this->masterRepo->findByFenGrouped($fens) : null;
+        $mastersFensSaved = $masters ? $this->mastersRepo->findByFenGrouped($fens) : null;
 
         if (!is_array($fens)) {
             $fens = [$fens];
@@ -141,9 +141,9 @@ class MoveLoaderService
 
         foreach ($fens as $fen) {
 
-            if ($masters && !isset($masterFensSaved[$fen])) {
+            if ($masters && !isset($mastersFensSaved[$fen])) {
                 $flush = true;
-                $movePopularity = new MovePopularityMaster();
+                $movePopularity = new MovePopularityMasters();
                 $movePopularity->setFen($fen);
                 $movePopularity->setLan('-');
                 $movePopularity->setDateCreated(new \DateTime());

@@ -31,7 +31,7 @@
                 <div class="{{ my_turn ? 'tw-col-span-5' : 'tw-col-span-4' }}">Peer results</div>
             </div>
             {% if my_turn %}
-                {% set moves_forms = moves_forms|sort((a, b) => (a.move.popularityMaster or b.move.popularityMaster ? (b.move.popularityMaster ? b.move.popularityMaster.total : 0) <=> (a.move.popularityMaster ? a.move.popularityMaster.total : 0) : (b.move.popularity ? b.move.popularity.total : 0) <=> (a.move.popularity ? a.move.popularity.total : 0)))%}
+                {% set moves_forms = moves_forms|sort((a, b) => (a.saved xor b.saved ? b.saved <=> a.saved : (a.move.popularityMasters or b.move.popularityMasters ? (b.move.popularityMasters ? b.move.popularityMasters.total : 0) <=> (a.move.popularityMasters ? a.move.popularityMasters.total : 0) : (b.move.popularity ? b.move.popularity.total : 0) <=> (a.move.popularity ? a.move.popularity.total : 0))))%}
             {% else %}
                 {% set moves_forms = moves_forms|sort((a, b) => (b.move.popularity ? b.move.popularity.total : 0) <=> (a.move.popularity ? a.move.popularity.total : 0))%}
             {% endif %}
@@ -40,9 +40,9 @@
             {% for move_form in moves_forms %}
                 {% set move = move_form.move %}
                 {% set popularity = move.popularity %}
-                {% set expected = my_turn ? (nb_masters_games is not null ? (move.popularityMaster ? move.popularityMaster.total / nb_masters_games : 0) : null) : (nb_games ? expected_percentage * (popularity ? popularity.total / nb_games : 0) : null) %}
+                {% set expected = my_turn ? (nb_masters_games is not null ? (move.popularityMasters ? move.popularityMasters.total / nb_masters_games : 0) : null) : (nb_games ? expected_percentage * (popularity ? popularity.total / nb_games : 0) : null) %}
                 {% set cover = (expected ?? 0) > (my_turn ? 1 / 100 : move.course.trueCoverage) %}
-                <a href="#" class="list-group-item list-group-item-action build_moves {% if not cover %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" onclick="return false">
+                <a href="#" class="list-group-item list-group-item-action build_moves {% if not cover and not move_form.saved %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" onclick="return false">
                     <div class="tw-grid tw-grid-cols-12 tw-gap-7 tw-items-center">
                         <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif move_form.next_saved %} ✔{% endif %}</div>
                         {% if not my_turn %}

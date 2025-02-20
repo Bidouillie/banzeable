@@ -6,7 +6,7 @@ use App\Entity\Course;
 use App\Entity\Move;
 use App\Form\BuildMovesType;
 use App\Message\PreloadMoves;
-use App\Repository\MovePopularityMasterRepository;
+use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
 use App\Service\MoveBuilderService;
 use App\Service\MoveLoaderService;
@@ -31,8 +31,8 @@ class PositionController extends AbstractController
     }
 
     #[IsGranted('IS_AUTHENTICATED')]
-    #[Route('/load-moves/{course}/{baseFen}', name: 'app_position_build_moves', requirements: ['course' => '\d+', 'baseFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMoves(?Course $course, ?string $baseFen, Request $request, MovePopularityRepository $mpRepo, MovePopularityMasterRepository $mpMasterRepo, MoveBuilderService $mbService, MoveLoaderService $mlService, MessageBusInterface $bus): Response
+    #[Route('/build-moves/{course}/{baseFen}', name: 'app_position_build_moves', requirements: ['course' => '\d+', 'baseFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
+    public function buildMoves(?Course $course, ?string $baseFen, Request $request, MovePopularityRepository $mpRepo, MovePopularityMastersRepository $mpMastersRepo, MoveBuilderService $mbService, MoveLoaderService $mlService, MessageBusInterface $bus): Response
     {
         $this->denyAccessUnlessGranted('course.owns', $course);
 
@@ -65,9 +65,9 @@ class PositionController extends AbstractController
 
                 $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
-                $movePopularitiesMasterByLan = $myTurn ? ($mpMasterRepo->findGroupedByLan($fen, $nbMastersGames)) : null;
+                $movePopularitiesMastersByLan = $myTurn ? ($mpMastersRepo->findGroupedByLan($fen, $nbMastersGames)) : null;
 
-                $movesToPlay = $mbService->buildMoves($course, $fen, $movesSavedByFen, $movesPopularitiesByLan ?? [], $movePopularitiesMasterByLan ?? []);
+                $movesToPlay = $mbService->buildCandidateMoves($course, $fen, $movesSavedByFen, $movesPopularitiesByLan ?? [], $movePopularitiesMastersByLan ?? []);
 
                 $movesForms = array_map(function ($move) use ($fen, $movesSavedByFen, $positionsSavedByFen) {
                     return [
@@ -104,10 +104,10 @@ class PositionController extends AbstractController
                  * Preload moves
                  */
                 if (isset($expectedPercentage)) {
-                    if (($myTurn && !empty($movePopularitiesMasterByLan)) || (!$myTurn && !empty($movesPopularitiesByLan))) {
+                    if (($myTurn && !empty($movePopularitiesMastersByLan)) || (!$myTurn && !empty($movesPopularitiesByLan))) {
                         if ($myTurn) {
                             $movesToPreload = array_filter($movesToPlay, function ($move) use ($nbMastersGames) {
-                                return $move->getPopularityMaster() !== null && $move->getPopularityMaster()->getTotal() / $nbMastersGames > 1 / 100;
+                                return $move->getPopularityMasters() !== null && $move->getPopularityMasters()->getTotal() / $nbMastersGames > 1 / 100;
                             });
                         } else {
                             $movesToPreload = array_filter($movesToPlay, function ($move) use ($expectedPercentage, $nbGames, $course) {
@@ -122,7 +122,7 @@ class PositionController extends AbstractController
                         $mlService->preloadMoves($fensToPreload, !$myTurn);
                     } else {
                         if ($myTurn) {
-                            if (!isset($movePopularitiesMasterByLan)) {
+                            if (!isset($movePopularitiesMastersByLan)) {
                                 $mlService->preloadMoves($fen, true);
                             }
                         } else {
