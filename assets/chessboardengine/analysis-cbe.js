@@ -38,6 +38,7 @@ export class AnalysisChessboardEngine extends ChessboardEngine {
     undoMove() {
         let move = this._undoMove();
         if (move) {
+            this._chess.delete(move);
             this._fireMoveEvent({ undo: true, lan: move.lan, san: move.san });
             this.#switchTurn();
         }

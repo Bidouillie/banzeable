@@ -17,6 +17,7 @@ class Course
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Serializer\Groups(['Default'])]
     private ?int $id = null;
 
     #[Assert\Length(min: 3)]

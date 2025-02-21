@@ -4,6 +4,7 @@ import { FEN } from 'cm-chessboard'
 import { AnalysisChessboardEngine } from './chessboardengine/analysis-cbe.js';
 
 let fen = FEN.start;
+fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
 
 /**
  * @type AnalysisChessboardEngine board
@@ -13,7 +14,10 @@ let board;
 let formSubmitting = null;
 let buildingFormLinks = null;
 let form = null
+let reloadForm = null;
 let previousForm = null;
+
+let whole = true;
 
 function build_move(event) {
     console.log('build_move');
@@ -22,6 +26,15 @@ function build_move(event) {
     board.playMoves(event.currentTarget.getAttribute('data-san'));
 
     console.log('end build_move');
+}
+
+function build_move_reload(event) {
+    console.log('build_move_reload');
+
+    board.removeArrows();
+    board.disablePlayableMove();
+
+    console.log('end build_move_reload');
 }
 
 function build_previous_move(event) {
@@ -54,7 +67,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let course = JSON.parse(document.querySelector('.js-course').getAttribute('data-course'));
 
-    board = new AnalysisChessboardEngine(document.getElementById('board'), course.blackOrientation ? 'b' : 'w', null, [], fen);
+    // TODO get fen from course and check if ' 0 1' needed
+    board = new AnalysisChessboardEngine(document.getElementById('board'), course.blackOrientation ? 'b' : 'w', null, [], fen + ' 0 1');
 
     document.querySelector('form[name="build_moves"]').requestSubmit();
 
@@ -71,10 +85,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     buildingFormLinks[i].removeEventListener('mouseleave', mouse_leave);
                 }
             }
+            buildingFormLinks = null;
+        }
+
+        if (reloadForm !== null) {
+            reloadForm.removeEventListener('submit', build_move_reload);
+            reloadForm = null;
+            whole = true;
         }
 
         if (previousForm !== null) {
             previousForm.removeEventListener('submit', build_previous_move);
+            previousForm = null;
         }
 
         if (formSubmitting.formElement.id === 'save-moves') {
@@ -95,8 +117,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (formName.startsWith('build_move')) {
             buildingFormLinks = document.querySelectorAll('a.build_moves');
 
-            form = document.getElementById('build_moves');
+            form = document.getElementById('build_moves_form');
 
+            reloadForm = document.getElementById('build_moves_reload');
             previousForm = document.getElementById('build_moves_previous');
 
             let save_variation_PGN_field = document.getElementById('move_builder_variation_variation_PGN');
@@ -115,6 +138,11 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
+        if (reloadForm !== null) {
+            whole = JSON.parse(document.getElementById('build_moves').getAttribute('data-moves-whole'));
+            reloadForm.addEventListener('submit', build_move_reload);
+        }
+
         if (previousForm !== null) {
             previousForm.addEventListener('submit', build_previous_move);
         }
@@ -122,4 +150,18 @@ document.addEventListener('DOMContentLoaded', function () {
         board.enablePlayableMove(on_move_played);
         formSubmitting = null;
     });
+
+    const url = JSON.parse(document.getElementById('mercure-url').textContent);
+    console.log(url);
+    const eventSource = new EventSource(url);
+    eventSource.onmessage = event => {
+        if (!whole) {
+            let data = JSON.parse(event.data);
+            console.log(data);
+            if (data.courseId === course.id && data.baseFen === fen && data.lanMoves === board.getLanMoves()) {
+                reloadForm.requestSubmit();
+                whole = true;
+            }
+        }
+    }
 });

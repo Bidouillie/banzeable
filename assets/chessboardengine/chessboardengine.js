@@ -341,6 +341,12 @@ export class ChessboardEngine {
         this._board.removeArrows();
     }
 
+    getLanMoves() {
+        return this._chess.history().map(move => {
+            return move.lan;
+        }).join(' ');
+    }
+
     getPGNMoves() {
         return this._chess.renderLine(this._chess.currentMove(), { skipHeader: true });
     }

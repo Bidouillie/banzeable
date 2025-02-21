@@ -13,6 +13,8 @@ use App\Service\MoveLoaderService;
 use Chess\Variant\Classical\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -25,6 +27,7 @@ final class PreloadMovesHandler
         private EntityManagerInterface $em,
         private MoveBuilderService $mbService,
         private MoveLoaderService $mlService,
+        private HubInterface $hub,
         private LoggerInterface $logger,
     ) {}
 
@@ -54,18 +57,16 @@ final class PreloadMovesHandler
 
         $fen = empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo();
 
+        if (isset($movePopularitiesByFenLan[$fen])) {
+            $movesPopularitiesByLan = $movePopularitiesByFenLan[$fen]['moves'];
+            $nbGames = $movePopularitiesByFenLan[$fen]['nbGames'];
+        } else {
+            $movesPopularitiesByLan = $this->mpRepo->findGroupedByLan($fen, $nbGames);
+        }
+
         $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
-        if ($myTurn) {
-            $movePopularitiesMastersByLan = $this->mpMastersRepo->findGroupedByLan($fen, $nbMastersGames);
-        } else {
-            if (isset($movePopularitiesByFenLan[$fen])) {
-                $movesPopularitiesByLan = $movePopularitiesByFenLan[$fen]['moves'];
-                $nbGames = $movePopularitiesByFenLan[$fen]['nbGames'];
-            } else {
-                $movesPopularitiesByLan = $this->mpRepo->findGroupedByLan($fen, $nbGames) ?? [];
-            }
-        }
+        $movePopularitiesMastersByLan = $myTurn ? $this->mpMastersRepo->findGroupedByLan($fen, $nbMastersGames) : null;
 
         if (($myTurn && !empty($movePopularitiesMastersByLan)) || (!$myTurn && !empty($movesPopularitiesByLan))) {
 
@@ -86,19 +87,16 @@ final class PreloadMovesHandler
             }, $movesToPreload);
 
             $this->mlService->preloadMoves($fensToPreload, !$myTurn);
-        } else {
 
-            if ($myTurn) {
-                if (!isset($movePopularitiesMastersByLan)) {
-                    $this->mlService->preloadMoves($fen, true);
-                }
-            } else {
-                if (!isset($movesPopularitiesByLan)) {
-                    $this->mlService->preloadMoves($fen, false);
-                }
+            if (!isset($movesPopularitiesByLan)) {
+                $this->mlService->preloadMoves($fen, false);
+                throw new \Exception("Missing popularity");
             }
-
+        } elseif (!isset($movesPopularitiesByLan) || ($myTurn && !isset($movePopularitiesMastersByLan))) {
+            $this->mlService->preloadMoves($fen, $myTurn);
             throw new \Exception("Missing popularity");
         }
+
+        $this->hub->publish(new Update('course-builder', json_encode($message)));
     }
 }

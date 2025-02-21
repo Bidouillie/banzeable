@@ -34,6 +34,7 @@ class PositionController extends AbstractController
     #[Route('/build-moves/{course}/{baseFen}', name: 'app_position_build_moves', requirements: ['course' => '\d+', 'baseFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
     public function buildMoves(?Course $course, ?string $baseFen, Request $request, MovePopularityRepository $mpRepo, MovePopularityMastersRepository $mpMastersRepo, MoveBuilderService $mbService, MoveLoaderService $mlService, MessageBusInterface $bus): Response
     {
+        // TODO Check if the course is a repertoire
         $this->denyAccessUnlessGranted('course.owns', $course);
 
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
@@ -78,6 +79,13 @@ class PositionController extends AbstractController
                 }, $movesToPlay);
 
                 /**
+                 * Reload form
+                 */
+                $reloadForm = $this->createForm(BuildMovesType::class, ['moves' => [...$movesPlayed]], [
+                    'action' => $this->generateUrl('app_position_build_moves', ['course' => $course->getId(), 'baseFen' => $baseFen])
+                ]);
+
+                /**
                  * Previous form
                  */
                 if (!empty($movesPlayed)) {
@@ -120,21 +128,26 @@ class PositionController extends AbstractController
                         }, $movesToPreload);
 
                         $mlService->preloadMoves($fensToPreload, !$myTurn);
-                    } else {
-                        if ($myTurn) {
-                            if (!isset($movePopularitiesMastersByLan)) {
-                                $mlService->preloadMoves($fen, true);
-                            }
-                        } else {
-                            if (!isset($movesPopularitiesByLan)) {
-                                $mlService->preloadMoves($fen, false);
-                            }
+
+                        if (!isset($movesPopularitiesByLan)) {
+                            $mlService->preloadMoves($fen, false);
+                            $message = new PreloadMoves($course->getId(), $baseFen, implode(' ', array_map(function ($move) {
+                                return $move->getLan();
+                            }, $movesPlayed)));
                         }
+                    } elseif (!isset($movesPopularitiesByLan) || ($myTurn && !isset($movePopularitiesMastersByLan))) {
+                        $mlService->preloadMoves($fen, $myTurn);
+                        $message = new PreloadMoves($course->getId(), $baseFen, implode(' ', array_map(function ($move) {
+                            return $move->getLan();
+                        }, $movesPlayed)));
                     }
                 } else {
                     $message = new PreloadMoves($course->getId(), $baseFen, implode(' ', array_map(function ($move) {
                         return $move->getLan();
                     }, $movesPlayed)));
+                }
+
+                if (isset($message)) {
                     $bus->dispatch($message);
                 }
 
@@ -148,8 +161,10 @@ class PositionController extends AbstractController
                     'form' => $this->createForm(BuildMovesType::class, ['moves' => [...$movesPlayed, new Move()]], [
                         'action' => $this->generateUrl('app_position_build_moves', ['course' => $course->getId(), 'baseFen' => $baseFen])
                     ]),
+                    'reload_form' => $reloadForm,
                     'previous_form' => $previousForm ?? null,
                     'save_form' => $saveForm ?? null,
+                    'moves_whole' => json_encode(!isset($message)),
                 ]);
             }
         }

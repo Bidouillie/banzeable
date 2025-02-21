@@ -1,7 +1,11 @@
 <turbo-stream action="update" target="course_build-moves_{{ course.id }}">
     <template>
         <h2>{% if my_turn %}Choose your next move{% else %}Choose a move to prepare for{% endif %}</h2>
-        <div class="list-group">
+        <div id="build_moves" class="list-group" data-moves-whole="{{ moves_whole }}">
+            <div class="tw-hidden">
+                {{ form_start(reload_form, {'attr': {'id': 'build_moves_reload'}}) }}
+                {{ form_end(reload_form) }}
+            </div>
             {% if save_form or previous_form %}
                 <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-p-2">
                     <div class="tw-col-span-4">
@@ -12,13 +16,13 @@
                         {% endif %}
                     </div>
                     <div class="tw-col-span-4">
-                        <div class="d-flex justify-content-end" id="course_build-moves_{{ course.id }}_save-moves">
-                            {% if save_form %}
+                        {% if save_form %}
+                            <div id="course_build-moves_{{ course.id }}_save-moves" class="d-flex justify-content-end">
                                 {{ form_start(save_form, {'attr': {'id': 'save-moves'}}) }}
                                 <button type="submit" class="btn btn-primary">Save variation</button>
                                 {{ form_end(save_form) }}
-                            {% endif %}
-                        </div>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             {% endif %}
@@ -36,7 +40,7 @@
                 {% set moves_forms = moves_forms|sort((a, b) => (b.move.popularity ? b.move.popularity.total : 0) <=> (a.move.popularity ? a.move.popularity.total : 0))%}
             {% endif %}
             
-            {{ form_start(form, {'attr': {'id': 'build_moves'}}) }}
+            {{ form_start(form, {'attr': {'id': 'build_moves_form'}}) }}
             {% for move_form in moves_forms %}
                 {% set move = move_form.move %}
                 {% set popularity = move.popularity %}

@@ -2,20 +2,27 @@
 
 namespace App\Controller;
 
+use App\Message\PreloadMoves;
 use Chess\Variant\Classical\Board;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Routing\Attribute\Route;
 
 class TestController extends AbstractController
 {
     #[Route('/test', name: 'app_test')]
-    public function index(): Response
+    public function index(HubInterface $hub): Response
     {
-
         return $this->render('test/index.html.twig', [
             'controller_name' => 'TestController',
         ]);
+    }
+
+    private function reloadMoves($hub)
+    {
+        $hub->publish(new Update('course-builder', json_encode(new PreloadMoves(3, 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -', 'e2e4'))));
     }
 
     private function checkCastleLan()
