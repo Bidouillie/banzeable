@@ -10,7 +10,7 @@ use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
 use App\Service\MoveBuilderService;
 use App\Service\MoveLoaderService;
-use Chess\Variant\Classical\FenToBoardFactory;
+use Chess\FenToBoardFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
@@ -41,10 +41,18 @@ final class PreloadMovesHandler
 
         $lanMoves = explode(' ', $message->lanMoves);
         $movesPlayed = [];
+        $board = FenToBoardFactory::create($baseFen);
         foreach ($lanMoves as $lan) {
-            $moveObject = new Move();
-            $moveObject->setLan($lan);
-            $movesPlayed[] = $moveObject;
+            $fenFrom = $board->toFen();
+            $board->playLan($board->turn, $lan);
+            $fenTo = $board->toFen();
+
+            $move = new Move();
+            $move->setFenFrom($fenFrom);
+            $move->setFenTo($fenTo);
+            $move->setLan($lan);
+            
+            $movesPlayed[] = $move;
         }
 
         $movesSavedByFen = $course->getRepertoireMovesByFen();

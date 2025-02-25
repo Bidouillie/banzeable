@@ -1,112 +1,90 @@
-<turbo-stream action="update" target="course_build-moves_{{ course.id }}">
+
+<turbo-stream action="update" target="course_build-moves_{{ course.id }}_title">
     <template>
-        <h2>{% if my_turn %}Choose your next move{% else %}Choose a move to prepare for{% endif %}</h2>
-        <div id="build_moves" class="list-group" data-moves-whole="{{ moves_whole }}">
-            <div class="tw-hidden">
-                {{ form_start(reload_form, {'attr': {'id': 'build_moves_reload'}}) }}
-                {{ form_end(reload_form) }}
-            </div>
-            {% if save_form or previous_form %}
-                <div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-p-2">
-                    <div class="tw-col-span-4">
-                        {% if previous_form %}
-                            {{ form_start(previous_form, {'attr': {'id': 'build_moves_previous'}}) }}
-                            <button type="submit" class="btn btn-primary">Back</button>
-                            {{ form_end(previous_form) }}
+        {% if my_turn %}Choose your next move{% else %}Choose a move to prepare for{% endif %}
+    </template>
+</turbo-stream>
+
+<turbo-stream action="update" target="course_build-moves_{{ course.id }}_body">
+    <template>
+        <div id="build_moves" class="tw-grid tw-grid-cols-12 tw-gap-7 tw-p-2" data-can-save="{{ can_save }}" data-moves-whole="{{ moves_whole }}">
+            <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }}">Move</div>
+            {% if not my_turn %}
+                <div class="tw-col-span-3">Coverage</div>
+            {% endif %}
+            <div class="{{ my_turn ? 'tw-col-span-4' : 'tw-col-span-3' }}">{% if my_turn %}Masters{% else %}Expected{% endif %}</div>
+            <div class="{{ my_turn ? 'tw-col-span-5' : 'tw-col-span-4' }}">Peer results</div>
+        </div>
+        {% if my_turn %}
+            {% set moves_forms = moves_forms|sort((a, b) => (a.saved xor b.saved ? b.saved <=> a.saved : (a.move.popularityMasters or b.move.popularityMasters ? (b.move.popularityMasters ? b.move.popularityMasters.total : 0) <=> (a.move.popularityMasters ? a.move.popularityMasters.total : 0) : (b.move.popularity ? b.move.popularity.total : 0) <=> (a.move.popularity ? a.move.popularity.total : 0))))%}
+        {% else %}
+            {% set moves_forms = moves_forms|sort((a, b) => (b.move.popularity ? b.move.popularity.total : 0) <=> (a.move.popularity ? a.move.popularity.total : 0))%}
+        {% endif %}
+        
+        {% for move_form in moves_forms %}
+            {% set move = move_form.move %}
+            {% set popularity = move.popularity %}
+            {% set expected = my_turn ? (nb_masters_games is not null ? (move.popularityMasters ? move.popularityMasters.total / nb_masters_games : 0) : null) : (nb_games ? expected_percentage * (popularity ? popularity.total / nb_games : 0) : null) %}
+            {% set cover = (expected ?? 0) > (my_turn ? 1 / 100 : course.trueCoverage) %}
+            <a href="#" class="list-group-item list-group-item-action build_moves {% if not cover and not move_form.saved %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" onclick="return false">
+                <div class="tw-grid tw-grid-cols-12 tw-gap-7 tw-items-center">
+                    <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif move_form.next_saved %} ✔{% endif %}</div>
+                    {% if not my_turn %}
+                        <!--div class="tw-col-span-1 tw-flex tw-items-center">
+                            {{ (nb_games ? ((popularity ? popularity.total / nb_games : 0)|format_number(style: 'percent')) : null) }}
+                        </div-->
+                        <div class="tw-col-span-3 tw-flex tw-items-center">
+                        {% if move.positionTo %}
+                            <div class="progress tw-grow" style="height: 7px">
+                                <div class="progress-bar bg-info" style="width:{{ (move.positionTo.completion * 100)|round }}%"></div>
+                            </div>
+                        {% endif %}
+                        </div>
+                    {% endif %}
+                    <div class="{{ my_turn ? 'tw-col-span-4' : 'tw-col-span-3' }} tw-flex tw-items-center">
+                        {% if true and not my_turn %}
+                            {% if expected is not null %}
+                                {% if expected > 0 %}
+                                    1 in {{ (1 / expected)|round }} games
+                                {% else %}
+                                    1 in ∞ games
+                                {% endif %}
+                            {% else %}
+                                1 in ? games
+                            {% endif %}
+                        {% else %}
+                            {% if expected is not null %}
+                                {% if expected >= 1 / 100 %}
+                                    {{ (expected)|format_number(style: 'percent') }}
+                                {% elseif expected >= 1 / 1000 %}
+                                    &lt;{{ 0.01|format_number(style: 'percent') }}
+                                {% elseif expected >= 1 / 10000 %}
+                                    &lt;1‰
+                                {% elseif expected > 0 %}
+                                    &lt;1‱
+                                {% else %}
+                                    {{ 0|format_number(style: 'percent') }}
+                                {% endif %}
+                            {% else %}
+                                ?
+                            {% endif %}
                         {% endif %}
                     </div>
-                    <div class="tw-col-span-4">
-                        {% if save_form %}
-                            <div id="course_build-moves_{{ course.id }}_save-moves" class="d-flex justify-content-end">
-                                {{ form_start(save_form, {'attr': {'id': 'save-moves'}}) }}
-                                <button type="submit" class="btn btn-primary">Save variation</button>
-                                {{ form_end(save_form) }}
+                    <div class="{{ my_turn ? 'tw-col-span-5' : 'tw-col-span-4' }}">
+                        {% if popularity is not null %}
+                            <div class="tw-flex tw-flex-row tw-rounded-md tw-overflow-hidden">
+                                <div class="text-dark bg-light" style="width:{{ (popularity.white / popularity.total)|format_number(style: 'percent') }}">
+                                    <small class="tw-px-3 tw-py-1">{{ (popularity.white / ((popularity.total)))|format_number(style: 'percent') }}</small>
+                                </div>
+                                <div class="bg-secondary" style="width:{{ (popularity.draws / popularity.total)|format_number(style: 'percent') }}"><div class="tw-px-3 tw-py-1"></div></div>
+                                <div class="text-end text-light bg-dark" style="width:{{ (popularity.black / popularity.total)|format_number(style: 'percent') }}">
+                                    <small class="tw-px-3 tw-py-1">{{ (popularity.black / popularity.total)|format_number(style: 'percent') }}</small>
+                                </div>
                             </div>
                         {% endif %}
                     </div>
                 </div>
-            {% endif %}
-            <div class="tw-grid tw-grid-cols-12 tw-gap-7 tw-p-2">
-                <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }}">Move</div>
-                {% if not my_turn %}
-                    <div class="tw-col-span-3">Coverage</div>
-                {% endif %}
-                <div class="{{ my_turn ? 'tw-col-span-4' : 'tw-col-span-3' }}">{% if my_turn %}Masters{% else %}Expected{% endif %}</div>
-                <div class="{{ my_turn ? 'tw-col-span-5' : 'tw-col-span-4' }}">Peer results</div>
-            </div>
-            {% if my_turn %}
-                {% set moves_forms = moves_forms|sort((a, b) => (a.saved xor b.saved ? b.saved <=> a.saved : (a.move.popularityMasters or b.move.popularityMasters ? (b.move.popularityMasters ? b.move.popularityMasters.total : 0) <=> (a.move.popularityMasters ? a.move.popularityMasters.total : 0) : (b.move.popularity ? b.move.popularity.total : 0) <=> (a.move.popularity ? a.move.popularity.total : 0))))%}
-            {% else %}
-                {% set moves_forms = moves_forms|sort((a, b) => (b.move.popularity ? b.move.popularity.total : 0) <=> (a.move.popularity ? a.move.popularity.total : 0))%}
-            {% endif %}
-            
-            {{ form_start(form, {'attr': {'id': 'build_moves_form'}}) }}
-            {% for move_form in moves_forms %}
-                {% set move = move_form.move %}
-                {% set popularity = move.popularity %}
-                {% set expected = my_turn ? (nb_masters_games is not null ? (move.popularityMasters ? move.popularityMasters.total / nb_masters_games : 0) : null) : (nb_games ? expected_percentage * (popularity ? popularity.total / nb_games : 0) : null) %}
-                {% set cover = (expected ?? 0) > (my_turn ? 1 / 100 : move.course.trueCoverage) %}
-                <a href="#" class="list-group-item list-group-item-action build_moves {% if not cover and not move_form.saved %}disabled{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" onclick="return false">
-                    <div class="tw-grid tw-grid-cols-12 tw-gap-7 tw-items-center">
-                        <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif move_form.next_saved %} ✔{% endif %}</div>
-                        {% if not my_turn %}
-                            <!--div class="tw-col-span-1 tw-flex tw-items-center">
-                                {{ (nb_games ? ((popularity ? popularity.total / nb_games : 0)|format_number(style: 'percent')) : null) }}
-                            </div-->
-                            <div class="tw-col-span-3 tw-flex tw-items-center">
-                            {% if move.positionTo %}
-                                <div class="progress tw-grow" style="height: 7px">
-                                    <div class="progress-bar bg-info" style="width:{{ (move.positionTo.completion * 100)|round }}%"></div>
-                                </div>
-                            {% endif %}
-                            </div>
-                        {% endif %}
-                        <div class="{{ my_turn ? 'tw-col-span-4' : 'tw-col-span-3' }} tw-flex tw-items-center">
-                            {% if true and not my_turn %}
-                                {% if expected is not null %}
-                                    {% if expected > 0 %}
-                                        1 in {{ (1 / expected)|round }} games
-                                    {% else %}
-                                        1 in ∞ games
-                                    {% endif %}
-                                {% else %}
-                                    1 in ? games
-                                {% endif %}
-                            {% else %}
-                                {% if expected is not null %}
-                                    {% if expected >= 1 / 100 %}
-                                        {{ (expected)|format_number(style: 'percent') }}
-                                    {% elseif expected >= 1 / 1000 %}
-                                        &lt;{{ 0.01|format_number(style: 'percent') }}
-                                    {% elseif expected >= 1 / 10000 %}
-                                        &lt;1‰
-                                    {% elseif expected > 0 %}
-                                        &lt;1‱
-                                    {% else %}
-                                        {{ 0|format_number(style: 'percent') }}
-                                    {% endif %}
-                                {% else %}
-                                    ?
-                                {% endif %}
-                            {% endif %}
-                        </div>
-                        <div class="{{ my_turn ? 'tw-col-span-5' : 'tw-col-span-4' }}">
-                            {% if popularity is not null %}
-                                <div class="tw-flex tw-flex-row tw-rounded-md tw-overflow-hidden">
-                                    <div class="text-dark bg-light" style="width:{{ (popularity.white / popularity.total)|format_number(style: 'percent') }}">
-                                        <small class="tw-px-3 tw-py-1">{{ (popularity.white / ((popularity.total)))|format_number(style: 'percent') }}</small>
-                                    </div>
-                                    <div class="bg-secondary" style="width:{{ (popularity.draws / popularity.total)|format_number(style: 'percent') }}"><div class="tw-px-3 tw-py-1"></div></div>
-                                    <div class="text-end text-light bg-dark" style="width:{{ (popularity.black / popularity.total)|format_number(style: 'percent') }}">
-                                        <small class="tw-px-3 tw-py-1">{{ (popularity.black / popularity.total)|format_number(style: 'percent') }}</small>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </a>
-            {% endfor %}
-            {{ form_end(form) }}
-        </div>
+            </a>
+        {% endfor %}
     </template>
 </turbo-stream>

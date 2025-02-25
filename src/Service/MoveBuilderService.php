@@ -66,13 +66,9 @@ class MoveBuilderService
         /**
          * Check moves are correct and populate them
          */
-        $board = FenToBoardFactory::create($baseFen);
         foreach ($movesPlayed as $key => $move) {
-            $fenFrom = $board->toFen();
-            if (!$board->playLan($board->turn, $move->getLan())) {
-                throw new HttpException(403, "List of moves is not correct (from provided fen $baseFen)");
-            }
-            $fenTo = $board->toFen();
+            $fenFrom = $move->getFenFrom();
+            $fenTo = $move->getFenTo();
 
             if (isset($movesSavedByFen[$fenFrom][$fenTo])) {
                 $movesPlayed[$key] = $movesSavedByFen[$fenFrom][$fenTo];
@@ -86,8 +82,6 @@ class MoveBuilderService
 
             $move->setCourse($course);
 
-            $move->setFenFrom($fenFrom);
-
             if (!isset($positions[$fenTo])) {
                 $position = new Position();
                 $position->setCourse($course);
@@ -95,8 +89,6 @@ class MoveBuilderService
 
                 $positions[$fenTo] = $position;
             }
-
-            $move->setFenTo($fenTo);
         }
 
         if (!isset($baseSavedPosition)) {

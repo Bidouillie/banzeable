@@ -13,14 +13,15 @@ use Symfony\Component\Routing\Attribute\Route;
 class TestController extends AbstractController
 {
     #[Route('/test', name: 'app_test')]
-    public function index(HubInterface $hub): Response
+    public function index(): Response
     {
+
         return $this->render('test/index.html.twig', [
             'controller_name' => 'TestController',
         ]);
     }
 
-    private function reloadMoves($hub)
+    private function reloadMoves(HubInterface $hub)
     {
         $hub->publish(new Update('course-builder', json_encode(new PreloadMoves(3, 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -', 'e2e4'))));
     }

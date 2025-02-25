@@ -3,11 +3,12 @@
 namespace App\Controller;
 
 use App\Entity\Course;
-use App\Form\BuildMovesType;
+use App\Form\BuildLanMovesType;
 use App\Repository\MovePopularityRepository;
 use App\Service\MoveBuilderService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -25,12 +26,12 @@ class MoveController extends AbstractController
     }
 
     #[Route('/save-moves/{course}/{baseFen}', name: 'app_move_save_moves', requirements: ['course' => '\d+', 'baseFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function saveMoves(?Course $course, ?string $baseFen, Request $request, MovePopularityRepository $mpRepo, EntityManagerInterface $em, MoveBuilderService $mbService): Response
+    public function saveMoves(?Course $course, ?string $baseFen, Request $request, FormFactoryInterface $factory, MovePopularityRepository $mpRepo, EntityManagerInterface $em, MoveBuilderService $mbService): Response
     {
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
-            $form = $this->createForm(BuildMovesType::class);
+            $form = $factory->createNamed('save_moves_form', BuildLanMovesType::class);
             $form->handleRequest($request);
 
             if ($form->isSubmitted() && $form->isValid()) {
@@ -38,7 +39,7 @@ class MoveController extends AbstractController
                 /**
                  * @var array<Move> $movesPlayed
                  */
-                $moves = $form->get('moves')->getData();
+                $moves = $form->get('lanMoves')->getData();
 
                 $movesSavedByFen = $course->getRepertoireMovesByFen();
                 $positionsSavedByFen = $course->getPositionsByFen();

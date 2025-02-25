@@ -10,6 +10,12 @@
 
 	<section>
 		<div class="container px-4 px-lg-5">
+            <div class="tw-hidden">
+				{{ form_start(form) }}
+				{{ form_end(form) }}
+				{{ form_start(save_form) }}
+				{{ form_end(save_form) }}
+			</div>
 			<div class="tw-grid tw-grid-cols-11 tw-gap-7" style="grid-template-rows:80vh">
 				<div class="tw-col-span-5">
 					<div class="d-flex flex-column">
@@ -19,30 +25,40 @@
 						</div>
 					</div>
 				</div>
-				<div class="tw-col-span-6" id="course_build-moves_{{ course.id }}">
-					{{ form_start(form) }}
-					{{ form_end(form) }}
+				<div class="tw-col-span-6">
+					<h2 id="course_build-moves_{{ course.id }}_title"></h2>
+					<div class="tw-grid tw-grid-cols-8 tw-gap-7 tw-p-2">
+						<div class="tw-col-span-4">
+							<button id="build_moves_previous" class="btn btn-primary disabled">Back</button>
+						</div>
+						<div class="tw-col-span-4">
+							<div class="d-flex justify-content-end">
+								<button id="save_moves" class="btn btn-primary disabled">Save variation</button>
+							</div>
+						</div>
+					</div>
+        			<div id="course_build-moves_{{ course.id }}_body" class="list-group">
+					{#<--div class="tw-col-span-3">
+						<div class="list-group">
+							{% for variation in course.variations %}
+							<a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if variation.id == selected_variation.id %}active{% endif %}" href="{{ path('app_study_variation', {id: course.id, id_variation: variation.id}) }}">
+								{{ variation.name }}
+								<span class="badge rounded-pill bg-primary"><i class="bi-alarm" style="font-size: 1rem;"></i></span>
+							</a>
+							{% endfor %}
+						</div>
+						<i class="bi-alarm"></i>
+						<i class="bi-alarm" style="font-size: 2rem; color: cornflowerblue;"></i>
+					</div>#}
 				</div>
-                {#<--div class="tw-col-span-3">
-                    <div class="list-group">
-                        {% for variation in course.variations %}
-                        <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if variation.id == selected_variation.id %}active{% endif %}" href="{{ path('app_study_variation', {id: course.id, id_variation: variation.id}) }}">
-                            {{ variation.name }}
-                            <span class="badge rounded-pill bg-primary"><i class="bi-alarm" style="font-size: 1rem;"></i></span>
-                        </a>
-                        {% endfor %}
-                    </div>
-                    <i class="bi-alarm"></i>
-                    <i class="bi-alarm" style="font-size: 2rem; color: cornflowerblue;"></i>
-                </div>#}
 			</div>
 		</div>
 	</section>
 
-	<script type="application/json" id="mercure-url">
+	<script type="application/json" id="mercure-url" data-mercure-url="{{ app.request.server.get('MERCURE_PUBLIC_URL_EXAMPLE') }}">
 		{{ mercure('course-builder')|json_encode(constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_HEX_TAG'))|raw }}
 	</script>
 
-	<div {{ turbo_stream_listen('course-builder') }}></div>
+	{#<div {{ turbo_stream_listen('course-builder') }}></div>#}
 
 {% endblock %}

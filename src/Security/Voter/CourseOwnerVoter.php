@@ -18,8 +18,7 @@ class CourseOwnerVoter extends Voter
      * Summary of voteOnAttribute
      * @param string $attribute
      * @param Course $subject
-     * @param \Symfony\Component\Security\Core\Authentication\Token\TokenInterface $token
-     * @return bool
+     * @param TokenInterface $token
      */
     protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token): bool
     {

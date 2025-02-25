@@ -5,13 +5,14 @@ namespace App\Controller;
 use App\Entity\Course;
 use App\Entity\User;
 use App\Entity\Variation;
-use App\Form\BuildMovesType;
+use App\Form\BuildLanMovesType;
 use App\Form\StudyToggleType;
 use App\Repository\CourseRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -84,25 +85,27 @@ class CourseController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/{id}/build', name: 'app_course_build', requirements: ['id' => '\d+'])]
-    public function build(#[MapEntity(id: 'id')] ?Course $course, SerializerInterface $serializer): Response
+    public function build(#[MapEntity(id: 'id')] ?Course $course, FormFactoryInterface $factory, SerializerInterface $serializer): Response
     {
         // TODO Check if the course is a repertoire
         $this->denyAccessUnlessGranted('course.owns', $course);
 
         $fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
 
-        $form = $this->createForm(
-            BuildMovesType::class,
-            null,
-            [
-                'action' => $this->generateUrl('app_position_build_moves', ['course' => $course->getId(), 'baseFen' => $fen]),
-            ]
-        );
+        $formData = [
+            'baseFen' => $fen,
+            'lanMoves' => [],
+        ];
+
+        $form = $factory->createNamed('build_moves_form', BuildLanMovesType::class, $formData, ['action' => $this->generateUrl('app_position_build_moves', ['course' => $course->getId(), 'baseFen' => $fen])]);
+
+        $saveForm = $factory->createNamed('save_moves_form', BuildLanMovesType::class, $formData, ['action' => $this->generateUrl('app_move_save_moves', ['course' => $course->getId(), 'baseFen' => $fen])]);
 
         return $this->render('course/build.html.twig', [
             'course' => $course,
             'course_encoded' => $serializer->serialize($course, 'json', ['groups' => ['Default']]),
             'form' => $form,
+            'save_form' => $saveForm,
         ]);
     }
 
