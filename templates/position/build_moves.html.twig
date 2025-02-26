@@ -34,9 +34,9 @@
                             {{ (nb_games ? ((popularity ? popularity.total / nb_games : 0)|format_number(style: 'percent')) : null) }}
                         </div-->
                         <div class="tw-col-span-3 tw-flex tw-items-center">
-                        {% if move.positionTo %}
+                        {% if move_form.completion is not null %}
                             <div class="progress tw-grow" style="height: 7px">
-                                <div class="progress-bar bg-info" style="width:{{ (move.positionTo.completion * 100)|round }}%"></div>
+                                <div class="progress-bar bg-info" style="width:{{ (move_form.completion * 100)|round }}%"></div>
                             </div>
                         {% endif %}
                         </div>

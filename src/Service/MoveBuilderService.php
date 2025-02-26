@@ -154,8 +154,6 @@ class MoveBuilderService
      * @param array<string,array<string,Move>> $movesSavedByFen
      * @param null|false|array<string,MovePopularity> $movesPopularities
      * @param null|false|array<string,MovePopularityMasters> $movesPopularitiesMasters
-     * 
-     * @return Move[]
      */
     public function buildCandidateMoves(Course $course, string $fen, array $movesSavedByFen, array $movesPopularities = null, array $movesPopularitiesMasters = null)
     {
@@ -169,12 +167,22 @@ class MoveBuilderService
             }
         }
 
+        $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === $board->turn;
+
+        $moves = [];
+
         foreach ($lans as $lan) {
             $board = FenToBoardFactory::create($fen);
             $board->playLan($board->turn, $lan);
 
             if (isset($movesSavedByFen[$fen][$board->toFen()])) {
                 $move = $movesSavedByFen[$fen][$board->toFen()];
+                if ($myTurn) {
+                    $move->setPopularity($movesPopularities[$lan] ?? null);
+                    $move->setPopularityMasters($movesPopularitiesMasters[$lan] ?? null);
+
+                    return [$move];
+                }
             } else {
                 $move = new Move();
                 $move->setCourse($course);

@@ -54,7 +54,7 @@ class PositionController extends AbstractController
                 $movesSavedByFen = $course->getRepertoireMovesByFen();
                 $positionsSavedByFen = $course->getPositionsByFen();
 
-                $expectedPercentage = $mbService->populateMoves($course, $baseFen, $movesPlayed, $newMovesPlayed, $movePopularitiesByFenLan);
+                $expectedPercentage = $mbService->populateMoves($course, $baseFen, $movesPlayed, $newMovesPlayed, $movePopularitiesByFenLan, $positions);
 
                 $fen = empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo();
 
@@ -71,11 +71,18 @@ class PositionController extends AbstractController
 
                 $movesToPlay = $mbService->buildCandidateMoves($course, $fen, $movesSavedByFen, $movesPopularitiesByLan ?? [], $movePopularitiesMastersByLan ?? []);
 
-                $movesForms = array_map(function ($move) use ($fen, $movesSavedByFen, $positionsSavedByFen) {
+                if (!$myTurn) {
+                    $movesToPlay = array_filter($movesToPlay, function ($move) use ($expectedPercentage, $nbGames, $course) {
+                        return $move->getPopularity() !== null && $expectedPercentage * $move->getPopularity()->getTotal() > $nbGames * $course->getTrueCoverage();
+                    });
+                }
+
+                $movesForms = array_map(function ($move) use ($fen, $movesSavedByFen, $positionsSavedByFen, $positions) {
                     return [
                         'move' => $move,
                         'saved' => isset($movesSavedByFen[$fen][$move->getFenTo()]),
                         'next_saved' => isset($positionsSavedByFen[$move->getFenTo()]),
+                        'completion' => isset($positions[$move->getFenTo()]) ? $positions[$move->getFenTo()]->getCompletion() : null,
                     ];
                 }, $movesToPlay);
 
@@ -89,16 +96,19 @@ class PositionController extends AbstractController
                                 return $move->getPopularityMasters() !== null && $move->getPopularityMasters()->getTotal() / $nbMastersGames > 1 / 100;
                             });
                         } else {
-                            $movesToPreload = array_filter($movesToPlay, function ($move) use ($expectedPercentage, $nbGames, $course) {
-                                return $move->getPopularity() !== null && $expectedPercentage * $move->getPopularity()->getTotal() > $nbGames * $course->getTrueCoverage();
-                            });
+                            $movesToPreload = $movesToPlay;
                         }
 
                         $fensToPreload = array_map(function ($move) {
                             return $move->getFenTo();
-                        }, $movesToPreload);
+                        }, array_filter($movesToPreload, function ($move) use ($movesSavedByFen, $positionsSavedByFen) {
+                            return !isset($movesSavedByFen[$move->getFenFrom()][$move->getFenTo()]) && !isset($positionsSavedByFen[$move->getFenTo()]);
+                        }));
 
-                        $mlService->preloadMoves($fensToPreload, !$myTurn);
+                        if (count($fensToPreload) > 0) {
+                            // TODO Save if fens have been preloaded in Position?
+                            $mlService->preloadMoves($fensToPreload, !$myTurn);
+                        }
 
                         if (!isset($movesPopularitiesByLan)) {
                             $mlService->preloadMoves($fen, false);
