@@ -6,6 +6,7 @@ use App\Entity\MovePopularity;
 use App\Entity\MovePopularityMasters;
 use App\Message\LoadMastersMoves;
 use App\Message\LoadMoves;
+use App\Message\LoadMovesHigh;
 use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
 use Chess\FenToBoardFactory;
@@ -159,7 +160,7 @@ class MoveLoaderService
                 $movePopularity->setDateCreated(new \DateTime());
 
                 $this->em->persist($movePopularity);
-                $messages[] = new LoadMoves($fen);
+                $messages[] = $masters ? new LoadMoves($fen) : new LoadMovesHigh($fen);
             }
         }
 

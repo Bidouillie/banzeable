@@ -8,6 +8,8 @@ use App\Form\BuildLanMovesType;
 use App\Message\PreloadMoves;
 use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
+use App\Repository\MoveRepository;
+use App\Repository\PositionRepository;
 use App\Service\MoveBuilderService;
 use App\Service\MoveLoaderService;
 use Chess\FenToBoardFactory;
@@ -15,6 +17,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -33,10 +36,12 @@ class PositionController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/build-moves/{course}/{baseFen}', name: 'app_position_build_moves', requirements: ['course' => '\d+', 'baseFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMoves(?Course $course, ?string $baseFen, Request $request, FormFactoryInterface $factory, MovePopularityRepository $mpRepo, MovePopularityMastersRepository $mpMastersRepo, MoveBuilderService $mbService, MoveLoaderService $mlService, MessageBusInterface $bus): Response
+    public function buildMovesNew(?Course $course, ?string $baseFen, Request $request, FormFactoryInterface $factory, MoveRepository $moveRepo, PositionRepository $positionRepo, MovePopularityRepository $mpRepo, MovePopularityMastersRepository $mpMastersRepo, MoveBuilderService $mbService, MoveLoaderService $mlService, MessageBusInterface $bus): Response
     {
         // TODO Check if the course is a repertoire
         $this->denyAccessUnlessGranted('course.owns', $course);
+
+        sleep(1);
 
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
@@ -51,44 +56,69 @@ class PositionController extends AbstractController
                  */
                 $movesPlayed = $form->get('lanMoves')->getData();
 
-                $movesSavedByFen = $course->getRepertoireMovesByFen();
-                $positionsSavedByFen = $course->getPositionsByFen();
-
-                $expectedPercentage = $mbService->populateMoves($course, $baseFen, $movesPlayed, $newMovesPlayed, $movePopularitiesByFenLan, $positions);
+                $expectedPercentage = floatval($form->get('expectedPercentage')->getData() ?? 1);
+                $missingPercentages = intval($form->get('missingPercentages')->getData() ?? 0);
 
                 $fen = empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo();
 
-                if (isset($movePopularitiesByFenLan[$fen])) {
-                    $movesPopularitiesByLan = $movePopularitiesByFenLan[$fen]['moves'];
-                    $nbGames = $movePopularitiesByFenLan[$fen]['nbGames'];
-                } else {
-                    $movesPopularitiesByLan = $mpRepo->findGroupedByLan($fen, $nbGames);
-                }
-
                 $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
-                $movePopularitiesMastersByLan = $myTurn ? ($mpMastersRepo->findGroupedByLan($fen, $nbMastersGames)) : null;
+                // TODO check if form data is consistent
 
-                $movesToPlay = $mbService->buildCandidateMoves($course, $fen, $movesSavedByFen, $movesPopularitiesByLan ?? [], $movePopularitiesMastersByLan ?? []);
+                if ($missingPercentages > 0) {
 
-                if (!$myTurn) {
-                    $movesToPlay = array_filter($movesToPlay, function ($move) use ($expectedPercentage, $nbGames, $course) {
-                        return $move->getPopularity() !== null && $expectedPercentage * $move->getPopularity()->getTotal() > $nbGames * $course->getTrueCoverage();
-                    });
+                    if ($missingPercentages > 5) {
+                        throw new HttpException(425, "Too many requests");
+                    }
+
+                    $moves = array_slice($movesPlayed, -$missingPercentages);
+
+                    $positionsMissing = $positionRepo->findGroupedByFen($course, array_map(function ($move) {
+                        return $move->getFenTo();
+                    }, $moves));
+
+                    $startingTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create(reset($moves)->getFenFrom())->turn;
+
+                    $expectedPercentages = $mbService->getExpectedPercentages($startingTurn, $moves, $expectedPercentage, $positionsMissing, $movesPopularitiesByFenLan);
+
+                    if (!isset($expectedPercentages)) {
+                        throw new HttpException(500);
+                    }
+                    var_dump($expectedPercentages);
                 }
 
-                $movesForms = array_map(function ($move) use ($fen, $movesSavedByFen, $positionsSavedByFen, $positions) {
-                    return [
-                        'move' => $move,
-                        'saved' => isset($movesSavedByFen[$fen][$move->getFenTo()]),
-                        'next_saved' => isset($positionsSavedByFen[$move->getFenTo()]),
-                        'completion' => isset($positions[$move->getFenTo()]) ? $positions[$move->getFenTo()]->getCompletion() : null,
-                    ];
-                }, $movesToPlay);
+                $movesSavedByLan = $moveRepo->findGroupedByLan($course, $fen);
+
+                if (count($movesSavedByLan) > 0) {
+                    $positionsReached = $positionRepo->findGroupedByFen($course, array_map(function ($move) {
+                        return $move->getFenTo();
+                    }, $movesSavedByLan));
+                }
+
+                $mpByLan = $movesPopularitiesByFenLan[$fen] ?? $mpRepo->findGroupedByLan($fen);
+
+                if ($myTurn) {
+                    $mpMastersByLan = $mpMastersRepo->findGroupedByLan($fen);
+
+                    $movesToPlay = $mbService->buildCandidateMoves($fen, $myTurn, $expectedPercentage, $movesSavedByLan, $positionsReached ?? [], $mpByLan, $mpMastersByLan, $saved);
+
+                    foreach ($movesToPlay as $key => $movestat) {
+                        $movesToPlay[$key]['show'] = ($saved && $movestat['saved']) || (!$saved && isset($movestat['selected_masters']) && $movestat['selected_masters'] > 1 / 100);
+                    }
+                } else {
+                    $movesToPlay = $mbService->buildCandidateMoves($fen, $myTurn, $expectedPercentage, $movesSavedByLan, $positionsReached ?? [], $mpByLan);
+
+                    $threshold = $course->getTrueCoverage() / $expectedPercentage;
+
+                    foreach ($movesToPlay as $key => $movestat) {
+                        $movesToPlay[$key]['show'] = isset($movestat['selected']) && $movestat['selected'] > $threshold;
+                    }
+                }
 
                 /**
                  * Preload moves
                  */
+                /*
                 if (isset($expectedPercentage)) {
                     if (($myTurn && !empty($movePopularitiesMastersByLan)) || (!$myTurn && !empty($movesPopularitiesByLan))) {
                         if ($myTurn) {
@@ -131,16 +161,15 @@ class PositionController extends AbstractController
                 if (isset($message)) {
                     $bus->dispatch($message);
                 }
+                */
 
                 return $this->render('position/build_moves.html.twig', [
                     'course' => $course,
                     'my_turn' => ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn,
-                    'nb_games' => $nbGames,
-                    'nb_masters_games' => $nbMastersGames ?? null,
-                    'expected_percentage' => $expectedPercentage,
-                    'moves_forms' => $movesForms,
-                    'can_save' => json_encode(!empty($newMovesPlayed)),
-                    'moves_whole' => json_encode(!isset($message)),
+                    'moves_forms' => $movesToPlay,
+                    'can_save' => !empty($newMovesPlayed),
+                    'moves_whole' => !isset($message),
+                    'missing_percentages' => $expectedPercentages ?? [],
                 ]);
             }
         }

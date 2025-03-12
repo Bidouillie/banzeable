@@ -95,6 +95,7 @@ class CourseController extends AbstractController
         $formData = [
             'baseFen' => $fen,
             'lanMoves' => [],
+            'expectedPercentage' => 1,
         ];
 
         $form = $factory->createNamed('build_moves_form', BuildLanMovesType::class, $formData, ['action' => $this->generateUrl('app_position_build_moves', ['course' => $course->getId(), 'baseFen' => $fen])]);

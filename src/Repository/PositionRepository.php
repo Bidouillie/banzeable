@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Entity\Course;
 use App\Entity\Position;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -16,28 +17,31 @@ class PositionRepository extends ServiceEntityRepository
         parent::__construct($registry, Position::class);
     }
 
-    //    /**
-    //     * @return Position[] Returns an array of Position objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('p')
-    //            ->andWhere('p.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('p.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    /**
+     * @return array<string,Position>
+     */
+    public function findGroupedByFen(Course $course, string|array $fen)
+    {
+        $qb = $this->createQueryBuilder('position')
+            ->andWhere('position.course = :course');
 
-    //    public function findOneBySomeField($value): ?Position
-    //    {
-    //        return $this->createQueryBuilder('p')
-    //            ->andWhere('p.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+        if (is_array($fen)) {
+            $qb->andWhere('position.fen IN (:fen)');
+        } else {
+            $qb->andWhere('position.fen = :fen');
+        }
+
+        $qb->setParameter('course', $course);
+        $qb->setParameter('fen', $fen);
+
+        /**
+         * @var Position[] $positions
+         */
+        $positions = $qb->getQuery()->getResult();
+
+        return array_reduce($positions, function ($carry, $position) {
+            $carry[$position->getFen()] = $position;
+            return $carry;
+        }, []);
+    }
 }

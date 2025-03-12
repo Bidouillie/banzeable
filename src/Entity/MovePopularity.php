@@ -152,6 +152,7 @@ class MovePopularity
             $last = end($this->board->history);
             return $last['pgn'];
         }
+        return null;
     }
 
     /*

@@ -40,10 +40,6 @@ class Move
     #[ORM\JoinColumn(name: 'fen_to', referencedColumnName: 'fen', nullable: false)]
     private ?Position $positionTo = null;
 
-    private ?MovePopularity $popularity = null;
-
-    private ?MovePopularityMasters $popularityMasters = null;
-
     private ?AbstractBoard $board = null;
 
     public function getFenFrom(): ?string
@@ -92,6 +88,7 @@ class Move
             $last = end($this->board->history);
             return $last['pgn'];
         }
+        return null;
     }
 
     public function getSelectedPercentage(): ?float
@@ -140,30 +137,6 @@ class Move
     {
         $this->positionTo = $positionTo;
         $this->fenTo = $positionTo->getFen();
-
-        return $this;
-    }
-
-    public function getPopularity(): ?MovePopularity
-    {
-        return $this->popularity;
-    }
-
-    public function setPopularity(?MovePopularity $popularity): static
-    {
-        $this->popularity = $popularity;
-
-        return $this;
-    }
-
-    public function getPopularityMasters(): ?MovePopularityMasters
-    {
-        return $this->popularityMasters;
-    }
-
-    public function setPopularityMasters(?MovePopularityMasters $popularityMasters): static
-    {
-        $this->popularityMasters = $popularityMasters;
 
         return $this;
     }

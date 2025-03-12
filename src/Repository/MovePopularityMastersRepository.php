@@ -27,11 +27,10 @@ class MovePopularityMastersRepository extends ServiceEntityRepository
     // TODO search by whole id (variant, speeds...)
     /**
      * @param string $fen
-     * @param null|int $nbGames
      * 
-     * @return null|false|array<string,MovePopularityMasters>
+     * @return null|false|array{nbGames:int,moves:array<string,MovePopularityMasters>}
      */
-    public function findGroupedByLan(string $fen, &$nbGames = null)
+    public function findGroupedByLan(string $fen)
     {
         $qb = $this->createQueryBuilder('mp')
             ->andWhere('mp.fen = :fen')
@@ -46,16 +45,19 @@ class MovePopularityMastersRepository extends ServiceEntityRepository
             return null;
         }
 
-        $movesGrouped = [];
+        $movesGrouped = [
+            'nbGames' => 0,
+            'moves' => [],
+        ];
         foreach ($moves as $move) {
             if ($move->getLan() === '-') {
                 $total = $move->getTotal();
                 if (!isset($total)) {
                     return false;
                 }
-                $nbGames = $total;
+                $movesGrouped['nbGames'] = $total;
             } else {
-                $movesGrouped[$move->getLan()] = $move;
+                $movesGrouped['moves'][$move->getLan()] = $move;
             }
         }
 

@@ -11,6 +11,13 @@ fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
  */
 let board;
 
+/**
+ * @type array percentages
+ */
+let percentages = [];
+
+let missingPercentages = 0;
+
 let formSubmitting = null;
 let buildingFormLinks = null;
 let form = null, saveForm;
@@ -53,12 +60,37 @@ function on_move_played(event) {
     } else {
         previousButton.classList.add('disabled');
     }
+    if (typeof event.undo === 'undefined' || !event.undo) {
+        let moveElement = document.querySelector('.build_moves[data-lan="' + event.lan + '"]');
+        let percentage = moveElement?.getAttribute('data-expected');
+        if (missingPercentages > 0 || percentage == null) {
+            missingPercentages++;
+        } else {
+            percentages.push(percentage);
+        }
+    } else {
+        if (missingPercentages > 0) {
+            missingPercentages--;
+        } else {
+            percentages.pop();
+        }
+    }
     build_moves();
 }
 
 function build_moves() {
     let movesInput = document.getElementById('build_moves_form_lanMoves');
     movesInput.value = board.getLanMoves();
+
+    console.log(percentages);
+    console.log(missingPercentages);
+
+    let percentageInput = document.getElementById('build_moves_form_expectedPercentage');
+    percentageInput.value = percentages.length > 0 ? percentages[percentages.length - 1] : 1;
+
+    let missingPercentagesInput = document.getElementById('build_moves_form_missingPercentages');
+    missingPercentagesInput.value = missingPercentages;
+
     form.requestSubmit();
 }
 
@@ -146,6 +178,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 whole = JSON.parse(document.getElementById('build_moves').getAttribute('data-moves-whole'));
                 if (JSON.parse(document.getElementById('build_moves').getAttribute('data-can-save'))) {
                     saveButton.classList.remove('disabled');
+                }
+                if (missingPercentages > 0) {
+                    let percentages = JSON.parse(document.getElementById('build_moves').getAttribute('data-missing-percentages'));
+                    if (percentages.length === missingPercentages) {
+                        percentages.forEach(percentage => {
+                            if (typeof percentage !== 'undefined' && percentage !== null) {
+                                missingPercentages--;
+                                percentages.push(percentage);
+                            }
+                        });
+                    }
                 }
                 if (buildingFormLinks !== null) {
                     for (let i = 0; i < buildingFormLinks.length; i++) {
