@@ -5,7 +5,6 @@ namespace App\Service;
 use App\Entity\Course;
 use App\Entity\Move;
 use App\Entity\MovePopularity;
-use App\Entity\MovePopularityMasters;
 use App\Entity\Position;
 use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
@@ -26,7 +25,7 @@ class MoveBuilderService
     private $positions;
 
     /**
-     * @var array<string,array{moves:array<string,MovePopularity>,nbGames:int}> $movePopularitiesByFenLan
+     * @var array<string,false|array{nbGames:int,moves:array<string,MovePopularity>}> $movePopularitiesByFenLan
      */
     private $movePopularitiesByFenLan;
 
@@ -37,16 +36,18 @@ class MoveBuilderService
     ) {}
 
     /**
+     * @param Course $course
      * @param bool $myTurnStart
      * @param Move[] $moves
-     * @param null|float $expectedPercentage
-     * @param array<string,Position> $positions
-     * @param null|array<string,false|array{nbGames:int,moves:array<string,MovePopularity>}> $movesPopularitiesByFenLan
+     * @param float $expectedPercentage
      * 
      * @return null|float[]
      */
-    public function getExpectedPercentages(bool $myTurnStart, array $moves, float &$expectedPercentage, array $positions, ?array &$movesPopularitiesByFenLan = null)
+    public function getExpectedPercentage(Course $course, bool $myTurnStart, array $moves, float $expectedPercentage)
     {
+        $positions = $this->positionRepo->findGroupedByFen($course, array_map(function ($move) {
+            return $move->getFenTo();
+        }, $moves));
 
         $expectedPercentages = [];
         $fens = [];
@@ -66,7 +67,7 @@ class MoveBuilderService
 
         if ($missing) {
             $fens[] = end($moves)->getFenTo();
-            $movesPopularitiesByFenLan = $this->mpRepo->findGroupedByFenLan($fens);
+            $this->movePopularitiesByFenLan = $this->mpRepo->findGroupedByFenLan($fens);
 
             $myTurn = $myTurnStart;
             foreach ($moves as $key => $move) {
@@ -74,8 +75,8 @@ class MoveBuilderService
                     $expectedPercentage = $expectedPercentages[$key];
                 } elseif ($myTurn) {
                     $expectedPercentages[$key] = $expectedPercentage;
-                } elseif (isset($movesPopularitiesByFenLan[$move->getFenFrom()]) && $movesPopularitiesByFenLan[$move->getFenFrom()] !== false) {
-                    $expectedPercentage *= $movesPopularitiesByFenLan[$move->getFenFrom()]['nbGames'] > 0 && isset($movesPopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]) ? ($movesPopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->getTotal() / $movesPopularitiesByFenLan[$move->getFenFrom()]['nbGames']) : 0;
+                } elseif (isset($this->movePopularitiesByFenLan[$move->getFenFrom()]) && $this->movePopularitiesByFenLan[$move->getFenFrom()] !== false) {
+                    $expectedPercentage *= $this->movePopularitiesByFenLan[$move->getFenFrom()]['nbGames'] > 0 && isset($this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]) ? ($this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->getTotal() / $this->movePopularitiesByFenLan[$move->getFenFrom()]['nbGames']) : 0;
                     $expectedPercentages[$key] = $expectedPercentage;
                 } else {
                     return null;
@@ -205,15 +206,20 @@ class MoveBuilderService
     /**
      * @param string $fen
      * @param bool $myturn
-     * @param float $expectedPercentage
-     * @param array<string,Move> $movesSavedByLan
-     * @param array<string,Position> $positionsByFen
-     * @param null|false|array{nbGames:int,moves:array<string,MovePopularity>} $movesPopularities
-     * @param null|false|array{nbGames:int,moves:array<string,MovePopularityMasters>} $movesPopularitiesMasters
+     * @param null|float $expectedPercentage
+     * @param null|array<string,Move> $movesSavedByLan
+     * @param null|array<string,Position> $positionsByFen
+     * @param bool $masters
      * @param bool $saved
      */
-    public function buildCandidateMoves(string $fen, bool $myTurn, float $expectedPercentage, array $movesSavedByLan, array $positionsByFen, ?array $movesPopularities = null, ?array $movesPopularitiesMasters = null, ?bool &$saved = null)
+    public function buildCandidateMoves(string $fen, bool $myTurn, ?float $expectedPercentage, ?array $movesSavedByLan, ?array $positionsByFen, bool $masters, ?bool &$saved = null)
     {
+        $movesPopularities = $this->movePopularitiesByFenLan[$fen] ?? $this->mpRepo->findGroupedByLan($fen);
+
+        if ($masters) {
+            $movesPopularitiesMasters = $this->mpMastersRepo->findGroupedByLan($fen);
+        }
+
         $board = FenToBoardFactory::create($fen);
         $pieces = $board->pieces($board->turn);
 
@@ -224,9 +230,12 @@ class MoveBuilderService
             }
         }
 
-        $completions = [];
-        foreach ($positionsByFen as $fenKey => $position) {
-            $completions[$fenKey] = $position->getCompletion();
+        // TODO set completion even if expected percentage not yet calculated?
+        if (isset($positionsByFen)) {
+            $completions = [];
+            foreach ($positionsByFen as $fenKey => $position) {
+                $completions[$fenKey] = $position->getCompletion();
+            }
         }
 
         $saved = false;
@@ -251,7 +260,7 @@ class MoveBuilderService
                 $move->setFenTo($board->toFen());
                 $move->setLan($lan);
 
-                if ($myTurn || isset($selected)) {
+                if (isset($expectedPercentage) && ($myTurn || isset($selected))) {
                     $moveExpectedPercentage = $expectedPercentage * ($myTurn ? 1 : $selected);
                 }
             }

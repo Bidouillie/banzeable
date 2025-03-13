@@ -6,8 +6,6 @@ use App\Entity\Course;
 use App\Entity\Move;
 use App\Form\BuildLanMovesType;
 use App\Message\PreloadMoves;
-use App\Repository\MovePopularityMastersRepository;
-use App\Repository\MovePopularityRepository;
 use App\Repository\MoveRepository;
 use App\Repository\PositionRepository;
 use App\Service\MoveBuilderService;
@@ -36,7 +34,7 @@ class PositionController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/build-moves/{course}/{baseFen}', name: 'app_position_build_moves', requirements: ['course' => '\d+', 'baseFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMovesNew(?Course $course, ?string $baseFen, Request $request, FormFactoryInterface $factory, MoveRepository $moveRepo, PositionRepository $positionRepo, MovePopularityRepository $mpRepo, MovePopularityMastersRepository $mpMastersRepo, MoveBuilderService $mbService, MoveLoaderService $mlService, MessageBusInterface $bus): Response
+    public function buildMoves(?Course $course, ?string $baseFen, Request $request, FormFactoryInterface $factory, MoveRepository $moveRepo, PositionRepository $positionRepo, MoveBuilderService $mbService, MoveLoaderService $mlService, MessageBusInterface $bus): Response
     {
         // TODO Check if the course is a repertoire
         $this->denyAccessUnlessGranted('course.owns', $course);
@@ -73,41 +71,32 @@ class PositionController extends AbstractController
 
                     $moves = array_slice($movesPlayed, -$missingPercentages);
 
-                    $positionsMissing = $positionRepo->findGroupedByFen($course, array_map(function ($move) {
-                        return $move->getFenTo();
-                    }, $moves));
-
                     $startingTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create(reset($moves)->getFenFrom())->turn;
 
-                    $expectedPercentages = $mbService->getExpectedPercentages($startingTurn, $moves, $expectedPercentage, $positionsMissing, $movesPopularitiesByFenLan);
+                    $expectedPercentages = $mbService->getExpectedPercentage($course, $startingTurn, $moves, $expectedPercentage);
 
-                    if (!isset($expectedPercentages)) {
-                        throw new HttpException(500);
-                    }
+                    $expectedPercentage = empty($expectedPercentages) ? null : end($expectedPercentages);
+
                     var_dump($expectedPercentages);
                 }
 
-                $movesSavedByLan = $moveRepo->findGroupedByLan($course, $fen);
+                if (isset($expectedPercentage)) {
+                    $movesSavedByLan = $moveRepo->findGroupedByLan($course, $fen);
 
-                if (count($movesSavedByLan) > 0) {
-                    $positionsReached = $positionRepo->findGroupedByFen($course, array_map(function ($move) {
-                        return $move->getFenTo();
-                    }, $movesSavedByLan));
+                    if (count($movesSavedByLan) > 0) {
+                        $positionsReached = $positionRepo->findGroupedByFen($course, array_map(function ($move) {
+                            return $move->getFenTo();
+                        }, $movesSavedByLan));
+                    }
                 }
 
-                $mpByLan = $movesPopularitiesByFenLan[$fen] ?? $mpRepo->findGroupedByLan($fen);
+                $movesToPlay = $mbService->buildCandidateMoves($fen, $myTurn, $expectedPercentage, $movesSavedByLan ?? null, $positionsReached ?? null, $myTurn, $saved);
 
                 if ($myTurn) {
-                    $mpMastersByLan = $mpMastersRepo->findGroupedByLan($fen);
-
-                    $movesToPlay = $mbService->buildCandidateMoves($fen, $myTurn, $expectedPercentage, $movesSavedByLan, $positionsReached ?? [], $mpByLan, $mpMastersByLan, $saved);
-
                     foreach ($movesToPlay as $key => $movestat) {
                         $movesToPlay[$key]['show'] = ($saved && $movestat['saved']) || (!$saved && isset($movestat['selected_masters']) && $movestat['selected_masters'] > 1 / 100);
                     }
                 } else {
-                    $movesToPlay = $mbService->buildCandidateMoves($fen, $myTurn, $expectedPercentage, $movesSavedByLan, $positionsReached ?? [], $mpByLan);
-
                     $threshold = $course->getTrueCoverage() / $expectedPercentage;
 
                     foreach ($movesToPlay as $key => $movestat) {
