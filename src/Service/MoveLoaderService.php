@@ -4,9 +4,6 @@ namespace App\Service;
 
 use App\Entity\MovePopularity;
 use App\Entity\MovePopularityMasters;
-use App\Message\LoadMastersMoves;
-use App\Message\LoadMoves;
-use App\Message\LoadMovesHigh;
 use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
 use Chess\FenToBoardFactory;
@@ -74,11 +71,15 @@ class MoveLoaderService
 
             $this->em->flush();
 
+            $this->logger->info("Loaded masters moves from fen $fen");
+
             return $moves;
         }
+
+        return null;
     }
 
-    public function loadMoves(string $fen, ?int &$nbGames = 0)
+    public function loadAmateursMoves(string $fen, ?int &$nbGames = 0)
     {
         $responseMoves = $this->lichessApi->getLichessMoves($fen);
 
@@ -125,51 +126,11 @@ class MoveLoaderService
 
             $this->em->flush();
 
+            $this->logger->info("Loaded amateurs moves from fen $fen");
+
             return $moves;
         }
-    }
 
-    public function preloadMoves(string|array $fens, bool $masters)
-    {
-        $fensSaved = $this->repo->findByFenGrouped($fens);
-        $mastersFensSaved = $masters ? $this->mastersRepo->findByFenGrouped($fens) : null;
-
-        if (!is_array($fens)) {
-            $fens = [$fens];
-        }
-
-        $messages = [];
-
-        foreach ($fens as $fen) {
-
-            if ($masters && !isset($mastersFensSaved[$fen])) {
-                $flush = true;
-                $movePopularity = new MovePopularityMasters();
-                $movePopularity->setFen($fen);
-                $movePopularity->setLan('-');
-                $movePopularity->setDateCreated(new \DateTime());
-
-                $this->em->persist($movePopularity);
-                $messages[] = new LoadMastersMoves($fen);
-            }
-            if (!isset($fensSaved[$fen])) {
-                $flush = true;
-                $movePopularity = new MovePopularity();
-                $movePopularity->setFen($fen);
-                $movePopularity->setLan('-');
-                $movePopularity->setDateCreated(new \DateTime());
-
-                $this->em->persist($movePopularity);
-                $messages[] = $masters ? new LoadMoves($fen) : new LoadMovesHigh($fen);
-            }
-        }
-
-        if (isset($flush)) {
-            $this->em->flush();
-        }
-
-        foreach ($messages as $message) {
-            $this->bus->dispatch($message);
-        }
+        return null;
     }
 }

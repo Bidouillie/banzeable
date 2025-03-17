@@ -2,7 +2,8 @@
 
 namespace App\Controller;
 
-use App\Message\PreloadMoves;
+use App\Message\LoadMovesOptional;
+use App\Repository\MovePopularityRepository;
 use Chess\Variant\Classical\Board;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -13,8 +14,10 @@ use Symfony\Component\Routing\Attribute\Route;
 class TestController extends AbstractController
 {
     #[Route('/test', name: 'app_test')]
-    public function index(): Response
+    public function index(MovePopularityRepository $repo): Response
     {
+        $moves = $repo->findSavedByFenGrouped('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -');
+        var_dump($moves);
 
         return $this->render('test/index.html.twig', [
             'controller_name' => 'TestController',
@@ -23,7 +26,7 @@ class TestController extends AbstractController
 
     private function reloadMoves(HubInterface $hub)
     {
-        $hub->publish(new Update('course-builder', json_encode(new PreloadMoves(3, 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -', 'e2e4'))));
+        $hub->publish(new Update('course-builder', json_encode(new LoadMovesOptional('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -'))));
     }
 
     private function checkCastleLan()

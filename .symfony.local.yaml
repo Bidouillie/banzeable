@@ -6,4 +6,4 @@ workers:
             - sass
         cmd: ['symfony', 'console', 'tailwind:build', '--watch']
     messenger_consume_async:
-        cmd: ['symfony', 'console', 'messenger:consume', 'async_priority_high', 'async', 'async_priority_low', '--no-debug']
+        cmd: ['symfony', 'console', 'messenger:consume', 'async_priority_main', 'async_priority_high', 'async_priority_medium', 'async_priority_low', 'async', '--no-debug']

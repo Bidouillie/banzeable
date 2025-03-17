@@ -10,24 +10,42 @@ framework:
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
+            async_priority_main:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: main
+                    check_delayed_interval: 1000
+                retry_strategy:
+                    delay: 1000
+                    max_retries: 2
+                    multiplier: 60
             async_priority_high:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     queue_name: high
                     check_delayed_interval: 1000
                 retry_strategy:
-                    delay: 60000
+                    delay: 1000
                     max_retries: 2
-                    multiplier: 3
+                    multiplier: 60
+            async_priority_medium:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: medium
+                    check_delayed_interval: 1000
+                retry_strategy:
+                    delay: 1000
+                    max_retries: 2
+                    multiplier: 60
             async_priority_low:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     queue_name: low
                     check_delayed_interval: 1000
                 retry_strategy:
-                    delay: 60000
-                    max_retries: 1
-                    multiplier: 3
+                    delay: 1000
+                    max_retries: 2
+                    multiplier: 60
             failed: 'doctrine://default?queue_name=failed'
             # sync: 'sync://'
 
@@ -40,10 +58,10 @@ framework:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
-            App\Message\LoadMastersMoves: async
-            App\Message\LoadMoves: async
-            App\Message\LoadMovesHigh: async_priority_high
-            App\Message\PreloadMoves: async_priority_low
+            App\Message\LoadMovesRequired: async_priority_main
+            App\Message\LoadMovesOptional: async_priority_high
+            App\Message\PreloadOppMoves: async_priority_medium
+            App\Message\PreloadMyMoves: async_priority_low
 
             # Route your messages to the transports
             # 'App\Message\YourMessage': async

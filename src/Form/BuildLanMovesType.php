@@ -49,7 +49,8 @@ class BuildLanMovesType extends AbstractType
                 if(empty($lans)) {
                     return [];
                 }
-                if (!preg_match('/^(([a-h][0-9]){2}( ([a-h][0-9]){2})*)?$/', $lans)) {
+
+                if (!preg_match('/^(([a-h][0-9]){2}( |$))*/', $lans)) {
                     throw new TransformationFailedException("The lan moves string is not correctly formatted");
                 }
                 return array_map(function (string $lanMove) {

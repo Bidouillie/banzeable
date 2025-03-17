@@ -40,10 +40,11 @@ class MoveBuilderService
      * @param bool $myTurnStart
      * @param Move[] $moves
      * @param float $expectedPercentage
+     * @param string[] $mpMissingFens
      * 
      * @return null|float[]
      */
-    public function getExpectedPercentage(Course $course, bool $myTurnStart, array $moves, float $expectedPercentage)
+    public function getExpectedPercentage(Course $course, bool $myTurnStart, array $moves, float $expectedPercentage, ?array &$mpMissingFens)
     {
         $positions = $this->positionRepo->findGroupedByFen($course, array_map(function ($move) {
             return $move->getFenTo();
@@ -65,6 +66,8 @@ class MoveBuilderService
             $myTurn = !$myTurn;
         }
 
+        $mpMissingFens = [];
+
         if ($missing) {
             $fens[] = end($moves)->getFenTo();
             $this->movePopularitiesByFenLan = $this->mpRepo->findGroupedByFenLan($fens);
@@ -79,14 +82,94 @@ class MoveBuilderService
                     $expectedPercentage *= $this->movePopularitiesByFenLan[$move->getFenFrom()]['nbGames'] > 0 && isset($this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]) ? ($this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->getTotal() / $this->movePopularitiesByFenLan[$move->getFenFrom()]['nbGames']) : 0;
                     $expectedPercentages[$key] = $expectedPercentage;
                 } else {
-                    return null;
+                    $mpMissingFens[] = $move->getFenFrom();
                 }
 
                 $myTurn = !$myTurn;
             }
         }
 
-        return $expectedPercentages;
+        return count($mpMissingFens) > 0 ? null : $expectedPercentages;
+    }
+
+    /**
+     * @param string $fen
+     * @param bool $myturn
+     * @param null|float $expectedPercentage
+     * @param null|array<string,Move> $movesSavedByLan
+     * @param null|array<string,Position> $positionsByFen
+     * @param bool $masters
+     * @param bool $saved
+     */
+    public function buildCandidateMoves(string $fen, bool $myTurn, ?float $expectedPercentage, ?array $movesSavedByLan, ?array $positionsByFen, bool $masters, ?bool &$saved = null)
+    {
+        $movesPopularities = $this->movePopularitiesByFenLan[$fen] ?? $this->mpRepo->findGroupedByLan($fen);
+
+        if ($masters) {
+            $movesPopularitiesMasters = $this->mpMastersRepo->findGroupedByLan($fen);
+        }
+
+        $board = FenToBoardFactory::create($fen);
+        $pieces = $board->pieces($board->turn);
+
+        $lans = [];
+        foreach ($pieces as $piece) {
+            foreach ($board->legal($piece->sq) as $sq) {
+                $lans[] = $piece->sq . $sq;
+            }
+        }
+
+        // TODO set completion even if expected percentage not yet calculated?
+        if (isset($positionsByFen)) {
+            $completions = [];
+            foreach ($positionsByFen as $fenKey => $position) {
+                $completions[$fenKey] = $position->getCompletion();
+            }
+        }
+
+        $saved = false;
+
+        $movestats = [];
+        foreach ($lans as $lan) {
+            $board = FenToBoardFactory::create($fen);
+            $board->playLan($board->turn, $lan);
+            $moveSaved = false;
+
+            $selected = empty($movesPopularities) ? null : ($movesPopularities['nbGames'] > 0 && isset($movesPopularities['moves'][$lan]) ? $movesPopularities['moves'][$lan]->getTotal() / $movesPopularities['nbGames'] : 0);
+
+            $selectedMasters = empty($movesPopularitiesMasters) ? null : ($movesPopularitiesMasters['nbGames'] > 0 && isset($movesPopularitiesMasters['moves'][$lan]) ? $movesPopularitiesMasters['moves'][$lan]->getTotal() / $movesPopularitiesMasters['nbGames'] : 0);
+
+            if (isset($movesSavedByLan[$lan])) {
+                $move = $movesSavedByLan[$lan];
+                $saved = $moveSaved = true;
+
+                $moveExpectedPercentage = $expectedPercentage * $movesSavedByLan[$lan]->getSelectedPercentage();
+            } else {
+                $move = new Move();
+                $move->setFenFrom($fen);
+                $move->setFenTo($board->toFen());
+                $move->setLan($lan);
+
+                if (isset($expectedPercentage) && ($myTurn || isset($selected))) {
+                    $moveExpectedPercentage = $expectedPercentage * ($myTurn ? 1 : $selected);
+                }
+            }
+
+            $movestat = [
+                'move' => $move,
+                'saved' => $moveSaved,
+                'popularity' => $movesPopularities['moves'][$lan] ?? null,
+                'selected' => $selected,
+                'popularity_masters' => $movesPopularitiesMasters['moves'][$lan] ?? null,
+                'selected_masters' => $selectedMasters,
+                'expected_percentage' => isset($moveExpectedPercentage) && !in_array($moveExpectedPercentage, [0, 1]) ? number_format($moveExpectedPercentage, 5) : $moveExpectedPercentage ?? null,
+                'completion' => $completions[$move->getFenTo()] ?? null,
+            ];
+
+            $movestats[] = $movestat;
+        }
+
+        return $movestats;
     }
 
     /**
@@ -201,85 +284,6 @@ class MoveBuilderService
         $positionReached = $positions[empty($newMovesPlayed) ? (empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo()) : end($newMovesPlayed)->getFenTo()];
 
         return $positionReached->getExpectedPercentage();
-    }
-
-    /**
-     * @param string $fen
-     * @param bool $myturn
-     * @param null|float $expectedPercentage
-     * @param null|array<string,Move> $movesSavedByLan
-     * @param null|array<string,Position> $positionsByFen
-     * @param bool $masters
-     * @param bool $saved
-     */
-    public function buildCandidateMoves(string $fen, bool $myTurn, ?float $expectedPercentage, ?array $movesSavedByLan, ?array $positionsByFen, bool $masters, ?bool &$saved = null)
-    {
-        $movesPopularities = $this->movePopularitiesByFenLan[$fen] ?? $this->mpRepo->findGroupedByLan($fen);
-
-        if ($masters) {
-            $movesPopularitiesMasters = $this->mpMastersRepo->findGroupedByLan($fen);
-        }
-
-        $board = FenToBoardFactory::create($fen);
-        $pieces = $board->pieces($board->turn);
-
-        $lans = [];
-        foreach ($pieces as $piece) {
-            foreach ($board->legal($piece->sq) as $sq) {
-                $lans[] = $piece->sq . $sq;
-            }
-        }
-
-        // TODO set completion even if expected percentage not yet calculated?
-        if (isset($positionsByFen)) {
-            $completions = [];
-            foreach ($positionsByFen as $fenKey => $position) {
-                $completions[$fenKey] = $position->getCompletion();
-            }
-        }
-
-        $saved = false;
-
-        $movestats = [];
-        foreach ($lans as $lan) {
-            $board = FenToBoardFactory::create($fen);
-            $board->playLan($board->turn, $lan);
-            $moveSaved = false;
-
-            $selected = isset($movesPopularities['moves'][$lan]) ? ($movesPopularities['nbGames'] > 0 ? $movesPopularities['moves'][$lan]->getTotal() / $movesPopularities['nbGames'] : 0) : null;
-            $selectedMasters = isset($movesPopularitiesMasters['moves'][$lan]) ? ($movesPopularitiesMasters['nbGames'] > 0 ? $movesPopularitiesMasters['moves'][$lan]->getTotal() / $movesPopularitiesMasters['nbGames'] : 0) : null;
-
-            if (isset($movesSavedByLan[$lan])) {
-                $move = $movesSavedByLan[$lan];
-                $saved = $moveSaved = true;
-
-                $moveExpectedPercentage = $expectedPercentage * $movesSavedByLan[$lan]->getSelectedPercentage();
-            } else {
-                $move = new Move();
-                $move->setFenFrom($fen);
-                $move->setFenTo($board->toFen());
-                $move->setLan($lan);
-
-                if (isset($expectedPercentage) && ($myTurn || isset($selected))) {
-                    $moveExpectedPercentage = $expectedPercentage * ($myTurn ? 1 : $selected);
-                }
-            }
-
-            $movestat = [
-                'move' => $move,
-                'saved' => $moveSaved,
-                'popularity' => $movesPopularities['moves'][$lan] ?? null,
-                'selected' => $selected,
-                'popularity_masters' => $movesPopularitiesMasters['moves'][$lan] ?? null,
-                'selected_masters' => $selectedMasters,
-                'expected_percentage' => isset($moveExpectedPercentage) && !in_array($moveExpectedPercentage, [0, 1]) ? number_format($moveExpectedPercentage, 5) : $moveExpectedPercentage ?? null,
-                'completion' => $completions[$move->getFenTo()] ?? null,
-            ];
-
-            $movestats[] = $movestat;
-        }
-
-        return $movestats;
     }
 
     /**

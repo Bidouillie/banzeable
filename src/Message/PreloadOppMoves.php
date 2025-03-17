@@ -2,13 +2,14 @@
 
 namespace App\Message;
 
-class LoadMoves
+final class PreloadOppMoves extends LoadMoves
 {
     /**
      * @param string[] $fens
      */
     public function __construct(
         public array $fens,
-        public ?bool $masters,
-    ) {}
+    ) {
+        $this->masters = false;
+    }
 }

@@ -65,35 +65,6 @@ class MovePopularityRepository extends ServiceEntityRepository
     }
 
     // TODO search by whole id (variant, speeds...)
-    public function findGroupedByFenSan(array $fens)
-    {
-        $qb = $this->createQueryBuilder('mp')
-            ->andWhere('mp.fen in (:fens)')
-            ->setParameter('fens', $fens);
-
-        /**
-         * @var MovePopularity[] $moves
-         */
-        $moves = $qb->getQuery()->getResult();
-
-        $movesGrouped = [];
-        foreach ($moves as $move) {
-            if (!isset($movesGrouped[$move->getFen()])) {
-                $movesGrouped[$move->getFen()] = [
-                    'moves' => [],
-                ];
-            }
-            if ($move->getLan() === '-') {
-                $movesGrouped[$move->getFen()]['nbGames'] = $move->getTotal() ?? 0;
-            } else {
-                $movesGrouped[$move->getFen()]['moves'][$move->getSan()] = $move;
-            }
-        }
-
-        return $movesGrouped;
-    }
-
-    // TODO search by whole id (variant, speeds...)
     public function findGroupedByFenLan(array $fens)
     {
         $qb = $this->createQueryBuilder('mp')
@@ -128,12 +99,13 @@ class MovePopularityRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return array<string,string>
+     * @return array<string,bool>
      */
-    public function findByFenGrouped(string|array $fen, array $criteria = [])
+    public function findSavedByFenGrouped(string|array $fen, array $criteria = [])
     {
         $qb = $this->createQueryBuilder('mp')
-            ->select('mp.fen');
+            ->select('mp.fen, mp.white')
+            ->andWhere('mp.lan = :lan');
 
         if (is_array($fen)) {
             $qb->andWhere('mp.fen IN (:fen)');
@@ -143,20 +115,17 @@ class MovePopularityRepository extends ServiceEntityRepository
         foreach (array_keys($criteria) as $key) {
             $qb->andWhere("mp.$key = :$key");
         }
-        $qb->addGroupBy('mp.fen');
 
+        $qb->setParameter('lan', '-');
         $qb->setParameter('fen', $fen);
         foreach ($criteria as $key => $value) {
             $qb->setParameter($key, $value);
         }
 
-        /**
-         * @var string[] $moves
-         */
-        $moves = $qb->getQuery()->getSingleColumnResult();
+        $moves = $qb->getQuery()->getArrayResult();
 
-        return array_reduce($moves, function ($carry, $fen) {
-            $carry[$fen] = $fen;
+        return array_reduce($moves, function ($carry, $move) {
+            $carry[$move['fen']] = isset($move['white']);
             return $carry;
         }, []);
     }

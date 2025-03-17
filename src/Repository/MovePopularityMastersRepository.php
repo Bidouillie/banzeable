@@ -65,12 +65,13 @@ class MovePopularityMastersRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return array<string,string>
+     * @return array<string,bool>
      */
-    public function findByFenGrouped(string|array $fen, array $criteria = [])
+    public function findSavedByFenGrouped(string|array $fen, array $criteria = [])
     {
         $qb = $this->createQueryBuilder('mp')
-            ->select('mp.fen');
+            ->select('mp.fen, mp.white')
+            ->andWhere('mp.lan = :lan');
 
         if (is_array($fen)) {
             $qb->andWhere('mp.fen IN (:fen)');
@@ -80,20 +81,17 @@ class MovePopularityMastersRepository extends ServiceEntityRepository
         foreach (array_keys($criteria) as $key) {
             $qb->andWhere("mp.$key = :$key");
         }
-        $qb->addGroupBy('mp.fen');
 
+        $qb->setParameter('lan', '-');
         $qb->setParameter('fen', $fen);
         foreach ($criteria as $key => $value) {
             $qb->setParameter($key, $value);
         }
 
-        /**
-         * @var string[] $moves
-         */
-        $moves = $qb->getQuery()->getSingleColumnResult();
+        $moves = $qb->getQuery()->getArrayResult();
 
-        return array_reduce($moves, function ($carry, $fen) {
-            $carry[$fen] = $fen;
+        return array_reduce($moves, function ($carry, $move) {
+            $carry[$move['fen']] = isset($move['white']);
             return $carry;
         }, []);
     }
