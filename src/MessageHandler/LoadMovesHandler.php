@@ -50,7 +50,7 @@ final class LoadMovesHandler
             foreach ($message->fens as $fen) {
 
                 if (!isset($mpSaved[$fen])) {
-                    if ($this->mlService->loadAmateursMoves($fen)) {
+                    if (!$this->mlService->loadAmateursMoves($fen)) {
                         throw new \Exception("Loading amateurs moves from $fen failed");
                     }
                     $fensLoaded++;
@@ -72,7 +72,7 @@ final class LoadMovesHandler
             foreach ($message->fens as $fen) {
 
                 if (!isset($mpSavedMasters[$fen])) {
-                    if ($this->mlService->loadMastersMoves($fen)) {
+                    if (!$this->mlService->loadMastersMoves($fen)) {
                         throw new \Exception("Loading masters moves from $fen failed");
                     }
                     $fensLoaded++;

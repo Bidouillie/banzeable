@@ -3,17 +3,18 @@ import { FEN } from 'cm-chessboard'
 
 import { AnalysisChessboardEngine } from './chessboardengine/analysis-cbe.js';
 
-let fen = FEN.start;
-fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
-
 /**
  * @type AnalysisChessboardEngine board
  */
 let board;
 
-/**
- * @type array percentages
- */
+let startingFen = FEN.start.split(' ').slice(0, 4).join(' ');
+let baseFen = startingFen;
+let fen = baseFen;
+
+let baseIndex = null;
+let mergeIndex = null;
+
 let percentages = [];
 
 let missingPercentages = 0;
@@ -28,21 +29,21 @@ let whole = true;
 let stream_count;
 
 function build_move(event) {
-    console.log('build_move');
+    // console.log('build_move');
 
     board.removeArrows();
     board.playMoves(event.currentTarget.getAttribute('data-san'));
 
-    console.log('end build_move');
+    // console.log('end build_move');
 }
 
 function build_moves_previous(event) {
-    console.log('build_moves_previous');
+    // console.log('build_moves_previous');
 
     board.removeArrows();
     board.undoMove();
 
-    console.log('end build_moves_previous');
+    // console.log('end build_moves_previous');
 }
 
 function mouse_enter(event) {
@@ -55,7 +56,7 @@ function mouse_leave() {
 
 function on_move_played(event) {
     console.log(event);
-    if (board.getLanMoves()) {
+    if (board.getLanMoves().length > 0) {
         previousButton.classList.remove('disabled');
     } else {
         previousButton.classList.add('disabled');
@@ -63,40 +64,72 @@ function on_move_played(event) {
     if (typeof event.undo === 'undefined' || !event.undo) {
         let moveElement = document.querySelector('.build_moves[data-lan="' + event.lan + '"]');
         let percentage = moveElement?.getAttribute('data-expected');
+
         if (missingPercentages > 0 || percentage == null) {
             missingPercentages++;
         } else {
+
+            if (!moveElement?.getAttribute('data-saved') && baseIndex === null) {
+                baseIndex = percentages.length;
+                baseFen = fen;
+            }
+
+            fen = event.fen.split(' ').slice(0, 4).join(' ');
             percentages.push(percentage);
+
+            if (moveElement?.getAttribute('data-reached')) {
+                mergeIndex = percentages.length;
+            }
         }
     } else {
         if (missingPercentages > 0) {
             missingPercentages--;
         } else {
+
+            if (mergeIndex === percentages.length) {
+                mergeIndex = null;
+            }
+
+            fen = event.fen.split(' ').slice(0, 4).join(' ');
             percentages.pop();
+
+            if (baseIndex === percentages.length) {
+                baseIndex = null;
+            }
         }
     }
     build_moves();
 }
 
 function build_moves() {
-    let movesInput = document.getElementById('build_moves_form_lanMoves');
-    movesInput.value = board.getLanMoves();
 
-    console.log(percentages);
-    console.log(missingPercentages);
+    let fenInput = document.getElementById('build_moves_form_fen');
+    fenInput.value = fen;
+
+    let divergedInput = document.getElementById('build_moves_form_diverged');
+    divergedInput.checked = baseIndex !== null;
+
+    let mergedInput = document.getElementById('build_moves_form_merged');
+    mergedInput.checked = mergeIndex !== null;
+
+    let movesInput = document.getElementById('build_moves_form_lanMoves');
+    movesInput.value = missingPercentages > 0 ? board.getLanMoves().slice(-missingPercentages).join(' ') : '';
 
     let percentageInput = document.getElementById('build_moves_form_expectedPercentage');
     percentageInput.value = percentages.length > 0 ? percentages[percentages.length - 1] : 1;
 
-    let missingPercentagesInput = document.getElementById('build_moves_form_missingPercentages');
-    missingPercentagesInput.value = missingPercentages;
+    console.log("Build moves", { baseIndex }, { mergeIndex }, { fen }, { percentages }, { missingPercentages }, { lanMoves: missingPercentages > 0 ? board.getLanMoves().slice(-missingPercentages).join(' ') : '' });
 
     form.requestSubmit();
 }
 
 function save_moves() {
+
+    let fenInput = document.getElementById('save_moves_form_fen');
+    fenInput.value = baseFen;
+
     let movesInput = document.getElementById('save_moves_form_lanMoves');
-    movesInput.value = board.getLanMoves();
+    movesInput.value = board.getLanMoves().slice(baseIndex).join(' ');
     saveForm.requestSubmit();
 }
 
@@ -105,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let course = JSON.parse(document.querySelector('.js-course').getAttribute('data-course'));
 
     // TODO get fen from course and check if ' 0 1' needed
-    board = new AnalysisChessboardEngine(document.getElementById('board'), course.blackOrientation ? 'b' : 'w', null, [], fen + ' 0 1');
+    board = new AnalysisChessboardEngine(document.getElementById('board'), course.blackOrientation ? 'b' : 'w', null, [], startingFen + ' 0 1');
 
     form = document.querySelector('form[name="build_moves_form"]');
     saveForm = document.querySelector('form[name="save_moves_form"]');
@@ -121,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function () {
     build_moves();
 
     document.addEventListener('turbo:submit-start', (event) => {
-        console.log('submit-start');
+        // console.log('submit-start');
         formSubmitting = event.detail.formSubmission;
 
         let formName = formSubmitting.formElement.getAttribute('name');
@@ -143,12 +176,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.addEventListener('turbo:submit-end', (event) => {
-        console.log('submit-end');
+        // console.log('submit-end');
         stream_count = 0;
     });
 
     document.addEventListener('turbo:before-stream-render', (event) => {
-        console.log('before-stream-render');
+        // console.log('before-stream-render');
         stream_count++;
 
         let formName = formSubmitting.formElement.getAttribute('name');
@@ -166,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.addEventListener('turbo:after-stream-render', (event) => {
-        console.log('after-stream-render');
+        // console.log('after-stream-render');
         stream_count--;
 
         if (stream_count < 1) {
@@ -180,14 +213,24 @@ document.addEventListener('DOMContentLoaded', function () {
                     saveButton.classList.remove('disabled');
                 }
                 if (missingPercentages > 0) {
-                    let percentages = JSON.parse(document.getElementById('build_moves').getAttribute('data-missing-percentages'));
-                    if (percentages.length === missingPercentages) {
-                        percentages.forEach(percentage => {
-                            if (typeof percentage !== 'undefined' && percentage !== null) {
+                    let dataElement = document.getElementById('build_moves');
+                    let percentagesMissing = JSON.parse(dataElement.getAttribute('data-missing-percentages'));
+                    if (percentagesMissing.length === missingPercentages) {
+                        percentagesMissing.forEach(percentage => {
+                            if (percentage != null) {
                                 missingPercentages--;
                                 percentages.push(percentage);
                             }
                         });
+
+                        let indexDiverge = JSON.parse(dataElement.getAttribute('data-diverge-index'));
+                        if (indexDiverge != null) {
+                            baseIndex = percentages.length - percentagesMissing.length + indexDiverge;
+                        }
+                        let indexMerge = JSON.parse(dataElement.getAttribute('data-merge-index'));
+                        if (indexMerge != null) {
+                            mergeIndex = percentages.length - percentagesMissing.length + indexMerge + 1;
+                        }
                     }
                 }
                 if (buildingFormLinks !== null) {
@@ -220,7 +263,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const url = new URL(JSON.parse(document.getElementById('mercure-url').textContent));
     const env_url = new URL(document.getElementById('mercure-url').getAttribute('data-mercure-url'));
 
-    console.log(url.href);
+    console.log("Mercure url", url.href);
 
     let eventSource;
     if (url.origin !== env_url.origin || url.pathname !== env_url.pathname) {
@@ -231,8 +274,8 @@ document.addEventListener('DOMContentLoaded', function () {
         eventSource.onmessage = event => {
             if (!whole) {
                 let data = JSON.parse(event.data);
-                console.log(data);
-                if (data.courseId === course.id && data.baseFen === fen && data.lanMoves === board.getLanMoves()) {
+                console.log("Message received", data);
+                if (data.fen === fen) {
                     build_moves();
                     whole = true;
                 }

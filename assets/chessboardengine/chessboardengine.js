@@ -116,7 +116,7 @@ export class ChessboardEngine {
 
     _moveInputFinished() {
 
-        this._fireMoveEvent({});
+        this._fireMoveEvent();
     }
 
     _inputHandler(event) {
@@ -140,7 +140,7 @@ export class ChessboardEngine {
     _fireMoveEvent(event) {
         if (this.#movePlayedCallback) {
             let move = this._chess.currentMove();
-            this.#movePlayedCallback({ index: move === null ? 0 : move.ply, lan: move?.lan, san: move?.san, ...event });
+            this.#movePlayedCallback({ index: move === null ? 0 : move.ply, lan: move?.lan, san: move?.san, fen: this._chess.fen(), ...event });
         }
     }
 
@@ -341,10 +341,14 @@ export class ChessboardEngine {
         this._board.removeArrows();
     }
 
+    /**
+     * 
+     * @returns string[]
+     */
     getLanMoves() {
         return this._chess.history().map(move => {
             return move.lan;
-        }).join(' ');
+        });
     }
 
     getPGNMoves() {

@@ -93,12 +93,12 @@ class CourseController extends AbstractController
         $fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
 
         $formData = [
-            'baseFen' => $fen,
+            'fen' => $fen,
             'lanMoves' => [],
             'expectedPercentage' => 1,
         ];
 
-        $form = $factory->createNamed('build_moves_form', BuildLanMovesType::class, $formData, ['action' => $this->generateUrl('app_position_build_moves', ['course' => $course->getId(), 'baseFen' => $fen])]);
+        $form = $factory->createNamed('build_moves_form', BuildLanMovesType::class, $formData, ['action' => $this->generateUrl('app_position_build_moves', ['course' => $course->getId(), 'startingFen' => $fen])]);
 
         $saveForm = $factory->createNamed('save_moves_form', BuildLanMovesType::class, $formData, ['action' => $this->generateUrl('app_move_save_moves', ['course' => $course->getId(), 'baseFen' => $fen])]);
 

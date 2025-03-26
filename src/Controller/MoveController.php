@@ -108,5 +108,9 @@ class MoveController extends AbstractController
                 ]);
             }
         }
+
+        return $this->render('move/index.html.twig', [
+            'controller_name' => 'MoveController',
+        ]);
     }
 }

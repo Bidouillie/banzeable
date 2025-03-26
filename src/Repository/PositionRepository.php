@@ -44,4 +44,30 @@ class PositionRepository extends ServiceEntityRepository
             return $carry;
         }, []);
     }
+
+    /**
+     * @return array<string,float>
+     */
+    public function findCompletionGroupedByFen(Course $course, string|array $fen)
+    {
+        $qb = $this->createQueryBuilder('position')
+            ->select('position.fen, position.completion')
+            ->andWhere('position.course = :course');
+
+        if (is_array($fen)) {
+            $qb->andWhere('position.fen IN (:fen)');
+        } else {
+            $qb->andWhere('position.fen = :fen');
+        }
+
+        $qb->setParameter('course', $course);
+        $qb->setParameter('fen', $fen);
+
+        $positions = $qb->getQuery()->getArrayResult();
+
+        return array_reduce($positions, function ($carry, $position) {
+            $carry[$position['fen']] = floatval($position['completion']);
+            return $carry;
+        }, []);
+    }
 }

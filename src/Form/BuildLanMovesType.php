@@ -7,9 +7,7 @@ use Chess\FenToBoardFactory;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\Form\Exception\TransformationFailedException;
-use Symfony\Component\Form\Extension\Core\Type\IntegerType;
-use Symfony\Component\Form\Extension\Core\Type\NumberType;
-use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -20,17 +18,19 @@ class BuildLanMovesType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('baseFen', TextType::class)
-            ->add('lanMoves', TextType::class, [
+            ->add('fen', Type\TextType::class, [
                 'required' => false,
             ])
-            ->add('expectedPercentage', NumberType::class, [
-                'constraints' => [
-                    new Assert\PositiveOrZero(),
-                ],
-            ])
-            ->add('missingPercentages', IntegerType::class, [
+            ->add('diverged', Type\CheckboxType::class, [
                 'required' => false,
+            ])
+            ->add('merged', Type\CheckboxType::class, [
+                'required' => false,
+            ])
+            ->add('lanMoves', Type\TextType::class, [
+                'required' => false,
+            ])
+            ->add('expectedPercentage', Type\NumberType::class, [
                 'constraints' => [
                     new Assert\PositiveOrZero(),
                 ],
@@ -46,18 +46,18 @@ class BuildLanMovesType extends AbstractType
                 }, $moves ?? []));
             },
             function (?string $lans): array {
-                if(empty($lans)) {
+                if (empty($lans)) {
                     return [];
                 }
 
-                if (!preg_match('/^(([a-h][0-9]){2}( |$))*/', $lans)) {
+                if (!preg_match('/^(([a-h][0-9]){2}( |$))*$/', $lans)) {
                     throw new TransformationFailedException("The lan moves string is not correctly formatted");
                 }
                 return array_map(function (string $lanMove) {
                     $move = new Move();
                     $move->setLan($lanMove);
                     return $move;
-                }, explode(' ', $lans));
+                }, explode(' ', trim($lans)));
             }
         ));
     }
@@ -75,16 +75,7 @@ class BuildLanMovesType extends AbstractType
     {
         if (isset($form['lanMoves'])) {
 
-            if (isset($form['missingPercentages'])) {
-                if ($form['missingPercentages'] > count($form['lanMoves'])) {
-                    $context->buildViolation(sprintf("Number of missing percentages is too high (%d missing for only %d move%s)", $form['missingPercentages'], count($form['lanMoves']), count($form['lanMoves']) > 1 ? 's' : ''))
-                        ->atPath('missingPercentages')
-                        ->addViolation()
-                    ;
-                }
-            }
-
-            $board = FenToBoardFactory::create($form['baseFen']);
+            $board = FenToBoardFactory::create($form['fen']);
 
             /**
              * @var Move $move

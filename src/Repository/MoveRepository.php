@@ -48,4 +48,29 @@ class MoveRepository extends ServiceEntityRepository
 
         return $movesGrouped;
     }
+
+    /**
+     * @return array<string,array<string,true>>
+     */
+    public function findSavedGroupedByFenLan(Course $course, array $fens): array
+    {
+        $qb = $this->createQueryBuilder('move')
+            ->select('move.fenFrom, move.lan')
+            ->andWhere('move.course = :course')
+            ->andWhere('move.fenFrom IN (:fens)')
+            ->setParameter('course', $course)
+            ->setParameter('fens', $fens);
+
+        $moves = $qb->getQuery()->getArrayResult();
+
+        $movesGrouped = array_reduce($moves, function ($carry, $move) {
+            if (!isset($carry[$move['fenFrom']])) {
+                $carry[$move['fenFrom']] = [];
+            }
+            $carry[$move['fenFrom']][$move['lan']] = true;
+            return $carry;
+        }, []);
+
+        return $movesGrouped;
+    }
 }

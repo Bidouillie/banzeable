@@ -10,7 +10,6 @@ use App\Message\LoadMovesRequired;
 use App\Message\PreloadMyMoves;
 use App\Message\PreloadOppMoves;
 use App\Repository\MoveRepository;
-use App\Repository\PositionRepository;
 use App\Service\MoveBuilderService;
 use Chess\FenToBoardFactory;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,8 +34,8 @@ class PositionController extends AbstractController
     }
 
     #[IsGranted('IS_AUTHENTICATED')]
-    #[Route('/build-moves/{course}/{baseFen}', name: 'app_position_build_moves', requirements: ['course' => '\d+', 'baseFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMoves(?Course $course, ?string $baseFen, Request $request, FormFactoryInterface $factory, MoveRepository $moveRepo, PositionRepository $positionRepo, MoveBuilderService $mbService, MessageBusInterface $bus): Response
+    #[Route('/build-moves/{course}/{startingFen}', name: 'app_position_build_moves', requirements: ['course' => '\d+', 'startingFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
+    public function buildMoves(?Course $course, ?string $startingFen, Request $request, FormFactoryInterface $factory, MoveRepository $moveRepo, MoveBuilderService $mbService, MessageBusInterface $bus): Response
     {
         // TODO Check if the course is a repertoire
         $this->denyAccessUnlessGranted('course.owns', $course);
@@ -51,51 +50,52 @@ class PositionController extends AbstractController
 
             if ($form->isSubmitted() && $form->isValid()) {
 
+                $fen = $form->get('fen')->getData();
+
                 /**
                  * @var array<Move> $movesPlayed
                  */
                 $movesPlayed = $form->get('lanMoves')->getData();
 
+                $diverged = $form->get('diverged')->getData();
+
+                $merged = $form->get('merged')->getData();
+
                 $expectedPercentage = floatval($form->get('expectedPercentage')->getData() ?? 1);
-                $missingPercentages = intval($form->get('missingPercentages')->getData() ?? 0);
 
                 // TODO check if form data is consistent
 
-                if ($missingPercentages > 0) {
+                if (count($movesPlayed) > 0) {
 
-                    if ($missingPercentages > 5) {
+                    if (count($movesPlayed) > 10) {
                         throw new HttpException(425, "Too many requests");
                     }
 
-                    $moves = array_slice($movesPlayed, -$missingPercentages);
+                    if (!$diverged) {
+                        $movesSavedByFenLan = $moveRepo->findSavedGroupedByFenLan($course, array_map(function ($move) {
+                            return $move->getFenFrom();
+                        }, $movesPlayed));
+                    }
 
-                    $startingTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create(reset($moves)->getFenFrom())->turn;
+                    $startingTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create(reset($movesPlayed)->getFenFrom())->turn;
 
-                    $expectedPercentages = $mbService->getExpectedPercentage($course, $startingTurn, $moves, $expectedPercentage, $fensToLoad);
+                    $expectedPercentages = $mbService->getExpectedPercentage($course, $startingTurn, $movesPlayed, $expectedPercentage, $fensToLoad, $movesSavedByFenLan ?? null, $divergeIndex, $mergeIndex);
 
                     /**
                      * @var null|float $expectedPercentage
                      */
                     $expectedPercentage = empty($expectedPercentages) ? null : end($expectedPercentages);
-
-                    var_dump($expectedPercentages);
                 }
 
-                $fen = empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo();
+                $fen = empty($movesPlayed) ? $fen ?? $startingFen : end($movesPlayed)->getFenTo();
 
                 if (isset($expectedPercentage)) {
                     $movesSavedByLan = $moveRepo->findGroupedByLan($course, $fen);
-
-                    if (count($movesSavedByLan) > 0) {
-                        $positionsReached = $positionRepo->findGroupedByFen($course, array_map(function ($move) {
-                            return $move->getFenTo();
-                        }, $movesSavedByLan));
-                    }
                 }
 
                 $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
-                $movesToPlay = $mbService->buildCandidateMoves($fen, $myTurn, $expectedPercentage, $movesSavedByLan ?? null, $positionsReached ?? null, $myTurn, $saved);
+                $movesToPlay = $mbService->buildCandidateMoves($course, $fen, $myTurn, $expectedPercentage, $movesSavedByLan ?? null, $myTurn, $saved);
 
                 if ($myTurn) {
                     foreach ($movesToPlay as $key => $movestat) {
@@ -157,9 +157,11 @@ class PositionController extends AbstractController
                     'course' => $course,
                     'my_turn' => ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn,
                     'moves_forms' => $movesToPlay,
-                    'can_save' => !empty($newMovesPlayed),
+                    'can_save' => !!$diverged,
                     'moves_whole' => !isset($message),
                     'missing_percentages' => $expectedPercentages ?? [],
+                    'diverge_index' => $divergeIndex ?? null,
+                    'merge_index' => $mergeIndex ?? null,
                 ]);
             }
         }

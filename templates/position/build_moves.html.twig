@@ -7,7 +7,7 @@
 
 <turbo-stream action="update" target="course_build-moves_{{ course.id }}_body">
     <template>
-        <div id="build_moves" class="tw-grid tw-grid-cols-12 tw-gap-7 tw-p-2" data-can-save="{{ can_save|json_encode }}" data-moves-whole="{{ moves_whole|json_encode }}" data-missing-percentages="{{ missing_percentages|map(p => p|number_format(5))|json_encode }}">
+        <div id="build_moves" class="tw-grid tw-grid-cols-12 tw-gap-7 tw-p-2" data-can-save="{{ can_save|json_encode }}" data-moves-whole="{{ moves_whole|json_encode }}" data-missing-percentages="{{ missing_percentages|map(p => p|number_format(5))|json_encode }}" data-diverge-index="{{ diverge_index|json_encode }}" data-merge-index="{{ merge_index|json_encode }}">
             <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }}">Move</div>
             {% if not my_turn %}
                 <div class="tw-col-span-3">Coverage</div>
@@ -25,15 +25,15 @@
             {% set move = move_form.move %}
             {% set popularity = move_form.popularity %}
             {% set expected = my_turn ? move_form.selected_masters : move_form.expected_percentage %}
-            <a href="#" class="list-group-item list-group-item-action build_moves {% if not move_form.show %}d-none{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" {% if (move_form.expected_percentage ?? null) is not null %}data-expected="{{ move_form.expected_percentage }}"{% endif %} onclick="return false">
+            <a href="#" class="list-group-item list-group-item-action build_moves {% if not move_form.show %}d-none{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" data-saved="{{ move_form.saved }}" data-reached="{{ not move_form.saved and (move_form.completion ?? null) is not null }}" {% if (move_form.expected_percentage ?? null) is not null %}data-expected="{{ move_form.expected_percentage }}"{% endif %} onclick="return false">
                 <div class="tw-grid tw-grid-cols-12 tw-gap-7 tw-items-center">
-                    <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif (move_form.completion ?? null) is not null %} ✔{% endif %}</div>
+                    <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif (move_form.completion ?? null) is not null %} 🎯{% endif %}</div>
                     {% if not my_turn %}
                         <!--div class="tw-col-span-1 tw-flex tw-items-center">
                             {{ (move_form.selected is defined ? (move_form.selected|format_number(style: 'percent')) : null) }}
                         </div-->
                         <div class="tw-col-span-3 tw-flex tw-items-center">
-                        {% if (move_form.completion ?? null) is not null %}
+                        {% if move_form.saved and (move_form.completion ?? null) is not null %}
                             <div class="progress tw-grow" style="height: 7px">
                                 <div class="progress-bar bg-info" style="width:{{ (move_form.completion * 100)|round }}%"></div>
                             </div>
