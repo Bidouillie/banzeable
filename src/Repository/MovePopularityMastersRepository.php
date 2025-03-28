@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\DTO\MovePopularityMastersWithTotalDTO;
 use App\Entity\MovePopularityMasters;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -28,16 +29,17 @@ class MovePopularityMastersRepository extends ServiceEntityRepository
     /**
      * @param string $fen
      * 
-     * @return null|false|array{nbGames:int,moves:array<string,MovePopularityMasters>}
+     * @return null|false|array{nbGames:int,moves:array<string,MovePopularityMastersWithTotalDTO>}
      */
     public function findGroupedByLan(string $fen)
     {
         $qb = $this->createQueryBuilder('mp')
+            ->select(sprintf('NEW %s(mp.lan, mp.white + mp.black + mp.draws)', MovePopularityMastersWithTotalDTO::class))
             ->andWhere('mp.fen = :fen')
             ->setParameter('fen', $fen);
 
         /**
-         * @var MovePopularityMasters[] $moves
+         * @var MovePopularityMastersWithTotalDTO[] $moves
          */
         $moves = $qb->getQuery()->getResult();
 
@@ -50,14 +52,13 @@ class MovePopularityMastersRepository extends ServiceEntityRepository
             'moves' => [],
         ];
         foreach ($moves as $move) {
-            if ($move->getLan() === '-') {
-                $total = $move->getTotal();
-                if (!isset($total)) {
+            if ($move->lan === '-') {
+                if (!isset($move->total)) {
                     return false;
                 }
-                $movesGrouped['nbGames'] = $total;
+                $movesGrouped['nbGames'] = $move->total;
             } else {
-                $movesGrouped['moves'][$move->getLan()] = $move;
+                $movesGrouped['moves'][$move->lan] = $move;
             }
         }
 

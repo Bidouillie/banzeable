@@ -30,7 +30,7 @@
                     <div class="{{ my_turn ? 'tw-col-span-3' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif (move_form.completion ?? null) is not null %} 🎯{% endif %}</div>
                     {% if not my_turn %}
                         <!--div class="tw-col-span-1 tw-flex tw-items-center">
-                            {{ (move_form.selected is defined ? (move_form.selected|format_number(style: 'percent')) : null) }}
+                            {{ ((move_form.selected ?? null) is not null ? (move_form.selected|format_number(style: 'percent')) : null) }}
                         </div-->
                         <div class="tw-col-span-3 tw-flex tw-items-center">
                         {% if move_form.saved and (move_form.completion ?? null) is not null %}

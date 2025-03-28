@@ -94,7 +94,11 @@ final class LoadMovesHandler
     {
         $this->handleMessage($message);
 
-        $this->hub->publish(new Update('course-builder', json_encode($message)));
+        try {
+            $this->logger->info($this->hub->publish(new Update('course-builder', json_encode($message))));
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+        }
     }
 
     #[AsMessageHandler]
@@ -102,7 +106,11 @@ final class LoadMovesHandler
     {
         $this->handleMessage($message);
 
-        $this->hub->publish(new Update('course-builder', json_encode($message)));
+        try {
+            $this->logger->info($this->hub->publish(new Update('course-builder', json_encode($message))));
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+        }
     }
 
     #[AsMessageHandler]

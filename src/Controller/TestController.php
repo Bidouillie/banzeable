@@ -3,7 +3,6 @@
 namespace App\Controller;
 
 use App\Message\LoadMovesOptional;
-use App\Repository\MovePopularityRepository;
 use Chess\Variant\Classical\Board;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,10 +13,8 @@ use Symfony\Component\Routing\Attribute\Route;
 class TestController extends AbstractController
 {
     #[Route('/test', name: 'app_test')]
-    public function index(MovePopularityRepository $repo): Response
+    public function index(): Response
     {
-        $moves = $repo->findSavedByFenGrouped('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -');
-        var_dump($moves);
 
         return $this->render('test/index.html.twig', [
             'controller_name' => 'TestController',

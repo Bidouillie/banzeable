@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\DTO\MovePopularityWithTotalDTO;
 use App\Entity\MovePopularity;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -28,16 +29,17 @@ class MovePopularityRepository extends ServiceEntityRepository
     /**
      * @param string $fen
      * 
-     * @return null|false|array{nbGames:int,moves:array<string,MovePopularity>}
+     * @return null|false|array{nbGames:int,moves:array<string,MovePopularityWithTotalDTO>}
      */
-    public function findGroupedByLan(string $fen)
+    public function findWithTotalGroupedByLan(string $fen)
     {
         $qb = $this->createQueryBuilder('mp')
+            ->select(sprintf('NEW %s(mp.fen, mp.lan, mp.white, mp.black, mp.draws, mp.white + mp.black + mp.draws)', MovePopularityWithTotalDTO::class))
             ->andWhere('mp.fen = :fen')
             ->setParameter('fen', $fen);
 
         /**
-         * @var MovePopularity[] $moves
+         * @var MovePopularityWithTotalDTO[] $moves
          */
         $moves = $qb->getQuery()->getResult();
 
@@ -50,14 +52,13 @@ class MovePopularityRepository extends ServiceEntityRepository
             'moves' => [],
         ];
         foreach ($moves as $move) {
-            if ($move->getLan() === '-') {
-                $total = $move->getTotal();
-                if (!isset($total)) {
+            if ($move->lan === '-') {
+                if (!isset($move->total)) {
                     return false;
                 }
-                $movesGrouped['nbGames'] = $total;
+                $movesGrouped['nbGames'] = $move->total;
             } else {
-                $movesGrouped['moves'][$move->getLan()] = $move;
+                $movesGrouped['moves'][$move->lan] = $move;
             }
         }
 
@@ -68,30 +69,30 @@ class MovePopularityRepository extends ServiceEntityRepository
     public function findGroupedByFenLan(array $fens)
     {
         $qb = $this->createQueryBuilder('mp')
+            ->select(sprintf('NEW %s(mp.fen, mp.lan, mp.white, mp.black, mp.draws, mp.white + mp.black + mp.draws)', MovePopularityWithTotalDTO::class))
             ->andWhere('mp.fen in (:fens)')
             ->setParameter('fens', $fens);
 
         /**
-         * @var MovePopularity[] $moves
+         * @var MovePopularityWithTotalDTO[] $moves
          */
         $moves = $qb->getQuery()->getResult();
 
         $movesGrouped = [];
         foreach ($moves as $move) {
-            if (!isset($movesGrouped[$move->getFen()])) {
-                $movesGrouped[$move->getFen()] = [
+            if (!isset($movesGrouped[$move->fen])) {
+                $movesGrouped[$move->fen] = [
                     'moves' => [],
                 ];
             }
-            if ($move->getLan() === '-') {
-                $total = $move->getTotal();
-                if (isset($total)) {
-                    $movesGrouped[$move->getFen()]['nbGames'] = $total;
+            if ($move->fen === '-') {
+                if (isset($move->total)) {
+                    $movesGrouped[$move->fen]['nbGames'] = $move->total;
                 } else {
-                    $movesGrouped[$move->getFen()] = false;
+                    $movesGrouped[$move->fen] = false;
                 }
             } else {
-                $movesGrouped[$move->getFen()]['moves'][$move->getLan()] = $move;
+                $movesGrouped[$move->fen]['moves'][$move->lan] = $move;
             }
         }
 
