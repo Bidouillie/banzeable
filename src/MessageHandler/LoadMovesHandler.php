@@ -18,14 +18,18 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 final class LoadMovesHandler
 {
+    private readonly LoggerInterface $logger;
+
     public function __construct(
         private MovePopularityRepository $repo,
         private MovePopularityMastersRepository $mastersRepo,
         private EntityManagerInterface $em,
         private MoveLoaderService $mlService,
         private HubInterface $hub,
-        private LoggerInterface $logger,
-    ) {}
+        LoggerInterface $lichessApiLogger,
+    ) {
+        $this->logger = $lichessApiLogger;
+    }
 
     private function handleMessage(LoadMoves $message)
     {

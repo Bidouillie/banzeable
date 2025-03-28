@@ -13,14 +13,18 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 class MoveLoaderService
 {
+    private readonly LoggerInterface $logger;
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly MovePopularityRepository $repo,
         private readonly MovePopularityMastersRepository $mastersRepo,
         private readonly LichessApiService $lichessApi,
         private readonly MessageBusInterface $bus,
-        private readonly LoggerInterface $logger,
-    ) {}
+        LoggerInterface $lichessApiLogger,
+    ) {
+        $this->logger = $lichessApiLogger;
+    }
 
     public function loadMastersMoves(string $fen, ?int &$nbGames = 0)
     {

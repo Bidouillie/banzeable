@@ -7,6 +7,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class LichessApiService
 {
+    private readonly LoggerInterface $logger;
+
     private string $apiUrl;
     private string $explorerUrl;
 
@@ -18,13 +20,14 @@ class LichessApiService
 
     public function __construct(
         private readonly HttpClientInterface $client,
-        private readonly LoggerInterface $logger,
+        LoggerInterface $lichessApiLogger,
     ) {
         $this->apiUrl = "https://lichess.org/api";
         $this->explorerUrl = "https://explorer.lichess.ovh";
+        $this->logger = $lichessApiLogger;
     }
 
-    public function getMastersMoves(string $fen, int $since = null, int $until = null)
+    public function getMastersMoves(string $fen, ?int $since = null, ?int $until = null)
     {
         $this->logger->info('getMastersMoves ' . $fen);
 
@@ -52,7 +55,7 @@ class LichessApiService
         }
     }
 
-    public function getLichessMoves(string $fen, string $variant = null, array $speeds = null, array $ratings = null, int $since = null, int $until = null)
+    public function getLichessMoves(string $fen, ?string $variant = null, ?array $speeds = null, ?array $ratings = null, ?int $since = null, ?int $until = null)
     {
         $this->logger->info('getLichessMoves ' . $fen);
 
