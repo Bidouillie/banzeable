@@ -33,12 +33,12 @@ class Move
     #[ORM\ManyToOne(inversedBy: 'nextMoves')]
     #[ORM\JoinColumn(name: 'course_id', referencedColumnName: 'course_id', nullable: false)]
     #[ORM\JoinColumn(name: 'fen_from', referencedColumnName: 'fen', nullable: false)]
-    private ?Position $positionFrom = null;
+    private ?RepertoirePosition $positionFrom = null;
 
     #[ORM\ManyToOne(inversedBy: 'previousMoves')]
     #[ORM\JoinColumn(name: 'course_id', referencedColumnName: 'course_id', nullable: false)]
     #[ORM\JoinColumn(name: 'fen_to', referencedColumnName: 'fen', nullable: false)]
-    private ?Position $positionTo = null;
+    private ?RepertoirePosition $positionTo = null;
 
     private ?AbstractBoard $board = null;
 
@@ -115,12 +115,12 @@ class Move
         return $this;
     }
 
-    public function getPositionFrom(): ?Position
+    public function getPositionFrom(): ?RepertoirePosition
     {
         return $this->positionFrom;
     }
 
-    public function setPositionFrom(?Position $positionFrom): static
+    public function setPositionFrom(?RepertoirePosition $positionFrom): static
     {
         $this->positionFrom = $positionFrom;
         $this->fenFrom = $positionFrom->getFen();
@@ -128,12 +128,12 @@ class Move
         return $this;
     }
 
-    public function getPositionTo(): ?Position
+    public function getPositionTo(): ?RepertoirePosition
     {
         return $this->positionTo;
     }
 
-    public function setPositionTo(?Position $positionTo): static
+    public function setPositionTo(?RepertoirePosition $positionTo): static
     {
         $this->positionTo = $positionTo;
         $this->fenTo = $positionTo->getFen();

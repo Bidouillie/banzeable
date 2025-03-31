@@ -3,18 +3,18 @@
 namespace App\Repository;
 
 use App\Entity\Course;
-use App\Entity\Position;
+use App\Entity\RepertoirePosition;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<Position>
+ * @extends ServiceEntityRepository<RepertoirePosition>
  */
-class PositionRepository extends ServiceEntityRepository
+class RepertoirePositionRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, Position::class);
+        parent::__construct($registry, RepertoirePosition::class);
     }
 
     /**

@@ -6,10 +6,10 @@ use App\DTO\MovePopularityWithTotalDTO;
 use App\Entity\Course;
 use App\Entity\Move;
 use App\Entity\MovePopularity;
-use App\Entity\Position;
+use App\Entity\RepertoirePosition;
 use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
-use App\Repository\PositionRepository;
+use App\Repository\RepertoirePositionRepository;
 use Chess\FenToBoardFactory;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -21,7 +21,7 @@ class MoveBuilderService
     private $course;
 
     /**
-     * @var array<string,array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
+     * @var array<string,array{position:RepertoirePosition,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
      */
     private $positions;
 
@@ -33,7 +33,7 @@ class MoveBuilderService
     public function __construct(
         private readonly MovePopularityRepository $mpRepo,
         private readonly MovePopularityMastersRepository $mpMastersRepo,
-        private readonly PositionRepository $positionRepo,
+        private readonly RepertoirePositionRepository $rPosRepo,
     ) {}
 
     /**
@@ -51,7 +51,7 @@ class MoveBuilderService
         $diverged = !isset($movesSaved);
         $merged = false;
 
-        $positions = $this->positionRepo->findExpectedPercentageGroupedByFen($course, array_map(function ($move) {
+        $positions = $this->rPosRepo->findExpectedPercentageGroupedByFen($course, array_map(function ($move) {
             return $move->getFenTo();
         }, $moves));
 
@@ -142,7 +142,7 @@ class MoveBuilderService
             }
         }
 
-        $completions = $this->positionRepo->findCompletionGroupedByFen($course, array_map(function ($move) {
+        $completions = $this->rPosRepo->findCompletionGroupedByFen($course, array_map(function ($move) {
             return $move['fen'];
         }, $moves));
 
@@ -199,7 +199,7 @@ class MoveBuilderService
      * @param array<Move> $movesPlayed
      * @param array<Move> $newMovesPlayed
      * @param array<string,array{moves:array<string,MovePopularity>,nbGames:int}> $movePopularitiesByFenLan
-     * @param array<string,Position> $positions
+     * @param array<string,RepertoirePosition> $positions
      */
     public function populateMoves(Course $course, string $baseFen, array &$movesPlayed, ?array &$newMovesPlayed = null, ?array &$movePopularitiesByFenLan = null, ?array &$positions = null)
     {
@@ -242,7 +242,7 @@ class MoveBuilderService
             $move->setCourse($course);
 
             if (!isset($positions[$fenTo])) {
-                $position = new Position();
+                $position = new RepertoirePosition();
                 $position->setCourse($course);
                 $position->setFen($fenTo);
 
@@ -308,8 +308,8 @@ class MoveBuilderService
     }
 
     /**
-     * @param array<string,array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
-     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
+     * @param array<string,array{position:RepertoirePosition,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
+     * @param array{position:RepertoirePosition,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
      */
     public function updateExpectedPercentage(array $positions, array $position)
     {
@@ -318,7 +318,7 @@ class MoveBuilderService
     }
 
     /**
-     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
+     * @param array{position:RepertoirePosition,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
      */
     private function updateExpectedPercentageRecursive(array $position)
     {
@@ -336,9 +336,9 @@ class MoveBuilderService
 
     /**
      * @param Course $course
-     * @param array<string,array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
+     * @param array<string,array{position:RepertoirePosition,previousMoves:array<string,Move>,nextMoves:array<string,Move>}> $positions
      * @param array<string,array{moves:array<string,MovePopularityWithTotalDTO>,nbGames:int}> $movePopularitiesByFenLan
-     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
+     * @param array{position:RepertoirePosition,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
      */
     public function updateCompletion(Course $course, array $positions, array $movePopularitiesByFenLan, array $position)
     {
@@ -349,7 +349,7 @@ class MoveBuilderService
     }
 
     /**
-     * @param array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
+     * @param array{position:RepertoirePosition,previousMoves:array<string,Move>,nextMoves:array<string,Move>} $position
      */
     private function updateCompletionRecursive(array $position)
     {

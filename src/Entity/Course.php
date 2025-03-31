@@ -62,9 +62,9 @@ class Course
     private Collection $variations;
 
     /**
-     * @var Collection<int,Position>
+     * @var Collection<int,RepertoirePosition>
      */
-    #[ORM\OneToMany(targetEntity: Position::class, mappedBy: 'course', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: RepertoirePosition::class, mappedBy: 'course', orphanRemoval: true)]
     private Collection $positions;
 
     /**
@@ -260,7 +260,7 @@ class Course
     }
 
     /**
-     * @return Collection<int,Position>
+     * @return Collection<int,RepertoirePosition>
      */
     public function getPositions(): Collection
     {
@@ -268,11 +268,11 @@ class Course
     }
 
     /**
-     * @return array<string,array{position:Position,previousMoves:array<string,Move>,nextMoves:array<string,Move>}>
+     * @return array<string,array{position:RepertoirePosition,previousMoves:array<string,Move>,nextMoves:array<string,Move>}>
      */
     public function getPositionsByFen(): array
     {
-        return array_reduce($this->getPositions()->getValues(), function ($carry, Position $position) {
+        return array_reduce($this->getPositions()->getValues(), function ($carry, RepertoirePosition $position) {
             $carry[$position->getFen()] = [
                 'position' => $position,
                 'previousMoves' => [],
@@ -282,7 +282,7 @@ class Course
         }, []);
     }
 
-    public function addPosition(Position $position): static
+    public function addPosition(RepertoirePosition $position): static
     {
         if (!$this->positions->contains($position)) {
             $this->positions->add($position);
@@ -292,7 +292,7 @@ class Course
         return $this;
     }
 
-    public function removePosition(Position $position): static
+    public function removePosition(RepertoirePosition $position): static
     {
         if ($this->positions->removeElement($position)) {
             // set the owning side to null (unless already changed)

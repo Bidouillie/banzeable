@@ -2,15 +2,15 @@
 
 namespace App\Entity;
 
-use App\Repository\PositionRepository;
+use App\Repository\RepertoirePositionRepository;
 use Chess\FenToBoardFactory;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: PositionRepository::class)]
-class Position
+#[ORM\Entity(repositoryClass: RepertoirePositionRepository::class)]
+class RepertoirePosition
 {
     #[ORM\Id]
     #[ORM\Column(length: 255)]
@@ -154,7 +154,7 @@ class Position
     }
 
     //TODO optimize
-    public function isAncestorPosition(Position $position)
+    public function isAncestorPosition(RepertoirePosition $position)
     {
         if ($this->getFen() === $position->getFen()) {
             return true;

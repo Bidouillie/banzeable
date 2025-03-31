@@ -41,14 +41,8 @@ final class LoadMovesHandler
         $this->logger->info($info);
 
         if ($loadMoves) {
+
             $mpSaved = $this->repo->findSavedByFenGrouped($message->fens);
-        }
-
-        if ($loadMastersMoves) {
-            $mpSavedMasters = $this->mastersRepo->findSavedByFenGrouped($message->fens);
-        }
-
-        if ($loadMoves) {
 
             $fensLoaded = $fensFailed = 0;
             foreach ($message->fens as $fen) {
@@ -71,6 +65,8 @@ final class LoadMovesHandler
         }
 
         if ($loadMastersMoves) {
+            
+            $mpSavedMasters = $this->mastersRepo->findSavedByFenGrouped($message->fens);
 
             $fensLoaded = $fensFailed = 0;
             foreach ($message->fens as $fen) {
