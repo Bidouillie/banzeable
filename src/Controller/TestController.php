@@ -23,7 +23,7 @@ class TestController extends AbstractController
 
     private function reloadMoves(HubInterface $hub)
     {
-        $hub->publish(new Update('course-builder', json_encode(new LoadMovesOptional('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -'))));
+        $hub->publish(new Update('course-builder', json_encode(new LoadMovesOptional('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -', true, true))));
     }
 
     private function checkCastleLan()

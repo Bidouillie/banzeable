@@ -2,14 +2,12 @@
 
 namespace App\Message;
 
-class LoadMoves
+final class LoadEvaluations
 {
     /**
      * @param string[] $fens
      */
     public function __construct(
         public array $fens,
-        public bool $amateurs,
-        public bool $masters,
     ) {}
 }

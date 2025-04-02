@@ -9,6 +9,7 @@ use App\Entity\MovePopularity;
 use App\Entity\RepertoirePosition;
 use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
+use App\Repository\PositionRepository;
 use App\Repository\RepertoirePositionRepository;
 use Chess\FenToBoardFactory;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -34,6 +35,7 @@ class MoveBuilderService
         private readonly MovePopularityRepository $mpRepo,
         private readonly MovePopularityMastersRepository $mpMastersRepo,
         private readonly RepertoirePositionRepository $rPosRepo,
+        private readonly PositionRepository $posRepo,
     ) {}
 
     /**
@@ -93,7 +95,7 @@ class MoveBuilderService
                     $expectedPercentage = $expectedPercentages[$key];
                 } elseif ($myTurn) {
                     $expectedPercentages[$key] = $expectedPercentage;
-                } elseif (isset($this->movePopularitiesByFenLan[$move->getFenFrom()]) && $this->movePopularitiesByFenLan[$move->getFenFrom()] !== false) {
+                } elseif (!empty($this->movePopularitiesByFenLan[$move->getFenFrom()])) {
                     $expectedPercentage *= $this->movePopularitiesByFenLan[$move->getFenFrom()]['nbGames'] > 0 && isset($this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]) ? ($this->movePopularitiesByFenLan[$move->getFenFrom()]['moves'][$move->getLan()]->total / $this->movePopularitiesByFenLan[$move->getFenFrom()]['nbGames']) : 0;
                     $expectedPercentages[$key] = $expectedPercentage;
                 } else {
@@ -114,9 +116,9 @@ class MoveBuilderService
      * @param null|float $expectedPercentage
      * @param null|array<string,Move> $movesSavedByLan
      * @param bool $masters
-     * @param bool $saved
+     * @param int $nbMovesSaved
      */
-    public function buildCandidateMoves(Course $course, string $fen, bool $myTurn, ?float $expectedPercentage, ?array $movesSavedByLan, bool $masters, ?bool &$saved = null)
+    public function buildCandidateMoves(Course $course, string $fen, bool $myTurn, ?float $expectedPercentage, ?array $movesSavedByLan, bool $masters, ?int &$nbMovesSaved = null)
     {
         $movesPopularities = $this->movePopularitiesByFenLan[$fen] ?? $this->mpRepo->findWithTotalGroupedByLan($fen);
 
@@ -127,7 +129,8 @@ class MoveBuilderService
         $board = FenToBoardFactory::create($fen);
         $pieces = $board->pieces($board->turn);
 
-        $moves = [];
+        $fens = [];
+        $candidates = [];
         foreach ($pieces as $piece) {
             foreach ($board->legal($piece->sq) as $sq) {
                 $lan = $piece->sq . $sq;
@@ -135,56 +138,59 @@ class MoveBuilderService
                 $board2 = FenToBoardFactory::create($fen);
                 $board2->playLan($board2->turn, $lan);
 
-                $moves[] = [
+                $fenTo = $board2->toFen();
+
+                $fens[] = $fenTo;
+
+                $candidates[] = [
+                    'fenTo' => $fenTo,
                     'lan' => $lan,
-                    'fen' => $board2->toFen(),
                 ];
             }
         }
 
-        $completions = $this->rPosRepo->findCompletionGroupedByFen($course, array_map(function ($move) {
-            return $move['fen'];
-        }, $moves));
+        $completions = $this->rPosRepo->findCompletionGroupedByFen($course, $fens);
 
-        $saved = false;
+        $positions = $this->posRepo->findGroupedByFenDTO($fens);
+
+        $nbMovesSaved = 0;
 
         $movestats = [];
-        foreach ($moves as $move) {
+        foreach ($candidates as $candidate) {
 
-            $fenTo = $move['fen'];
-            $lan = $move['lan'];
+            $lan = $candidate['lan'];
 
-            $moveSaved = false;
+            $selectedPercentage = empty($movesPopularities) ? null : ($movesPopularities['nbGames'] > 0 && isset($movesPopularities['moves'][$lan]) ? $movesPopularities['moves'][$lan]->total / $movesPopularities['nbGames'] : 0);
 
-            $selected = empty($movesPopularities) ? null : ($movesPopularities['nbGames'] > 0 && isset($movesPopularities['moves'][$lan]) ? $movesPopularities['moves'][$lan]->total / $movesPopularities['nbGames'] : 0);
-
-            $selectedMasters = empty($movesPopularitiesMasters) ? null : ($movesPopularitiesMasters['nbGames'] > 0 && isset($movesPopularitiesMasters['moves'][$lan]) ? $movesPopularitiesMasters['moves'][$lan]->total / $movesPopularitiesMasters['nbGames'] : 0);
+            $selectedPercentageMasters = empty($movesPopularitiesMasters) ? null : ($movesPopularitiesMasters['nbGames'] > 0 && isset($movesPopularitiesMasters['moves'][$lan]) ? $movesPopularitiesMasters['moves'][$lan]->total / $movesPopularitiesMasters['nbGames'] : 0);
 
             if (isset($movesSavedByLan[$lan])) {
                 $move = $movesSavedByLan[$lan];
-                $saved = $moveSaved = true;
+                $nbMovesSaved++;
 
                 $moveExpectedPercentage = $expectedPercentage * $movesSavedByLan[$lan]->getSelectedPercentage();
             } else {
                 $move = new Move();
                 $move->setFenFrom($fen);
-                $move->setFenTo($fenTo);
+                $move->setFenTo($candidate['fenTo']);
                 $move->setLan($lan);
 
-                if (isset($expectedPercentage) && ($myTurn || isset($selected))) {
-                    $moveExpectedPercentage = $expectedPercentage * ($myTurn ? 1 : $selected);
+                if (isset($expectedPercentage) && ($myTurn || isset($selectedPercentage))) {
+                    $moveExpectedPercentage = $expectedPercentage * ($myTurn ? 1 : $selectedPercentage);
                 }
             }
 
             $movestat = [
                 'move' => $move,
-                'saved' => $moveSaved,
+                'saved' => isset($movesSavedByLan[$lan]),
                 'popularity' => $movesPopularities['moves'][$lan] ?? null,
-                'selected' => $selected,
+                'selected_percentage' => $selectedPercentage,
                 'popularity_masters' => $movesPopularitiesMasters['moves'][$lan] ?? null,
-                'selected_masters' => $selectedMasters,
+                'selected_percentage_masters' => $selectedPercentageMasters,
                 'expected_percentage' => isset($moveExpectedPercentage) && !in_array($moveExpectedPercentage, [0, 1]) ? number_format($moveExpectedPercentage, 5) : $moveExpectedPercentage ?? null,
                 'completion' => $completions[$move->getFenTo()] ?? null,
+                'eval' => isset($positions[$candidate['fenTo']]) && $positions[$candidate['fenTo']]->mate !== 0 ? $positions[$candidate['fenTo']]->mate ?? $positions[$candidate['fenTo']]->evaluation ?? null : null,
+                'mate' => isset($positions[$candidate['fenTo']]->mate) && $positions[$candidate['fenTo']]->mate !== 0,
             ];
 
             $movestats[] = $movestat;

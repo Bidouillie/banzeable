@@ -10,7 +10,6 @@ use App\Message\PreloadOppMoves;
 use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
 use App\Service\MoveLoaderService;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -18,29 +17,21 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 final class LoadMovesHandler
 {
-    private readonly LoggerInterface $logger;
-
     public function __construct(
         private MovePopularityRepository $repo,
         private MovePopularityMastersRepository $mastersRepo,
-        private EntityManagerInterface $em,
         private MoveLoaderService $mlService,
         private HubInterface $hub,
-        LoggerInterface $lichessApiLogger,
-    ) {
-        $this->logger = $lichessApiLogger;
-    }
+        private LoggerInterface $logger,
+        private LoggerInterface $lichessApiLogger,
+    ) {}
 
     private function handleMessage(LoadMoves $message)
     {
-        $loadMoves = isset($message->masters) ? !$message->masters : true;
-        $loadMastersMoves = isset($message->masters) ? $message->masters : true;
+        $info = "Loading moves from " . (count($message->fens) === 1 ? "fen " . reset($message->fens) : count($message->fens) . " fens");
+        $this->lichessApiLogger->info($info);
 
-        $info = "Loading " . (isset($message->masters) ? ($message->masters ? "masters " : "amateurs ") : '') . "moves ";
-        $info .= "from " . (count($message->fens) === 1 ? "fen " . reset($message->fens) : count($message->fens) . " fens");
-        $this->logger->info($info);
-
-        if ($loadMoves) {
+        if ($message->amateurs) {
 
             $mpSaved = $this->repo->findSavedByFenGrouped($message->fens);
 
@@ -49,7 +40,7 @@ final class LoadMovesHandler
 
                 if (!isset($mpSaved[$fen])) {
                     if (!$this->mlService->loadAmateursMoves($fen)) {
-                        throw new \Exception("Loading amateurs moves from $fen failed");
+                        throw new \Exception("Loading amateurs moves from fen $fen failed");
                     }
                     $fensLoaded++;
                 } elseif (!$mpSaved[$fen]) {
@@ -57,15 +48,15 @@ final class LoadMovesHandler
                 }
             }
 
-            $this->logger->info(sprintf("%d amateurs position%s loaded", $fensLoaded, $fensLoaded > 1 ? 's' : ''));
+            $this->lichessApiLogger->info(sprintf("%d amateurs position%s loaded", $fensLoaded, $fensLoaded > 1 ? 's' : ''));
 
             if ($fensFailed > 0) {
-                $this->logger->info(sprintf("%d amateurs position%s already failed", $fensFailed, $fensFailed > 1 ? 's' : ''));
+                $this->lichessApiLogger->info(sprintf("%d amateurs position%s already failed", $fensFailed, $fensFailed > 1 ? 's' : ''));
             }
         }
 
-        if ($loadMastersMoves) {
-            
+        if ($message->masters) {
+
             $mpSavedMasters = $this->mastersRepo->findSavedByFenGrouped($message->fens);
 
             $fensLoaded = $fensFailed = 0;
@@ -73,7 +64,7 @@ final class LoadMovesHandler
 
                 if (!isset($mpSavedMasters[$fen])) {
                     if (!$this->mlService->loadMastersMoves($fen)) {
-                        throw new \Exception("Loading masters moves from $fen failed");
+                        throw new \Exception("Loading masters moves from fen $fen failed");
                     }
                     $fensLoaded++;
                 } elseif (!$mpSavedMasters[$fen]) {
@@ -81,10 +72,10 @@ final class LoadMovesHandler
                 }
             }
 
-            $this->logger->info(sprintf("%d masters position%s loaded", $fensLoaded, $fensLoaded > 1 ? 's' : ''));
+            $this->lichessApiLogger->info(sprintf("%d masters position%s loaded", $fensLoaded, $fensLoaded > 1 ? 's' : ''));
 
             if ($fensFailed > 0) {
-                $this->logger->info(sprintf("%d masters position%s already failed", $fensFailed, $fensFailed > 1 ? 's' : ''));
+                $this->lichessApiLogger->info(sprintf("%d masters position%s already failed", $fensFailed, $fensFailed > 1 ? 's' : ''));
             }
         }
     }

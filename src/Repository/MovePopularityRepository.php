@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\DTO\MovePopularityWithTotalDTO;
+use App\DTO\MovePopularityWithTotalFenDTO;
 use App\Entity\MovePopularity;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -34,7 +35,7 @@ class MovePopularityRepository extends ServiceEntityRepository
     public function findWithTotalGroupedByLan(string $fen)
     {
         $qb = $this->createQueryBuilder('mp')
-            ->select(sprintf('NEW %s(mp.fen, mp.lan, mp.white, mp.black, mp.draws, mp.white + mp.black + mp.draws)', MovePopularityWithTotalDTO::class))
+            ->select(sprintf('NEW %s(mp.lan, mp.white, mp.black, mp.draws, mp.white + mp.black + mp.draws)', MovePopularityWithTotalDTO::class))
             ->andWhere('mp.fen = :fen')
             ->setParameter('fen', $fen);
 
@@ -66,15 +67,18 @@ class MovePopularityRepository extends ServiceEntityRepository
     }
 
     // TODO search by whole id (variant, speeds...)
+    /**
+     * @return array<false|array{nbGames:int,moves:array<string,MovePopularityWithTotalDTO>}>
+     */
     public function findGroupedByFenLan(array $fens)
     {
         $qb = $this->createQueryBuilder('mp')
-            ->select(sprintf('NEW %s(mp.fen, mp.lan, mp.white, mp.black, mp.draws, mp.white + mp.black + mp.draws)', MovePopularityWithTotalDTO::class))
+            ->select(sprintf('NEW %s(mp.fen, mp.lan, mp.white, mp.black, mp.draws, mp.white + mp.black + mp.draws)', MovePopularityWithTotalFenDTO::class))
             ->andWhere('mp.fen in (:fens)')
             ->setParameter('fens', $fens);
 
         /**
-         * @var MovePopularityWithTotalDTO[] $moves
+         * @var MovePopularityWithTotalFenDTO[] $moves
          */
         $moves = $qb->getQuery()->getResult();
 
@@ -85,7 +89,7 @@ class MovePopularityRepository extends ServiceEntityRepository
                     'moves' => [],
                 ];
             }
-            if ($move->fen === '-') {
+            if ($move->lan === '-') {
                 if (isset($move->total)) {
                     $movesGrouped[$move->fen]['nbGames'] = $move->total;
                 } else {
@@ -102,31 +106,19 @@ class MovePopularityRepository extends ServiceEntityRepository
     /**
      * @return array<string,bool>
      */
-    public function findSavedByFenGrouped(string|array $fen, array $criteria = [])
+    public function findSavedByFenGrouped(array $fens)
     {
         $qb = $this->createQueryBuilder('mp')
-            ->select('mp.fen, mp.white')
-            ->andWhere('mp.lan = :lan');
-
-        if (is_array($fen)) {
-            $qb->andWhere('mp.fen IN (:fen)');
-        } else {
-            $qb->andWhere('mp.fen = :fen');
-        }
-        foreach (array_keys($criteria) as $key) {
-            $qb->andWhere("mp.$key = :$key");
-        }
-
-        $qb->setParameter('lan', '-');
-        $qb->setParameter('fen', $fen);
-        foreach ($criteria as $key => $value) {
-            $qb->setParameter($key, $value);
-        }
+            ->select('mp.fen, mp.white + mp.black + mp.draws AS total')
+            ->andWhere('mp.lan = :lan')
+            ->andWhere('mp.fen IN (:fens)')
+            ->setParameter('lan', '-')
+            ->setParameter('fens', $fens);
 
         $moves = $qb->getQuery()->getArrayResult();
 
         return array_reduce($moves, function ($carry, $move) {
-            $carry[$move['fen']] = isset($move['white']);
+            $carry[$move['fen']] = isset($move['total']);
             return $carry;
         }, []);
     }

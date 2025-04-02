@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Course;
 use App\Entity\Move;
 use App\Form\BuildLanMovesType;
+use App\Message\LoadEvaluations;
 use App\Message\LoadMovesOptional;
 use App\Message\LoadMovesRequired;
 use App\Message\PreloadMyMoves;
@@ -95,17 +96,25 @@ class PositionController extends AbstractController
 
                 $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
-                $movesToPlay = $mbService->buildCandidateMoves($course, $fen, $myTurn, $expectedPercentage, $movesSavedByLan ?? null, $myTurn, $saved);
+                $movesToPlay = $mbService->buildCandidateMoves($course, $fen, $myTurn, $expectedPercentage, $movesSavedByLan ?? null, $myTurn, $nbMovesSaved);
 
                 if ($myTurn) {
-                    foreach ($movesToPlay as $key => $movestat) {
-                        $movesToPlay[$key]['show'] = ($saved && $movestat['saved']) || (!$saved && isset($movestat['selected_masters']) && $movestat['selected_masters'] > 1 / 100);
+                    if ($nbMovesSaved > 0) {
+                        foreach ($movesToPlay as $key => $movestat) {
+                            $movesToPlay[$key]['show'] = $movestat['saved'];
+                        }
+                    } else {
+                        foreach ($movesToPlay as $key => $movestat) {
+                            $movesToPlay[$key]['show'] = isset($movestat['selected_percentage_masters']) && $movestat['selected_percentage_masters'] > 1 / 100;
+                        }
                     }
                 } else {
-                    $threshold = isset($expectedPercentage) && $expectedPercentage > 0 ? $course->getTrueCoverage() / $expectedPercentage : null;
+                    if (isset($expectedPercentage) && $expectedPercentage > 0) {
+                        $threshold = $course->getTrueCoverage() / $expectedPercentage;
 
-                    foreach ($movesToPlay as $key => $movestat) {
-                        $movesToPlay[$key]['show'] = isset($threshold) && isset($movestat['selected']) && $movestat['selected'] > $threshold;
+                        foreach ($movesToPlay as $key => $movestat) {
+                            $movesToPlay[$key]['show'] = isset($movestat['selected_percentage']) && $movestat['selected_percentage'] > $threshold;
+                        }
                     }
                 }
 
@@ -116,11 +125,11 @@ class PositionController extends AbstractController
                 if (isset($expectedPercentage)) {
                     $movestat = reset($movesToPlay);
                     if ($movestat !== 'false') {
-                        $load = !isset($movestat['selected']);
+                        $load = !isset($movestat['selected_percentage']);
                         if ($myTurn) {
-                            $loadMasters = !isset($movestat['selected_masters']);
+                            $loadMasters = !isset($movestat['selected_percentage_masters']);
                             if ($load || $loadMasters) {
-                                $messages[] = new LoadMovesOptional($fen, $load && $loadMasters ? null : $loadMasters);
+                                $messages[] = new LoadMovesOptional($fen, $load, $loadMasters);
                             }
 
                             if (!$loadMasters) {
@@ -134,13 +143,14 @@ class PositionController extends AbstractController
 
                         if (isset($preload)) {
                             $fensToPreload = array_reduce($movesToPlay, function ($carry, $movestat) {
-                                if ($movestat['show']) {
+                                if (!empty($movestat['show'])) {
                                     $carry[] = $movestat['move']->getFenTo();
                                 }
                                 return $carry;
                             }, []);
 
                             if (count($fensToPreload) > 0) {
+                                $messages[] = new LoadEvaluations($fensToPreload);
                                 $messages[] = $myTurn ? new PreloadOppMoves($fensToPreload) : new PreloadMyMoves($fensToPreload);
                             }
                         }

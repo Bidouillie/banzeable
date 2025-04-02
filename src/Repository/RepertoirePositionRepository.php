@@ -20,25 +20,19 @@ class RepertoirePositionRepository extends ServiceEntityRepository
     /**
      * @return array<string,float>
      */
-    public function findExpectedPercentageGroupedByFen(Course $course, string|array $fen)
+    public function findExpectedPercentageGroupedByFen(Course $course, array $fens)
     {
         $qb = $this->createQueryBuilder('p')
-            ->select('p.fen, p.expected_percentage')
-            ->andWhere('p.course = :course');
-
-        if (is_array($fen)) {
-            $qb->andWhere('p.fen IN (:fen)');
-        } else {
-            $qb->andWhere('p.fen = :fen');
-        }
-
-        $qb->setParameter('course', $course);
-        $qb->setParameter('fen', $fen);
+            ->select('p.fen, p.expectedPercentage')
+            ->andWhere('p.course = :course')
+            ->andWhere('p.fen IN (:fens)')
+            ->setParameter('course', $course)
+            ->setParameter('fens', $fens);
 
         $positions = $qb->getQuery()->getArrayResult();
 
         return array_reduce($positions, function ($carry, $position) {
-            $carry[$position['fen']] = floatval($position['expected_percentage']);
+            $carry[$position['fen']] = floatval($position['expectedPercentage']);
             return $carry;
         }, []);
     }
@@ -46,20 +40,14 @@ class RepertoirePositionRepository extends ServiceEntityRepository
     /**
      * @return array<string,float>
      */
-    public function findCompletionGroupedByFen(Course $course, string|array $fen)
+    public function findCompletionGroupedByFen(Course $course, array $fens)
     {
         $qb = $this->createQueryBuilder('p')
             ->select('p.fen, p.completion')
-            ->andWhere('p.course = :course');
-
-        if (is_array($fen)) {
-            $qb->andWhere('p.fen IN (:fen)');
-        } else {
-            $qb->andWhere('p.fen = :fen');
-        }
-
-        $qb->setParameter('course', $course);
-        $qb->setParameter('fen', $fen);
+            ->andWhere('p.course = :course')
+            ->andWhere('p.fen IN (:fens)')
+            ->setParameter('course', $course)
+            ->setParameter('fens', $fens);
 
         $positions = $qb->getQuery()->getArrayResult();
 

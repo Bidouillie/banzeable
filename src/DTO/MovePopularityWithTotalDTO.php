@@ -11,7 +11,6 @@ class MovePopularityWithTotalDTO
      * @param int $total
      */
     public function __construct(
-        public readonly string $fen,
         public readonly string $lan,
         public readonly ?int $white,
         public readonly ?int $black,

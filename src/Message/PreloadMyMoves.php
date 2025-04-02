@@ -4,12 +4,9 @@ namespace App\Message;
 
 final class PreloadMyMoves extends LoadMoves
 {
-    /**
-     * @param string[] $fens
-     */
     public function __construct(
         public array $fens,
     ) {
-        $this->masters = null;
+        parent::__construct($fens, true, true);
     }
 }

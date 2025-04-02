@@ -39,6 +39,10 @@ class RepertoirePosition
     #[ORM\OneToMany(targetEntity: Move::class, mappedBy: 'positionFrom', orphanRemoval: true)]
     private Collection $nextMoves;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'fen', referencedColumnName: 'fen', nullable: false)]
+    private ?Position $position = null;
+
     public function __construct()
     {
         $this->previousMoves = new ArrayCollection();
@@ -174,5 +178,18 @@ class RepertoirePosition
     public function isMyTurn(): bool
     {
         return ($this->getCourse()->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($this->getFen())->turn;
+    }
+
+    public function getPosition(): ?Position
+    {
+        return $this->position;
+    }
+
+    public function setPosition(?Position $position): static
+    {
+        $this->position = $position;
+        $this->fen = $position->getFen();
+
+        return $this;
     }
 }

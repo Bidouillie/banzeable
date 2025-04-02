@@ -29,7 +29,7 @@ class LichessApiService
 
     public function getMastersMoves(string $fen, ?int $since = null, ?int $until = null)
     {
-        $this->logger->info('getMastersMoves ' . $fen);
+        $this->logger->info("Downloading masters moves from fen $fen");
 
         $url = $this->explorerUrl . '/masters';
 
@@ -49,15 +49,18 @@ class LichessApiService
 
             $content = $response->toArray();
             $responseMoves = $content['moves'];
+            unset($content['moves']);
             array_unshift($responseMoves, ['san' => '-', ...$content]);
 
             return $responseMoves;
+        } else {
+            $this->logger->error(sprintf("Problem downloading masters moves : HTTP status code %d", $response->getStatusCode()));
         }
     }
 
-    public function getLichessMoves(string $fen, ?string $variant = null, ?array $speeds = null, ?array $ratings = null, ?int $since = null, ?int $until = null)
+    public function getAmateursMoves(string $fen, ?string $variant = null, ?array $speeds = null, ?array $ratings = null, ?int $since = null, ?int $until = null)
     {
-        $this->logger->info('getLichessMoves ' . $fen);
+        $this->logger->info("Downloading amateurs moves from fen $fen");
 
         $url = $this->explorerUrl . '/lichess';
 
@@ -84,9 +87,50 @@ class LichessApiService
 
             $content = $response->toArray();
             $responseMoves = $content['moves'];
+            unset($content['moves']);
             array_unshift($responseMoves, ['san' => '-', ...$content]);
 
             return $responseMoves;
+        } else {
+            $this->logger->error(sprintf("Problem downloading amateurs moves : HTTP status code %d", $response->getStatusCode()));
+        }
+    }
+
+    /**
+     * @return null|array{cp:?int,mate:?int}
+     */
+    public function getEvaluation(string $fen)
+    {
+        $this->logger->info('getLichessMoves ' . $fen);
+
+        $url = $this->apiUrl . '/cloud-eval';
+
+        $query = [
+            'fen' => $fen,
+            'multiPv' => 0,
+        ];
+
+        $response = $this->client->request('GET', $url, [
+            'query' => $query,
+        ]);
+
+        if ($response->getStatusCode() === 200) {
+
+            $content = $response->toArray();
+
+            $variation = reset($content['pvs']);
+
+            if ($variation !== false) {
+
+                $evaluation = [
+                    'cp' => $variation['cp'] ?? null,
+                    'mate' => $variation['mate'] ?? null,
+                ];
+
+                return $evaluation;
+            }
+        } else {
+            $this->logger->error(sprintf("Problem downloading evaluation : HTTP status code %d", $response->getStatusCode()));
         }
     }
 }
