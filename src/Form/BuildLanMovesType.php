@@ -73,6 +73,13 @@ class BuildLanMovesType extends AbstractType
 
     public static function validate($form, ExecutionContextInterface $context)
     {
+        if (!empty($form['merged']) && empty($form['diverged'])) {
+            $context->buildViolation("Moves cannot have merged without diverging")
+                ->atPath('merged')
+                ->addViolation()
+            ;
+        }
+
         if (isset($form['lanMoves'])) {
 
             $board = FenToBoardFactory::create($form['fen']);

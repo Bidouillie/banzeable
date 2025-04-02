@@ -9,6 +9,7 @@ use App\Entity\MovePopularity;
 use App\Entity\RepertoirePosition;
 use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
+use App\Repository\MoveRepository;
 use App\Repository\PositionRepository;
 use App\Repository\RepertoirePositionRepository;
 use Chess\FenToBoardFactory;
@@ -34,6 +35,7 @@ class MoveBuilderService
     public function __construct(
         private readonly MovePopularityRepository $mpRepo,
         private readonly MovePopularityMastersRepository $mpMastersRepo,
+        private readonly MoveRepository $moveRepo,
         private readonly RepertoirePositionRepository $rPosRepo,
         private readonly PositionRepository $posRepo,
     ) {}
@@ -43,15 +45,19 @@ class MoveBuilderService
      * @param bool $myTurnStart
      * @param Move[] $moves
      * @param float $expectedPercentage
+     * @param bool $diverged
+     * @param bool $merged
      * @param string[] $mpMissingFens
-     * @param null|array<string,array<string,true>> $movesSaved
      * @param null|int $divergeIndex
      * @param null|int $mergeIndex
      */
-    public function getExpectedPercentage(Course $course, bool $myTurnStart, array $moves, float $expectedPercentage, ?array &$mpMissingFens, ?array $movesSaved, ?int &$divergeIndex, ?int &$mergeIndex)
+    public function getExpectedPercentage(Course $course, bool $myTurnStart, array $moves, float $expectedPercentage, bool $diverged, bool $merged, ?array &$mpMissingFens, ?int &$divergeIndex, ?int &$mergeIndex)
     {
-        $diverged = !isset($movesSaved);
-        $merged = false;
+        if (!$diverged) {
+            $movesSaved = $this->moveRepo->findSavedGroupedByFenLan($course, array_map(function ($move) {
+                return $move->getFenFrom();
+            }, $moves));
+        }
 
         $positions = $this->rPosRepo->findExpectedPercentageGroupedByFen($course, array_map(function ($move) {
             return $move->getFenTo();
@@ -118,14 +124,8 @@ class MoveBuilderService
      * @param bool $masters
      * @param int $nbMovesSaved
      */
-    public function buildCandidateMoves(Course $course, string $fen, bool $myTurn, ?float $expectedPercentage, ?array $movesSavedByLan, bool $masters, ?int &$nbMovesSaved = null)
+    public function buildCandidateMoves(Course $course, string $fen, bool $myTurn, ?float $expectedPercentage, bool $masters, ?int &$nbMovesSaved = null)
     {
-        $movesPopularities = $this->movePopularitiesByFenLan[$fen] ?? $this->mpRepo->findWithTotalGroupedByLan($fen);
-
-        if ($masters) {
-            $movesPopularitiesMasters = $this->mpMastersRepo->findGroupedByLan($fen);
-        }
-
         $board = FenToBoardFactory::create($fen);
         $pieces = $board->pieces($board->turn);
 
@@ -149,12 +149,21 @@ class MoveBuilderService
             }
         }
 
+        $movesPopularities = $this->movePopularitiesByFenLan[$fen] ?? $this->mpRepo->findWithTotalGroupedByLan($fen);
+
+        if ($masters) {
+            $movesPopularitiesMasters = $this->mpMastersRepo->findGroupedByLan($fen);
+        }
+
+        if (isset($expectedPercentage)) {
+            $movesSavedByLan = $this->moveRepo->findGroupedByLan($course, $fen);
+        }
+
         $completions = $this->rPosRepo->findCompletionGroupedByFen($course, $fens);
 
-        $positions = $this->posRepo->findGroupedByFenDTO($fens);
+        $positions = $this->posRepo->findEvaluationGroupedByFen($fens);
 
         $nbMovesSaved = 0;
-
         $movestats = [];
         foreach ($candidates as $candidate) {
 

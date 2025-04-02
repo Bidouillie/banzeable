@@ -25,7 +25,7 @@ class PositionRepository extends ServiceEntityRepository
         return parent::findOneBy($criteria, $orderBy);
     }
 
-    public function findGroupedByFenDTO(array $fens)
+    public function findEvaluationGroupedByFen(array $fens)
     {
         $qb = $this->createQueryBuilder('p')
             ->select(sprintf('NEW %s(p.fen, p.evaluation, p.mate)', PositionEvaluationDTO::class))

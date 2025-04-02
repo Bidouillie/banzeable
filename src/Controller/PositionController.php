@@ -58,10 +58,6 @@ class PositionController extends AbstractController
                  */
                 $movesPlayed = $form->get('lanMoves')->getData();
 
-                $diverged = $form->get('diverged')->getData();
-
-                $merged = $form->get('merged')->getData();
-
                 $expectedPercentage = floatval($form->get('expectedPercentage')->getData() ?? 1);
 
                 // TODO check if form data is consistent
@@ -72,15 +68,13 @@ class PositionController extends AbstractController
                         throw new HttpException(425, "Too many requests");
                     }
 
-                    if (!$diverged) {
-                        $movesSavedByFenLan = $moveRepo->findSavedGroupedByFenLan($course, array_map(function ($move) {
-                            return $move->getFenFrom();
-                        }, $movesPlayed));
-                    }
+                    $diverged = boolval($form->get('diverged')->getData());
+    
+                    $merged = boolval($form->get('merged')->getData());
 
                     $startingTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create(reset($movesPlayed)->getFenFrom())->turn;
 
-                    $expectedPercentages = $mbService->getExpectedPercentage($course, $startingTurn, $movesPlayed, $expectedPercentage, $fensToLoad, $movesSavedByFenLan ?? null, $divergeIndex, $mergeIndex);
+                    $expectedPercentages = $mbService->getExpectedPercentage($course, $startingTurn, $movesPlayed, $expectedPercentage, $diverged, $merged, $fensToLoad, $divergeIndex, $mergeIndex);
 
                     /**
                      * @var null|float $expectedPercentage
@@ -90,13 +84,9 @@ class PositionController extends AbstractController
 
                 $fen = empty($movesPlayed) ? $fen ?? $startingFen : end($movesPlayed)->getFenTo();
 
-                if (isset($expectedPercentage)) {
-                    $movesSavedByLan = $moveRepo->findGroupedByLan($course, $fen);
-                }
-
                 $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
-                $movesToPlay = $mbService->buildCandidateMoves($course, $fen, $myTurn, $expectedPercentage, $movesSavedByLan ?? null, $myTurn, $nbMovesSaved);
+                $movesToPlay = $mbService->buildCandidateMoves($course, $fen, $myTurn, $expectedPercentage, $myTurn, $nbMovesSaved);
 
                 if ($myTurn) {
                     if ($nbMovesSaved > 0) {
@@ -167,7 +157,7 @@ class PositionController extends AbstractController
                     'course' => $course,
                     'my_turn' => ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn,
                     'moves_forms' => $movesToPlay,
-                    'can_save' => !!$diverged,
+                    'can_save' => !empty($diverged),
                     'moves_whole' => !isset($message),
                     'missing_percentages' => $expectedPercentages ?? [],
                     'diverge_index' => $divergeIndex ?? null,
