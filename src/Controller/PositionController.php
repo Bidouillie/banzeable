@@ -136,7 +136,7 @@ class PositionController extends AbstractController
                                 $preload = true;
                             }
                         } elseif ($load) {
-                            $messages[] = new LoadMovesRequired([$fen]);
+                            $messages[] = new LoadMovesRequired($fen, [$fen]);
                         } else {
                             $preload = true;
                         }
@@ -150,13 +150,13 @@ class PositionController extends AbstractController
                             }, []);
 
                             if (count($fensToPreload) > 0) {
-                                $messages[] = new LoadEvaluations($fensToPreload);
+                                $messages[] = new LoadEvaluations($fen, $fensToPreload);
                                 $messages[] = $myTurn ? new PreloadOppMoves($fensToPreload) : new PreloadMyMoves($fensToPreload);
                             }
                         }
                     }
                 } elseif (!empty($fensToLoad)) {
-                    $messages[] = new LoadMovesRequired($fensToLoad);
+                    $messages[] = new LoadMovesRequired($fen, $fensToLoad);
                 }
 
                 foreach ($messages as $message) {

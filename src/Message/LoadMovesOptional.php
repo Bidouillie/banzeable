@@ -6,8 +6,8 @@ final class LoadMovesOptional extends LoadMoves
 {
     public function __construct(
         public string $fen,
-        public bool $amateurs,
-        public bool $masters,
+        bool $amateurs,
+        bool $masters,
     ) {
         parent::__construct([$fen], $amateurs, $masters);
     }

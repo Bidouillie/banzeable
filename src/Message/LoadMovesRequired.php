@@ -5,7 +5,8 @@ namespace App\Message;
 final class LoadMovesRequired extends LoadMoves
 {
     public function __construct(
-        public array $fens,
+        public string $fen,
+        array $fens,
     ) {
         parent::__construct($fens, true, false);
     }
