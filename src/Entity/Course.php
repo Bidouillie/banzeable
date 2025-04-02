@@ -15,7 +15,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 class Course
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
+    #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
     #[ORM\Column]
     #[Serializer\Groups(['Default'])]
     private ?int $id = null;

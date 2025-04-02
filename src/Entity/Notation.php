@@ -13,7 +13,7 @@ use Symfony\Component\Serializer\Annotation as Serializer;
 class Notation
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
+    #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
     #[ORM\Column]
     private ?int $id = null;
 
