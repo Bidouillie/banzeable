@@ -101,7 +101,7 @@ class LichessApiService
      */
     public function getEvaluation(string $fen)
     {
-        $this->logger->info('getLichessMoves ' . $fen);
+        $this->logger->info("Downloading evaluation for fen $fen");
 
         $url = $this->apiUrl . '/cloud-eval';
 
@@ -114,7 +114,24 @@ class LichessApiService
             'query' => $query,
         ]);
 
-        if ($response->getStatusCode() === 200) {
+        $statusCode = $response->getStatusCode();
+
+        if ($statusCode === 404) {
+
+            $content = $response->toArray(false);
+
+            if (isset($content['error']) && $content['error'] === "No cloud evaluation available for that position") {
+
+                $this->logger->warning(sprintf("{$content['error']} (HTTP status code %d)", $statusCode));
+
+                return $evaluation = [
+                    'cp' => null,
+                    'mate' => null,
+                ];
+            }
+        }
+
+        if ($statusCode === 200) {
 
             $content = $response->toArray();
 
@@ -130,7 +147,7 @@ class LichessApiService
                 return $evaluation;
             }
         } else {
-            $this->logger->error(sprintf("Problem downloading evaluation : HTTP status code %d", $response->getStatusCode()));
+            $this->logger->error(sprintf("Problem downloading evaluation : HTTP status code %d", $statusCode));
         }
     }
 }

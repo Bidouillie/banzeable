@@ -36,7 +36,7 @@ class Position
         return $this->evaluation;
     }
 
-    public function setEvaluation(string $evaluation): static
+    public function setEvaluation(?string $evaluation): static
     {
         $this->evaluation = $evaluation;
 

@@ -59,10 +59,9 @@ framework:
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
             App\Message\LoadMovesRequired: async_priority_main
-            App\Message\LoadMovesOptional: async_priority_high
-            App\Message\LoadEvaluations: async_priority_high
+            App\Message\LoadMovesImportant: async_priority_high
+            App\Message\LoadEvaluationsImportant: async_priority_high
+            App\Message\LoadMovesOptional: async_priority_medium
+            App\Message\LoadEvaluationsOptional: async_priority_medium
             App\Message\PreloadOppMoves: async_priority_medium
             App\Message\PreloadMyMoves: async_priority_low
-
-            # Route your messages to the transports
-            # 'App\Message\YourMessage': async

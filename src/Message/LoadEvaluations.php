@@ -2,7 +2,7 @@
 
 namespace App\Message;
 
-final class LoadEvaluations
+class LoadEvaluations
 {
     /**
      * @param string[] $fens

@@ -18,9 +18,7 @@ class BuildLanMovesType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('fen', Type\TextType::class, [
-                'required' => false,
-            ])
+            ->add('fen', Type\TextType::class)
             ->add('diverged', Type\CheckboxType::class, [
                 'required' => false,
             ])

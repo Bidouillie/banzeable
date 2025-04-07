@@ -51,7 +51,7 @@ class MoveBuilderService
      * @param null|int $divergeIndex
      * @param null|int $mergeIndex
      */
-    public function getExpectedPercentage(Course $course, bool $myTurnStart, array $moves, float $expectedPercentage, bool $diverged, bool $merged, ?array &$mpMissingFens, ?int &$divergeIndex, ?int &$mergeIndex)
+    public function getExpectedPercentage(Course $course, bool $myTurnStart, array $moves, float $expectedPercentage, bool &$diverged, bool $merged, ?array &$mpMissingFens, ?int &$divergeIndex, ?int &$mergeIndex)
     {
         if (!$diverged) {
             $movesSaved = $this->moveRepo->findSavedGroupedByFenLan($course, array_map(function ($move) {
@@ -121,10 +121,12 @@ class MoveBuilderService
      * @param bool $myturn
      * @param null|float $expectedPercentage
      * @param null|array<string,Move> $movesSavedByLan
-     * @param bool $masters
+     * @param bool $popularityLoaded
+     * @param bool $popularityMastersLoaded
      * @param int $nbMovesSaved
+     * @param array<string,true> $evalMissingFens
      */
-    public function buildCandidateMoves(Course $course, string $fen, bool $myTurn, ?float $expectedPercentage, bool $masters, ?int &$nbMovesSaved = null)
+    public function buildCandidateMoves(Course $course, string $fen, bool $myTurn, ?float $expectedPercentage, ?bool &$popularityLoaded, ?bool &$popularityMastersLoaded, ?int &$nbMovesSaved, ?array &$evalMissingFens)
     {
         $board = FenToBoardFactory::create($fen);
         $pieces = $board->pieces($board->turn);
@@ -151,9 +153,12 @@ class MoveBuilderService
 
         $movesPopularities = $this->movePopularitiesByFenLan[$fen] ?? $this->mpRepo->findWithTotalGroupedByLan($fen);
 
-        if ($masters) {
+        if ($myTurn) {
             $movesPopularitiesMasters = $this->mpMastersRepo->findGroupedByLan($fen);
         }
+
+        $popularityLoaded = !empty($movesPopularities);
+        $popularityMastersLoaded = !empty($movesPopularitiesMasters);
 
         if (isset($expectedPercentage)) {
             $movesSavedByLan = $this->moveRepo->findGroupedByLan($course, $fen);
@@ -164,7 +169,8 @@ class MoveBuilderService
         $positions = $this->posRepo->findEvaluationGroupedByFen($fens);
 
         $nbMovesSaved = 0;
-        $movestats = [];
+        $evalMissingFens = [];
+        $candidateMovestats = [];
         foreach ($candidates as $candidate) {
 
             $lan = $candidate['lan'];
@@ -189,7 +195,11 @@ class MoveBuilderService
                 }
             }
 
-            $movestat = [
+            if (!isset($positions[$candidate['fenTo']]) || $positions[$candidate['fenTo']]->mate === 0) {
+                $evalMissingFens[$candidate['fenTo']] = true;
+            }
+
+            $candidateMovestats[] = [
                 'move' => $move,
                 'saved' => isset($movesSavedByLan[$lan]),
                 'popularity' => $movesPopularities['moves'][$lan] ?? null,
@@ -201,11 +211,9 @@ class MoveBuilderService
                 'eval' => isset($positions[$candidate['fenTo']]) && $positions[$candidate['fenTo']]->mate !== 0 ? $positions[$candidate['fenTo']]->mate ?? $positions[$candidate['fenTo']]->evaluation ?? null : null,
                 'mate' => isset($positions[$candidate['fenTo']]->mate) && $positions[$candidate['fenTo']]->mate !== 0,
             ];
-
-            $movestats[] = $movestat;
         }
 
-        return $movestats;
+        return $candidateMovestats;
     }
 
     /**

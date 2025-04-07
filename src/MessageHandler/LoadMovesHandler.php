@@ -3,6 +3,7 @@
 namespace App\MessageHandler;
 
 use App\Message\LoadMoves;
+use App\Message\LoadMovesImportant;
 use App\Message\LoadMovesOptional;
 use App\Message\LoadMovesRequired;
 use App\Message\PreloadMyMoves;
@@ -51,7 +52,7 @@ final class LoadMovesHandler
             $this->lichessApiLogger->info(sprintf("%d amateurs position%s loaded", $fensLoaded, $fensLoaded > 1 ? 's' : ''));
 
             if ($fensFailed > 0) {
-                $this->lichessApiLogger->info(sprintf("%d amateurs position%s already failed", $fensFailed, $fensFailed > 1 ? 's' : ''));
+                $this->lichessApiLogger->warning(sprintf("%d amateurs position%s already failed", $fensFailed, $fensFailed > 1 ? 's' : ''));
             }
         }
 
@@ -59,7 +60,8 @@ final class LoadMovesHandler
 
             $mpSavedMasters = $this->mastersRepo->findSavedByFenGrouped($message->fens);
 
-            $fensLoaded = $fensFailed = 0;
+            $fensLoaded;
+            $fensFailed = [];
             foreach ($message->fens as $fen) {
 
                 if (!isset($mpSavedMasters[$fen])) {
@@ -68,20 +70,21 @@ final class LoadMovesHandler
                     }
                     $fensLoaded++;
                 } elseif (!$mpSavedMasters[$fen]) {
-                    $fensFailed++;
+                    $fensFailed[] = $fen;
                 }
             }
 
             $this->lichessApiLogger->info(sprintf("%d masters position%s loaded", $fensLoaded, $fensLoaded > 1 ? 's' : ''));
 
-            if ($fensFailed > 0) {
-                $this->lichessApiLogger->info(sprintf("%d masters position%s already failed", $fensFailed, $fensFailed > 1 ? 's' : ''));
+            if (count($fensFailed) > 0) {
+                $this->lichessApiLogger->warning(sprintf("%d masters position%s already failed", count($fensFailed), count($fensFailed) > 1 ? 's' : ''));
+                $this->lichessApiLogger->debug(implode(', ', $fensFailed));
             }
         }
     }
 
     #[AsMessageHandler]
-    public function handleLoadMovesOptional(LoadMovesOptional $message): void
+    public function handleLoadMovesRequired(LoadMovesRequired $message): void
     {
         $this->handleMessage($message);
 
@@ -93,7 +96,19 @@ final class LoadMovesHandler
     }
 
     #[AsMessageHandler]
-    public function handleLoadMovesRequired(LoadMovesRequired $message): void
+    public function handleLoadMovesImportant(LoadMovesImportant $message): void
+    {
+        $this->handleMessage($message);
+
+        try {
+            $this->logger->info($this->hub->publish(new Update('course-builder', json_encode($message))));
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+        }
+    }
+
+    #[AsMessageHandler]
+    public function handleLoadMovesOptional(LoadMovesOptional $message): void
     {
         $this->handleMessage($message);
 

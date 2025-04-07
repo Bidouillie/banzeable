@@ -28,7 +28,8 @@ final class LoadEvaluationsHandler
 
         $positions = $this->positionRepo->findGroupedByFen($message->fens);
 
-        $fensLoaded = $fensFailed = 0;
+        $fensLoaded = 0;
+        $fensFailed = [];
         foreach ($message->fens as $fen) {
             if (!isset($positions[$fen]) || $positions[$fen]->getMate() === 0) {
                 if (!$this->mlService->loadEvaluation($fen, $positions[$fen] ?? null)) {
@@ -36,14 +37,15 @@ final class LoadEvaluationsHandler
                 }
                 $fensLoaded++;
             } elseif (!$positions[$fen]) {
-                $fensFailed++;
+                $fensFailed[] = $fen;
             }
         }
 
         $this->lichessApiLogger->info(sprintf("%d evaluation%s loaded", $fensLoaded, $fensLoaded > 1 ? 's' : ''));
 
-        if ($fensFailed > 0) {
-            $this->lichessApiLogger->info(sprintf("%d evaluation%s already failed", $fensFailed, $fensFailed > 1 ? 's' : ''));
+        if (count($fensFailed) > 0) {
+            $this->lichessApiLogger->warning(sprintf("%d evaluation%s already failed", count($fensFailed), count($fensFailed) > 1 ? 's' : ''));
+            $this->lichessApiLogger->debug(implode(', ', $fensFailed));
         }
 
         if ($fensLoaded > 0) {
