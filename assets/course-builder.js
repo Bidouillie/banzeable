@@ -9,15 +9,15 @@ import { AnalysisChessboardEngine } from './chessboardengine/analysis-cbe.js';
 let board;
 
 let startingFen = FEN.start.split(' ').slice(0, 4).join(' ');
-let baseFen = startingFen;
-let fen = baseFen;
+let baseFen = null;
+let fen = startingFen;
 
 let baseIndex = null;
 let mergeIndex = null;
 
 let percentages = [];
 
-let missingPercentages = 0;
+let missingFens = [];
 
 let formSubmitting = null;
 let buildingFormLinks = null;
@@ -61,50 +61,53 @@ function on_move_played(event) {
     } else {
         previousButton.classList.add('disabled');
     }
+
     if (typeof event.undo === 'undefined' || !event.undo) {
         let moveElement = document.querySelector('.build_moves[data-lan="' + event.lan + '"]');
         let percentage = moveElement?.getAttribute('data-expected');
 
-        if (missingPercentages > 0 || percentage == null) {
-            missingPercentages++;
+        if (missingFens.length > 0 || percentage == null) {
+            missingFens.push(fen);
         } else {
 
-            if (!moveElement?.getAttribute('data-saved') && baseIndex === null) {
+            if (baseIndex === null && !moveElement?.getAttribute('data-saved')) {
                 baseIndex = percentages.length;
                 baseFen = fen;
             }
 
-            fen = event.fen.split(' ').slice(0, 4).join(' ');
             percentages.push(percentage);
 
             if (moveElement?.getAttribute('data-reached')) {
                 mergeIndex = percentages.length;
             }
         }
+
     } else {
-        if (missingPercentages > 0) {
-            missingPercentages--;
+        if (missingFens.length > 0) {
+            missingFens.pop();
         } else {
 
             if (mergeIndex === percentages.length) {
                 mergeIndex = null;
             }
 
-            fen = event.fen.split(' ').slice(0, 4).join(' ');
             percentages.pop();
 
             if (baseIndex === percentages.length) {
-                baseIndex = null;
+                baseFen = baseIndex = null;
             }
         }
     }
+
+    fen = event.fen.split(' ').slice(0, 4).join(' ');
+
     build_moves();
 }
 
 function build_moves() {
 
     let fenInput = document.getElementById('build_moves_form_fen');
-    fenInput.value = fen;
+    fenInput.value = missingFens.length > 0 ? missingFens[0] : fen;
 
     let divergedInput = document.getElementById('build_moves_form_diverged');
     divergedInput.checked = baseIndex !== null;
@@ -113,12 +116,12 @@ function build_moves() {
     mergedInput.checked = mergeIndex !== null;
 
     let movesInput = document.getElementById('build_moves_form_lanMoves');
-    movesInput.value = missingPercentages > 0 ? board.getLanMoves().slice(-missingPercentages).join(' ') : '';
+    movesInput.value = missingFens.length > 0 ? board.getLanMoves().slice(-missingFens.length).join(' ') : '';
 
     let percentageInput = document.getElementById('build_moves_form_expectedPercentage');
     percentageInput.value = percentages.length > 0 ? percentages[percentages.length - 1] : 1;
 
-    console.log("Build moves", { baseIndex }, { mergeIndex }, { fen }, { percentages }, { missingPercentages }, { lanMoves: missingPercentages > 0 ? board.getLanMoves().slice(-missingPercentages).join(' ') : '' });
+    console.log("Build moves", { baseIndex }, { mergeIndex }, { baseFen }, { fen }, { percentages }, { missingPercentages: missingFens.length }, { lanMoves: missingFens.length > 0 ? board.getLanMoves().slice(-missingFens.length).join(' ') : '' });
 
     form.requestSubmit();
 }
@@ -212,25 +215,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (JSON.parse(document.getElementById('build_moves').getAttribute('data-can-save'))) {
                     saveButton.classList.remove('disabled');
                 }
-                if (missingPercentages > 0) {
+                if (missingFens.length > 0) {
                     let dataElement = document.getElementById('build_moves');
                     let percentagesMissing = JSON.parse(dataElement.getAttribute('data-missing-percentages'));
-                    if (percentagesMissing.length === missingPercentages) {
-                        percentagesMissing.forEach(percentage => {
-                            if (percentage != null) {
-                                missingPercentages--;
-                                percentages.push(percentage);
-                            }
-                        });
+                    if (percentagesMissing.length === missingFens.length) {
 
                         let indexDiverge = JSON.parse(dataElement.getAttribute('data-diverge-index'));
                         if (indexDiverge != null) {
-                            baseIndex = percentages.length - percentagesMissing.length + indexDiverge;
+                            baseIndex = percentages.length + indexDiverge;
+                            baseFen = missingFens[indexDiverge];
                         }
                         let indexMerge = JSON.parse(dataElement.getAttribute('data-merge-index'));
                         if (indexMerge != null) {
-                            mergeIndex = percentages.length - percentagesMissing.length + indexMerge + 1;
+                            mergeIndex = percentages.length + indexMerge + 1;
                         }
+
+                        percentages.push(...percentagesMissing);
+
+                        missingFens = [];
                     }
                 }
                 if (buildingFormLinks !== null) {
