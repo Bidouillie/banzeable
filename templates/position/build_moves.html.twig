@@ -71,21 +71,21 @@
                         {% endif %}
                     </div>
                     <div class="tw-col-span-1">
-                        <div class="tw-flex tw-flex-row tw-rounded-sm tw-overflow-hidden">
+                        <div class="tw-flex tw-flex-row tw-rounded-[0.25rem] tw-overflow-hidden">
                             {% set eval = move_form.eval ?? null is null ? null : move_form.eval|round(1)%}
                             {% if eval ?? null is not null %}
-                                {% set eval = (move_form.mate ? '#' : '') ~ (eval|round(1) == 0 ? '=' : move_form.eval|round(1)) %}
+                                {% set eval = (move_form.mate ? '#' : '') ~ (eval == 0 ? '=' : "%+.1f"|format(eval)) %}
                                 {% set eval_class = eval >= 0 ? 'text-dark bg-light' : 'text-light bg-dark' %}
                             {% else %}
                                 {% set eval = '?' %}
                                 {% set eval_class = 'text-dark bg-light'%}
                             {% endif %}
-                            <div class="{{ eval_class }}"><small class="tw-text-center">{{ eval }}</small></div>
+                            <div class="{{ eval_class }}"><small class="tw-px-1 tw-py-1 tw-text-center tw-text-xs tw-font-bold">{{ eval }}</small></div>
                         </div>
                     </div>
                     <div class="{{ my_turn ? 'tw-col-span-5' : 'tw-col-span-4' }}">
                         {% if popularity is not null %}
-                            <div class="tw-flex tw-flex-row tw-rounded-sm tw-overflow-hidden">
+                            <div class="tw-flex tw-flex-row tw-rounded-[0.25rem] tw-overflow-hidden">
                                 <div class="text-dark bg-light" style="width:{{ (popularity.white / popularity.total)|format_number(style: 'percent') }}">
                                     <small class="tw-px-3 tw-py-1">{{ (popularity.white / ((popularity.total)))|format_number(style: 'percent') }}</small>
                                 </div>

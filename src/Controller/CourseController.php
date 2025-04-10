@@ -100,7 +100,7 @@ class CourseController extends AbstractController
 
         $form = $factory->createNamed('build_moves_form', BuildLanMovesType::class, $formData, ['action' => $this->generateUrl('app_position_build_moves', ['course' => $course->getId(), 'startingFen' => $fen])]);
 
-        $saveForm = $factory->createNamed('save_moves_form', BuildLanMovesType::class, $formData, ['action' => $this->generateUrl('app_move_save_moves', ['course' => $course->getId(), 'baseFen' => $fen])]);
+        $saveForm = $factory->createNamed('save_moves_form', BuildLanMovesType::class, $formData, ['action' => $this->generateUrl('app_move_save_moves', ['course' => $course->getId(), 'startingFen' => $fen])]);
 
         return $this->render('course/build.html.twig', [
             'course' => $course,
