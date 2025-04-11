@@ -222,16 +222,16 @@ class MoveBuilderService
      * @param array<Move> $movesPlayed
      * @param array<Move> $newMovesPlayed
      * @param array<string,array{moves:array<string,MovePopularity>,nbGames:int}> $movePopularitiesByFenLan
-     * @param array<string,RepertoirePosition> $positions
+     * @param array<string,RepertoirePosition> $rPositions
      */
-    public function populateMoves(Course $course, string $baseFen, array &$movesPlayed, ?array &$newMovesPlayed = null, ?array &$movePopularitiesByFenLan = null, ?array &$positions = null)
+    public function populateMoves(Course $course, string $baseFen, array &$movesPlayed, ?array &$newMovesPlayed = null, ?array &$movePopularitiesByFenLan = null, ?array &$rPositions = null)
     {
         $movesSavedByFen = $course->getRepertoireMovesByFen();
         $positionsSavedByFen = $course->getPositionsByFen();
 
-        $positions = [];
+        $rPositions = [];
         foreach ($positionsSavedByFen as $fen => $position) {
-            $positions[$fen] = $position['position'];
+            $rPositions[$fen] = $position['position'];
         }
 
         foreach ($movesSavedByFen as $fenFrom => $movesSavedByFenTo) {
@@ -241,13 +241,14 @@ class MoveBuilderService
             }
         }
 
-        if (!isset($positions[$baseFen])) {
-            throw new HttpException(404, "Base position not found (from provided fen $baseFen)");
+        if (!isset($rPositions[$baseFen])) {
+            throw new HttpException(404, "Base position not saved (from provided fen $baseFen)");
         }
 
         /**
          * Check moves are correct and populate them
          */
+        $fens = [];
         foreach ($movesPlayed as $key => $move) {
             $fenFrom = $move->getFenFrom();
             $fenTo = $move->getFenTo();
@@ -259,22 +260,32 @@ class MoveBuilderService
 
             if (!isset($baseSavedPosition)) {
                 $keyBase = $key;
-                $baseSavedPosition = $positions[$fenFrom];
+                $baseSavedPosition = $rPositions[$fenFrom];
             }
 
             $move->setCourse($course);
 
-            if (!isset($positions[$fenTo])) {
+            if (!isset($rPositions[$fenTo])) {
                 $position = new RepertoirePosition();
                 $position->setCourse($course);
-                $position->setFen($fenTo);
 
-                $positions[$fenTo] = $position;
+                $rPositions[$fenTo] = $position;
+
+                $fens[] = $fenTo;
             }
         }
 
+        $positions = $this->posRepo->findGroupedByFen($fens);
+
+        foreach ($rPositions as $fen => $rPosition) {
+            if (isset($positions[$fen])) {
+                $rPosition->setPosition($positions[$fen]);
+            }
+        }
+
+
         if (!isset($baseSavedPosition)) {
-            $baseSavedPosition = $positions[empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo()];
+            $baseSavedPosition = $rPositions[empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo()];
         }
         $newMovesPlayed = isset($keyBase) ? array_slice($movesPlayed, $keyBase) : [];
 
@@ -311,7 +322,7 @@ class MoveBuilderService
 
                     foreach ($positionReached['previousMoves'] as $moveBuffer) {
                         if ($moveBuffer !== $move) {
-                            $moveBuffer->setSelectedPercentage($expectedPercentage * $selectedPercentage / $positions[$moveBuffer->getFenFrom()]->getExpectedPercentage());
+                            $moveBuffer->setSelectedPercentage($expectedPercentage * $selectedPercentage / $rPositions[$moveBuffer->getFenFrom()]->getExpectedPercentage());
                         }
                     }
                     $this->updateExpectedPercentage($positionsSavedByFen, $positionReached);
@@ -322,10 +333,10 @@ class MoveBuilderService
 
             $expectedPercentage *= $move->getSelectedPercentage();
 
-            $positions[$move->getFenTo()]->setExpectedPercentage($expectedPercentage);
+            $rPositions[$move->getFenTo()]->setExpectedPercentage($expectedPercentage);
         }
 
-        $positionReached = $positions[empty($newMovesPlayed) ? (empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo()) : end($newMovesPlayed)->getFenTo()];
+        $positionReached = $rPositions[empty($newMovesPlayed) ? (empty($movesPlayed) ? $baseFen : end($movesPlayed)->getFenTo()) : end($newMovesPlayed)->getFenTo()];
 
         return $positionReached->getExpectedPercentage();
     }
@@ -385,7 +396,7 @@ class MoveBuilderService
                 $completion += self::updateCompletionRecursive($this->positions[$move->getFenTo()]);
             }
             $myMoveCompletionPercentage = $this->course->getTrueCoverage() / max($position->getExpectedPercentage(), $this->course->getTrueCoverage());
-            $completion /= count($nextMoves);
+            $completion /= count($nextMoves) > 0 ? count($nextMoves) : 1;
             $completion += $myMoveCompletionPercentage * (1 - $completion);
         } else {
             $expectedPercentage = $position->getExpectedPercentage();

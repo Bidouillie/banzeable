@@ -25,8 +25,8 @@ class MoveController extends AbstractController
         ]);
     }
 
-    #[Route('/save-moves/{course}/{baseFen}', name: 'app_move_save_moves', requirements: ['course' => '\d+', 'baseFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function saveMoves(?Course $course, ?string $baseFen, Request $request, FormFactoryInterface $factory, MovePopularityRepository $mpRepo, EntityManagerInterface $em, MoveBuilderService $mbService): Response
+    #[Route('/save-moves/{course}/{startingFen}', name: 'app_move_save_moves', requirements: ['course' => '\d+', 'startingFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
+    public function saveMoves(?Course $course, ?string $startingFen, Request $request, FormFactoryInterface $factory, MovePopularityRepository $mpRepo, EntityManagerInterface $em, MoveBuilderService $mbService): Response
     {
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
@@ -35,6 +35,8 @@ class MoveController extends AbstractController
             $form->handleRequest($request);
 
             if ($form->isSubmitted() && $form->isValid()) {
+
+                $baseFen = strval($form->get('fen')->getData());
 
                 /**
                  * @var array<Move> $movesPlayed
