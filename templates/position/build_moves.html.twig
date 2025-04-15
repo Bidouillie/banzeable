@@ -17,26 +17,26 @@
             <div class="{{ my_turn ? 'tw-col-span-5' : 'tw-col-span-4' }}">Peer results</div>
         </div>
         {% if my_turn %}
-            {% set moves_forms = moves_forms|sort((a, b) => (a.saved xor b.saved ? b.saved <=> a.saved : (a.popularity_masters or b.popularity_masters ? (b.popularity_masters ? b.popularity_masters.total : 0) <=> (a.popularity_masters ? a.popularity_masters.total : 0) : (b.popularity ? b.popularity.total : 0) <=> (a.popularity ? a.popularity.total : 0))))%}
+            {% set candidate_move_stats = candidate_move_stats|sort((a, b) => (a.saved xor b.saved ? b.saved <=> a.saved : (a.popularityMasters or b.popularityMasters ? (b.popularityMasters ? b.popularityMasters.total : 0) <=> (a.popularityMasters ? a.popularityMasters.total : 0) : (b.popularity ? b.popularity.total : 0) <=> (a.popularity ? a.popularity.total : 0))))%}
         {% else %}
-            {% set moves_forms = moves_forms|sort((a, b) => (b.popularity ? b.popularity.total : 0) <=> (a.popularity ? a.popularity.total : 0))%}
+            {% set candidate_move_stats = candidate_move_stats|sort((a, b) => (b.popularity ? b.popularity.total : 0) <=> (a.popularity ? a.popularity.total : 0))%}
         {% endif %}
         
-        {% for move_form in moves_forms %}
-            {% set move = move_form.move %}
-            {% set popularity = move_form.popularity %}
-            {% set expected = my_turn ? move_form.selected_percentage_masters : move_form.expected_percentage %}
-            <a href="#" class="list-group-item list-group-item-action build_moves {% if not move_form.show ?? false %}d-none{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" data-saved="{{ move_form.saved }}" data-reached="{{ not move_form.saved and (move_form.completion ?? null) is not null }}" {% if (move_form.expected_percentage ?? null) is not null %}data-expected="{{ move_form.expected_percentage }}"{% endif %} onclick="return false">
+        {% for move_stat in candidate_move_stats %}
+            {% set move = move_stat.move %}
+            {% set popularity = move_stat.popularity %}
+            {% set expected = my_turn ? move_stat.selectedPercentageMasters : move_stat.expectedPercentage %}
+            <a href="#" class="list-group-item list-group-item-action build_moves {% if not move_stat.show ?? false %}d-none{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" data-saved="{{ move_stat.saved }}" data-reached="{{ not move_stat.saved and (move_stat.completion ?? null) is not null }}" {% if (move_stat.expectedPercentage ?? null) is not null %}data-expected="{{ move_stat.expectedPercentage }}"{% endif %} onclick="return false">
                 <div class="tw-grid tw-grid-cols-12 tw-gap-7 tw-items-center">
-                    <div class="{{ my_turn ? 'tw-col-span-2' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_form.saved %} ✅{% elseif (move_form.completion ?? null) is not null %} 🎯{% endif %}</div>
+                    <div class="{{ my_turn ? 'tw-col-span-2' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_stat.saved %} ✅{% elseif (move_stat.completion ?? null) is not null %} 🎯{% endif %}</div>
                     {% if not my_turn %}
                         <!--div class="tw-col-span-1 tw-flex tw-items-center">
-                            {{ ((move_form.selected_percentage ?? null) is not null ? (move_form.selected_percentage|format_number(style: 'percent')) : null) }}
+                            {{ ((move_stat.selectedPercentage ?? null) is not null ? (move_stat.selectedPercentage|format_number(style: 'percent')) : null) }}
                         </div-->
                         <div class="tw-col-span-3 tw-flex tw-items-center">
-                        {% if move_form.saved and (move_form.completion ?? null) is not null %}
+                        {% if move_stat.saved and (move_stat.completion ?? null) is not null %}
                             <div class="progress tw-grow" style="height: 7px">
-                                <div class="progress-bar bg-info" style="width:{{ (move_form.completion * 100)|round }}%"></div>
+                                <div class="progress-bar bg-info" style="width:{{ (move_stat.completion * 100)|round }}%"></div>
                             </div>
                         {% endif %}
                         </div>
@@ -72,9 +72,9 @@
                     </div>
                     <div class="tw-col-span-1">
                         <div class="tw-flex tw-flex-row tw-rounded-[0.25rem] tw-overflow-hidden">
-                            {% set eval = move_form.eval ?? null is null ? null : move_form.eval|round(1)%}
-                            {% if eval ?? null is not null %}
-                                {% set eval = (move_form.mate ? '#' : '') ~ (eval == 0 ? '=' : "%+.1f"|format(eval)) %}
+                            {% set eval = (move_stat.eval ?? null) is null ? null : move_stat.eval|round(1)%}
+                            {% if (eval ?? null) is not null %}
+                                {% set eval = (move_stat.mate ? '#' : '') ~ (eval == 0 ? '=' : "%+.1f"|format(eval)) %}
                                 {% set eval_class = eval >= 0 ? 'text-dark bg-light' : 'text-light bg-dark' %}
                             {% else %}
                                 {% set eval = '?' %}

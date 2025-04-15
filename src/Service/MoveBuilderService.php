@@ -7,6 +7,7 @@ use App\Entity\Course;
 use App\Entity\Move;
 use App\Entity\MovePopularity;
 use App\Entity\RepertoirePosition;
+use App\Helper\MoveStat;
 use App\Repository\MovePopularityMastersRepository;
 use App\Repository\MovePopularityRepository;
 use App\Repository\MoveRepository;
@@ -120,11 +121,10 @@ class MoveBuilderService
      * @param string $fen
      * @param bool $myturn
      * @param null|float $expectedPercentage
-     * @param null|array<string,Move> $movesSavedByLan
-     * @param bool $popularityLoaded
-     * @param bool $popularityMastersLoaded
-     * @param int $nbMovesSaved
-     * @param array<string,true> $evalMissingFens
+     * @param bool &$popularityLoaded
+     * @param bool &$popularityMastersLoaded
+     * @param int &$nbMovesSaved
+     * @param string[] &$evalMissingFens
      */
     public function buildCandidateMoves(Course $course, string $fen, bool $myTurn, ?float $expectedPercentage, ?bool &$popularityLoaded, ?bool &$popularityMastersLoaded, ?int &$nbMovesSaved, ?array &$evalMissingFens)
     {
@@ -196,21 +196,21 @@ class MoveBuilderService
             }
 
             if (!isset($positions[$candidate['fenTo']]) || $positions[$candidate['fenTo']]->mate === 0) {
-                $evalMissingFens[$candidate['fenTo']] = true;
+                $evalMissingFens[] = $candidate['fenTo'];
             }
 
-            $candidateMovestats[] = [
-                'move' => $move,
-                'saved' => isset($movesSavedByLan[$lan]),
-                'popularity' => $movesPopularities['moves'][$lan] ?? null,
-                'selected_percentage' => $selectedPercentage,
-                'popularity_masters' => $movesPopularitiesMasters['moves'][$lan] ?? null,
-                'selected_percentage_masters' => $selectedPercentageMasters,
-                'expected_percentage' => isset($moveExpectedPercentage) && !in_array($moveExpectedPercentage, [0, 1]) ? number_format($moveExpectedPercentage, 5) : $moveExpectedPercentage ?? null,
-                'completion' => $completions[$move->getFenTo()] ?? null,
-                'eval' => isset($positions[$candidate['fenTo']]) && $positions[$candidate['fenTo']]->mate !== 0 ? $positions[$candidate['fenTo']]->mate ?? $positions[$candidate['fenTo']]->evaluation ?? null : null,
-                'mate' => isset($positions[$candidate['fenTo']]->mate) && $positions[$candidate['fenTo']]->mate !== 0,
-            ];
+            $moveStats = new MoveStat($move);
+            $moveStats->saved = isset($movesSavedByLan[$lan]);
+            $moveStats->popularity = $movesPopularities['moves'][$lan] ?? null;
+            $moveStats->selectedPercentage = $selectedPercentage;
+            $moveStats->popularityMasters = $movesPopularitiesMasters['moves'][$lan] ?? null;
+            $moveStats->selectedPercentageMasters = $selectedPercentageMasters;
+            $moveStats->expectedPercentage = isset($moveExpectedPercentage) && !in_array($moveExpectedPercentage, [0, 1]) ? number_format($moveExpectedPercentage, 9) : strval($moveExpectedPercentage) ?? null;
+            $moveStats->completion = $completions[$move->getFenTo()] ?? null;
+            $moveStats->eval = isset($positions[$candidate['fenTo']]) && $positions[$candidate['fenTo']]->mate !== 0 ? $positions[$candidate['fenTo']]->mate ?? $positions[$candidate['fenTo']]->evaluation ?? null : null;
+            $moveStats->mate = isset($positions[$candidate['fenTo']]->mate) && $positions[$candidate['fenTo']]->mate !== 0;
+
+            $candidateMovestats[$candidate['fenTo']] = $moveStats;
         }
 
         return $candidateMovestats;

@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Course;
 use App\Entity\Move;
 use App\Form\BuildLanMovesType;
+use App\Service\CandidatePaginatorService;
 use App\Service\MoveBuilderService;
 use Chess\FenToBoardFactory;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -29,7 +30,7 @@ class PositionController extends AbstractController
 
     #[IsGranted('IS_AUTHENTICATED')]
     #[Route('/build-moves/{course}/{startingFen}', name: 'app_position_build_moves', requirements: ['course' => '\d+', 'startingFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function buildMoves(?Course $course, ?string $startingFen, Request $request, FormFactoryInterface $factory, MoveBuilderService $mbService): Response
+    public function buildMoves(?Course $course, ?string $startingFen, Request $request, FormFactoryInterface $factory, CandidatePaginatorService $cpService, MoveBuilderService $mbService): Response
     {
         // TODO Check if the course is a repertoire
         $this->denyAccessUnlessGranted('course.owns', $course);
@@ -43,8 +44,6 @@ class PositionController extends AbstractController
             $form->handleRequest($request);
 
             if ($form->isSubmitted() && $form->isValid()) {
-
-                $nbMovesToShow = 4;
 
                 $fen = strval($form->get('fen')->getData());
 
@@ -81,96 +80,65 @@ class PositionController extends AbstractController
 
                 $myTurn = ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn;
 
-                $movesToPlay = $mbService->buildCandidateMoves($course, $fen, $myTurn, $expectedPercentage, $popularityLoaded, $popularityMastersLoaded, $nbMovesSaved, $evalMissingFens);
+                $candidateMoveStats = $mbService->buildCandidateMoves($course, $fen, $myTurn, $expectedPercentage, $popularityLoaded, $popularityMastersLoaded, $nbMovesSaved, $evalMissingFens);
 
-                /**
-                 * Filtering and sorting
-                 */
-                $fensToShow = [];
+                $nbMovesToShow = 4;
                 if ($myTurn) {
-                    if ($nbMovesSaved > 0) {
-                        foreach ($movesToPlay as $key => $movestat) {
-                            if ($movestat['saved']) {
-                                $movesToPlay[$key]['show'] = true;
-                                $fensToShow[] = $movestat['move']->getFenTo();
-                            }
-                        }
-                    } elseif ($popularityMastersLoaded) {
-                        foreach ($movesToPlay as $key => $movestat) {
-                            if ($movestat['selected_percentage_masters'] > 1 / 100) {
-                                $movesToPlay[$key]['show'] = true;
-                                $fensToShow[] = $movestat['move']->getFenTo();
+                    $nbFensToShow = $cpService->filterMyMoves($course, $nbMovesToShow, $candidateMoveStats, $nbMovesSaved, $popularityMastersLoaded, count($evalMissingFens) <= 0);
+                } else {
+                    if (isset($expectedPercentage)) {
+                        if (!$popularityLoaded) {
+                            if (isset($fenMovesToLoad)) {
+                                $fenMovesToLoad[] = $fen;
+                            } else {
+                                $fenMovesToLoad = [$fen];
                             }
                         }
                     }
-                } elseif (isset($expectedPercentage)) {
-                    if (!$popularityLoaded) {
-                        if (isset($fenMovesToLoad)) {
-                            $fenMovesToLoad[] = $fen;
-                        } else {
-                            $fenMovesToLoad = [$fen];
-                        }
-                    } elseif ($expectedPercentage > 0) {
-                        $threshold = $course->getTrueCoverage() / $expectedPercentage;
-
-                        foreach ($movesToPlay as $key => $movestat) {
-                            if ($movestat['selected_percentage'] > $threshold) {
-                                $movesToPlay[$key]['show'] = true;
-                                $fensToShow[] = $movestat['move']->getFenTo();
-                            }
-                        }
-                    }
+                    $nbFensToShow = $cpService->filterOppMoves($course, $nbMovesToShow, $candidateMoveStats, $expectedPercentage, count($evalMissingFens) <= 0);
                 }
 
-                // Sort by eval
-                if ((!$myTurn || $nbMovesSaved <= 0) && count($evalMissingFens) <= 0 && count($fensToShow) < $nbMovesToShow) {
-                    $isBlack = $course->isBlackOrientation();
-                    $ca = $isBlack ? -1 : 1;
-                    $cb = $isBlack ? 1 : -1;
-                    usort($movesToPlay, function ($a, $b) use ($ca, $cb) {
-                        if (isset($a['show']) || isset($b['show'])) {
-                            return isset($a['show']) ? -1 : 1;
-                        }
-                        if (!isset($a['eval']) || !isset($b['eval'])) {
-                            return isset($a['eval']) ? -1 : 1;
-                        }
-                        if ($a['mate'] xor $b['mate']) {
-                            return ($a['mate'] ? $a['eval'] < 0 : $b['eval'] > 0) ? $ca : $cb;
-                        }
-                        return $a['eval'] < $b['eval'] ? $ca : $cb;
-                    });
-
-                    foreach ($movesToPlay as $key => $movestat) {
-                        if (empty($movestat['show'])) {
-                            $movesToPlay[$key]['show'] = true;
-                            $fensToShow[] = $movestat['move']->getFenTo();
-                            if (count($fensToShow) >= $nbMovesToShow) {
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                /**
-                 * Preload moves
-                 */
                 if (empty($fenMovesToLoad)) {
-                    if ($myTurn && (!$popularityMastersLoaded || !$popularityLoaded)) {
-                        $fenMovesToLoad = [$fen];
-                        $loadType = $popularityMastersLoaded ? 'optional' : 'important';
-                    } elseif (count($fensToShow) > 0) {
-                        $fenMovesToPreload = $fensToShow;
-                    }
 
-                    // Evals
-                    if (count($evalMissingFens) > 0 && (($myTurn && $popularityMastersLoaded) || (!$myTurn && $popularityLoaded))) {
+                    /**
+                     * Preload moves
+                     */
+                    if ($myTurn) {
 
-                        if (!$myTurn || ($nbMovesSaved > 0 || count($fensToShow) >= $nbMovesToShow)) {
-                            $evalFensToLoad = array_filter($fensToShow, function ($evalMissingFen) use ($evalMissingFens) {
-                                return isset($evalMissingFens[$evalMissingFen]);
+                        if (!$popularityMastersLoaded || !$popularityLoaded) {
+                            $fenMovesToLoad = [$fen];
+                            $loadType = $popularityMastersLoaded ? 'optional' : 'important';
+                        } elseif ($nbFensToShow > 0) {
+                            $movesToPreload = array_filter($candidateMoveStats, function ($moveStat) {
+                                return $moveStat->show;
                             });
-                        } elseif ($myTurn && $nbMovesSaved <= 0 && count($fensToShow) < $nbMovesToShow) {
-                            $evalFensToLoad = array_keys($evalMissingFens);
+                        }
+
+                        // Evals
+                        if (count($evalMissingFens) > 0 && $popularityMastersLoaded) {
+
+                            if ($nbMovesSaved <= 0 && $nbFensToShow < $nbMovesToShow) {
+                                $evalFensToLoad = $evalMissingFens;
+                            } else {
+                                $evalFensToLoad = array_filter($evalMissingFens, function ($fen) use ($candidateMoveStats) {
+                                    return !empty($candidateMoveStats[$fen]->show);
+                                });
+                            }
+                        }
+                    } else {
+
+                        if ($nbFensToShow > 0) {
+                            $movesToPreload = array_filter($candidateMoveStats, function ($moveStat) {
+                                return $moveStat->show;
+                            });
+                        }
+
+                        // Evals
+                        if (count($evalMissingFens) > 0 && $popularityLoaded) {
+
+                            $evalFensToLoad = array_filter($evalMissingFens, function ($fen) use ($candidateMoveStats) {
+                                return !empty($candidateMoveStats[$fen]->show);
+                            });
                         }
                     }
                 } else {
@@ -180,7 +148,7 @@ class PositionController extends AbstractController
                 $response = $this->render('position/build_moves.html.twig', [
                     'course' => $course,
                     'my_turn' => ($course->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($fen)->turn,
-                    'moves_forms' => $movesToPlay,
+                    'candidate_move_stats' => $candidateMoveStats,
                     'can_save' => !!$diverged,
                     'moves_whole' => empty($fenMovesToLoad) && empty($evalFensToLoad),
                     'missing_percentages' => $expectedPercentages ?? [],
@@ -196,8 +164,8 @@ class PositionController extends AbstractController
                     $response->headers->set('X-Data-Load-Moves-Type', $loadType ?? '');
                 }
 
-                if (!empty($fenMovesToPreload)) {
-                    $response->headers->set('X-Data-Preload-Moves', implode(',', $fenMovesToPreload));
+                if (!empty($movesToPreload)) {
+                    $response->headers->set('X-Data-Preload-Moves', implode(',', array_keys($movesToPreload)));
                 }
 
                 if (!empty($evalFensToLoad)) {
