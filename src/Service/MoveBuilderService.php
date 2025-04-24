@@ -164,7 +164,7 @@ class MoveBuilderService
             $movesSavedByLan = $this->moveRepo->findGroupedByLan($course, $fen);
         }
 
-        $completions = $this->rPosRepo->findCompletionGroupedByFen($course, $fens);
+        $repertoirePositions = $this->rPosRepo->findGroupedByFen($course, $fens);
 
         $positions = $this->posRepo->findEvaluationGroupedByFen($fens);
 
@@ -182,17 +182,15 @@ class MoveBuilderService
             if (isset($movesSavedByLan[$lan])) {
                 $move = $movesSavedByLan[$lan];
                 $nbMovesSaved++;
-
-                $moveExpectedPercentage = $expectedPercentage * $movesSavedByLan[$lan]->getSelectedPercentage();
             } else {
                 $move = new Move();
                 $move->setFenFrom($fen);
                 $move->setFenTo($candidate['fenTo']);
                 $move->setLan($lan);
+            }
 
-                if (isset($expectedPercentage) && ($myTurn || isset($selectedPercentage))) {
-                    $moveExpectedPercentage = $expectedPercentage * ($myTurn ? 1 : $selectedPercentage);
-                }
+            if (isset($expectedPercentage) && ($myTurn || isset($selectedPercentage))) {
+                $moveExpectedPercentage = $expectedPercentage * ($myTurn ? 1 : $selectedPercentage);
             }
 
             if (!isset($positions[$candidate['fenTo']]) || $positions[$candidate['fenTo']]->mate === 0) {
@@ -206,7 +204,7 @@ class MoveBuilderService
             $moveStats->popularityMasters = $movesPopularitiesMasters['moves'][$lan] ?? null;
             $moveStats->selectedPercentageMasters = $selectedPercentageMasters;
             $moveStats->expectedPercentage = isset($moveExpectedPercentage) ? (!in_array($moveExpectedPercentage, [0, 1]) ? number_format($moveExpectedPercentage, 9) : strval($moveExpectedPercentage)) : null;
-            $moveStats->completion = $completions[$move->getFenTo()] ?? null;
+            $moveStats->position = $repertoirePositions[$move->getFenTo()] ?? null;
             $moveStats->eval = isset($positions[$candidate['fenTo']]) && $positions[$candidate['fenTo']]->mate !== 0 ? $positions[$candidate['fenTo']]->mate ?? $positions[$candidate['fenTo']]->evaluation ?? null : null;
             $moveStats->mate = isset($positions[$candidate['fenTo']]->evaluation) || (isset($positions[$candidate['fenTo']]->mate) && $positions[$candidate['fenTo']]->mate !== 0) ? isset($positions[$candidate['fenTo']]->mate) : null;
 

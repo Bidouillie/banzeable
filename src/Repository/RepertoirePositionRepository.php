@@ -38,21 +38,20 @@ class RepertoirePositionRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return array<string,float>
+     * @return array<string,RepertoirePosition>
      */
-    public function findCompletionGroupedByFen(Course $course, array $fens)
+    public function findGroupedByFen(Course $course, array $fens)
     {
         $qb = $this->createQueryBuilder('p')
-            ->select('p.fen, p.completion')
             ->andWhere('p.course = :course')
             ->andWhere('p.fen IN (:fens)')
             ->setParameter('course', $course)
             ->setParameter('fens', $fens);
 
-        $positions = $qb->getQuery()->getArrayResult();
+        $positions = $qb->getQuery()->getResult();
 
-        return array_reduce($positions, function ($carry, $position) {
-            $carry[$position['fen']] = floatval($position['completion']);
+        return array_reduce($positions, function ($carry, RepertoirePosition $position) {
+            $carry[$position->getFen()] = $position;
             return $carry;
         }, []);
     }

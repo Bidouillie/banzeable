@@ -5,6 +5,7 @@ namespace App\Helper;
 use App\DTO\MovePopularityMastersWithTotalDTO;
 use App\DTO\MovePopularityWithTotalDTO;
 use App\Entity\Move;
+use App\Entity\RepertoirePosition;
 
 class MoveStat
 {
@@ -22,7 +23,7 @@ class MoveStat
 
     public ?string $expectedPercentage;
 
-    public ?float $completion;
+    public ?RepertoirePosition $position;
 
     public ?float $eval;
 

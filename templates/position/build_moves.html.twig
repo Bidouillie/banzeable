@@ -21,17 +21,17 @@
             {% set move = move_stat.move %}
             {% set popularity = move_stat.popularity %}
             {% set expected = my_turn ? move_stat.selectedPercentageMasters : move_stat.expectedPercentage %}
-            <a href="#" class="list-group-item list-group-item-action build_moves {% if not move_stat.show ?? false and not move_stat.saved ?? false %}d-none{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" data-saved="{{ move_stat.saved }}" data-reached="{{ not move_stat.saved and (move_stat.completion ?? null) is not null }}" {% if (move_stat.expectedPercentage ?? null) is not null %}data-expected="{{ move_stat.expectedPercentage }}"{% endif %} onclick="return false">
+            <a href="#" class="list-group-item list-group-item-action build_moves {% if not move_stat.show ?? false and not move_stat.saved ?? false %}d-none{% endif %}" data-san="{{ move.san }}" data-lan="{{ move.lan }}" data-saved="{{ move_stat.saved }}" data-reached="{{ not move_stat.saved and (move_stat.position ?? null) is not null }}" {% if (move_stat.expectedPercentage ?? null) is not null %}data-expected="{{ (move_stat.position ?? null) is not null ? move_stat.position.expectedPercentage : move_stat.expectedPercentage }}"{% endif %} onclick="return false">
                 <div class="tw-grid tw-grid-cols-12 tw-gap-7 tw-items-center">
-                    <div class="{{ my_turn ? 'tw-col-span-2' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_stat.saved %} ✅{% elseif (move_stat.completion ?? null) is not null %} 🎯{% endif %}</div>
+                    <div class="{{ my_turn ? 'tw-col-span-2' : 'tw-col-span-2' }} tw-flex tw-items-center">{{ move.san }}{% if move_stat.saved %} ✅{% elseif (move_stat.position ?? null) is not null %} 🎯{% endif %}</div>
                     {% if not my_turn %}
                         <!--div class="tw-col-span-1 tw-flex tw-items-center">
                             {{ ((move_stat.selectedPercentage ?? null) is not null ? (move_stat.selectedPercentage|format_number(style: 'percent')) : null) }}
                         </div-->
                         <div class="tw-col-span-3 tw-flex tw-items-center">
-                        {% if move_stat.saved and (move_stat.completion ?? null) is not null %}
+                        {% if move_stat.saved and (move_stat.position ?? null) is not null %}
                             <div class="progress tw-grow" style="height: 7px">
-                                <div class="progress-bar bg-info" style="width:{{ (move_stat.completion * 100)|round }}%"></div>
+                                <div class="progress-bar bg-info" style="width:{{ (move_stat.position.completion * 100)|round }}%"></div>
                             </div>
                         {% endif %}
                         </div>
