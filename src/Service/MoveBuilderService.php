@@ -205,10 +205,10 @@ class MoveBuilderService
             $moveStats->selectedPercentage = $selectedPercentage;
             $moveStats->popularityMasters = $movesPopularitiesMasters['moves'][$lan] ?? null;
             $moveStats->selectedPercentageMasters = $selectedPercentageMasters;
-            $moveStats->expectedPercentage = isset($moveExpectedPercentage) && !in_array($moveExpectedPercentage, [0, 1]) ? number_format($moveExpectedPercentage, 9) : strval($moveExpectedPercentage) ?? null;
+            $moveStats->expectedPercentage = isset($moveExpectedPercentage) ? (!in_array($moveExpectedPercentage, [0, 1]) ? number_format($moveExpectedPercentage, 9) : strval($moveExpectedPercentage)) : null;
             $moveStats->completion = $completions[$move->getFenTo()] ?? null;
             $moveStats->eval = isset($positions[$candidate['fenTo']]) && $positions[$candidate['fenTo']]->mate !== 0 ? $positions[$candidate['fenTo']]->mate ?? $positions[$candidate['fenTo']]->evaluation ?? null : null;
-            $moveStats->mate = isset($positions[$candidate['fenTo']]->mate) && $positions[$candidate['fenTo']]->mate !== 0;
+            $moveStats->mate = isset($positions[$candidate['fenTo']]->evaluation) || (isset($positions[$candidate['fenTo']]->mate) && $positions[$candidate['fenTo']]->mate !== 0) ? isset($positions[$candidate['fenTo']]->mate) : null;
 
             $candidateMovestats[$candidate['fenTo']] = $moveStats;
         }

@@ -84,10 +84,12 @@ class PositionController extends AbstractController
 
                 $nbMovesToShow = 4;
                 if ($myTurn) {
-                    $nbFensToShow = $cpService->filterMyMoves($course, $nbMovesToShow, $candidateMoveStats, $nbMovesSaved, $popularityMastersLoaded, count($evalMissingFens) <= 0);
+                    $evalsNeeded = $cpService->filterMyMoves($candidateMoveStats, $course, $nbMovesToShow, $nbMovesSaved > 0, $popularityLoaded, $popularityMastersLoaded, count($evalMissingFens) <= 0);
                 } else {
                     if (isset($expectedPercentage)) {
-                        if (!$popularityLoaded) {
+                        if ($popularityLoaded) {
+                            $cpService->filterOppMoves($course, $candidateMoveStats, $expectedPercentage);
+                        } else {
                             if (isset($fenMovesToLoad)) {
                                 $fenMovesToLoad[] = $fen;
                             } else {
@@ -95,7 +97,6 @@ class PositionController extends AbstractController
                             }
                         }
                     }
-                    $nbFensToShow = $cpService->filterOppMoves($course, $nbMovesToShow, $candidateMoveStats, $expectedPercentage, count($evalMissingFens) <= 0);
                 }
 
                 if (empty($fenMovesToLoad)) {
@@ -108,7 +109,7 @@ class PositionController extends AbstractController
                         if (!$popularityMastersLoaded || !$popularityLoaded) {
                             $fenMovesToLoad = [$fen];
                             $loadType = $popularityMastersLoaded ? 'optional' : 'important';
-                        } elseif ($nbFensToShow > 0) {
+                        } else {
                             $movesToPreload = array_filter($candidateMoveStats, function ($moveStat) {
                                 return $moveStat->show;
                             });
@@ -117,27 +118,25 @@ class PositionController extends AbstractController
                         // Evals
                         if (count($evalMissingFens) > 0 && $popularityMastersLoaded) {
 
-                            if ($nbMovesSaved <= 0 && $nbFensToShow < $nbMovesToShow) {
+                            if ($nbMovesSaved <= 0 && !empty($evalsNeeded)) {
                                 $evalFensToLoad = $evalMissingFens;
                             } else {
                                 $evalFensToLoad = array_filter($evalMissingFens, function ($fen) use ($candidateMoveStats) {
-                                    return !empty($candidateMoveStats[$fen]->show);
+                                    return $candidateMoveStats[$fen]->show;
                                 });
                             }
                         }
                     } else {
 
-                        if ($nbFensToShow > 0) {
-                            $movesToPreload = array_filter($candidateMoveStats, function ($moveStat) {
-                                return $moveStat->show;
-                            });
-                        }
+                        $movesToPreload = array_filter($candidateMoveStats, function ($moveStat) {
+                            return $moveStat->show;
+                        });
 
                         // Evals
                         if (count($evalMissingFens) > 0 && $popularityLoaded) {
 
                             $evalFensToLoad = array_filter($evalMissingFens, function ($fen) use ($candidateMoveStats) {
-                                return !empty($candidateMoveStats[$fen]->show);
+                                return $candidateMoveStats[$fen]->show;
                             });
                         }
                     }
