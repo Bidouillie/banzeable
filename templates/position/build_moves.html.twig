@@ -17,6 +17,8 @@
             <div class="{{ my_turn ? 'tw-col-span-5' : 'tw-col-span-4' }}">Peer results</div>
         </div>
         
+        <div id="build_moves_data" class="d-none"></div>
+        
         {% for move_stat in candidate_move_stats %}
             {% set move = move_stat.move %}
             {% set popularity = move_stat.popularity %}

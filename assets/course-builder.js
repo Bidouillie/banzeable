@@ -209,16 +209,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
             let formName = formSubmitting.formElement.getAttribute('name');
 
-            if (formName === 'build_moves_form') {
-                buildingFormLinks = document.querySelectorAll('a.build_moves');
-                whole = JSON.parse(document.getElementById('build_moves').getAttribute('data-moves-whole'));
-                if (JSON.parse(document.getElementById('build_moves').getAttribute('data-can-save'))) {
-                    saveButton.classList.remove('disabled');
-                }
-                if (missingFens.length > 0) {
-                    let dataElement = document.getElementById('build_moves');
-                    let percentagesMissing = JSON.parse(dataElement.getAttribute('data-missing-percentages'));
-                    if (percentagesMissing.length === missingFens.length) {
+            switch (formName) {
+                case 'build_moves_form':
+                    buildingFormLinks = document.querySelectorAll('a.build_moves');
+                    whole = JSON.parse(document.getElementById('build_moves').getAttribute('data-moves-whole'));
+                    if (JSON.parse(document.getElementById('build_moves').getAttribute('data-can-save'))) {
+                        saveButton.classList.remove('disabled');
+                    }
+                    if (missingFens.length > 0) {
+                        let dataElement = document.getElementById('build_moves');
+                        let percentagesMissing = JSON.parse(dataElement.getAttribute('data-missing-percentages'));
+                        if (percentagesMissing.length !== missingFens.length) {
+                            throw new Error("Missing percentages not matching missing fens");
+                        }
 
                         let indexDiverge = JSON.parse(dataElement.getAttribute('data-diverge-index'));
                         if (indexDiverge != null) {
@@ -234,18 +237,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         missingFens = [];
                     }
-                }
-                if (buildingFormLinks !== null) {
-                    for (let i = 0; i < buildingFormLinks.length; i++) {
-                        buildingFormLinks[i].addEventListener('mouseenter', mouse_enter);
-                        buildingFormLinks[i].addEventListener('mouseleave', mouse_leave);
+                    if (buildingFormLinks !== null) {
+                        for (let i = 0; i < buildingFormLinks.length; i++) {
+                            buildingFormLinks[i].addEventListener('mouseenter', mouse_enter);
+                            buildingFormLinks[i].addEventListener('mouseleave', mouse_leave);
+                        }
                     }
-                }
-            }
+                    break;
+                case 'save_moves_form':
 
-            if (formName === 'save_moves_form') {
-                board.enablePlayableMove(on_move_played, true);
-                previousButton.classList.remove('disabled');
+                    baseFen = baseIndex = mergeIndex = null;
+
+                    let dataElement = document.getElementById('build_moves_data');
+                    let newPercentagesElement = dataElement?.getAttribute('data-new-percentages');
+
+                    if (newPercentagesElement != null) {
+                        let newPercentages = JSON.parse(newPercentagesElement);
+
+                        if (newPercentages.length <= percentages.length) {
+                            percentages.splice(-newPercentages.length, newPercentages.length, ...newPercentages);
+                        }
+                    }
+
+                    board.enablePlayableMove(on_move_played, true);
+                    previousButton.classList.remove('disabled');
+                    break;
             }
 
             if (buildingFormLinks !== null) {

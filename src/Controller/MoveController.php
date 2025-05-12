@@ -46,7 +46,7 @@ class MoveController extends AbstractController
                 $movesSavedByFen = $course->getRepertoireMovesByFen();
                 $positionsSavedByFen = $course->getPositionsByFen();
 
-                $mbService->populateMoves($course, $baseFen, $moves, $newMoves, $movePopularitiesByFenLan, $positions);
+                $mbService->populateMoves($course, $baseFen, $moves, $newMoves, $movePopularitiesByFenLan, $positions, $mergeKey);
 
                 /**
                  * Persist new positions and new moves
@@ -105,8 +105,16 @@ class MoveController extends AbstractController
 
                 $em->flush();
 
+                if (isset($mergeKey)) {
+                    $newPercentages = array_map(function ($move) {
+                        $expectedPercentage = $move->getPositionTo()->getExpectedPercentage();
+                        return isset($expectedPercentage) ? number_format($expectedPercentage, 9) : null;
+                    }, array_slice($newMoves, $mergeKey));
+                }
+
                 return $this->render('move/save_moves.html.twig', [
                     'course' => $course,
+                    'new_percentages' => $newPercentages ?? [],
                 ]);
             }
         }

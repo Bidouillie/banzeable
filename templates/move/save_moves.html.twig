@@ -1,1 +1,5 @@
-<turbo-stream action="remove" target="course_build-moves_{{ course.id }}_save-moves_test"></turbo-stream>
+<turbo-stream action="replace" target="build_moves_data">
+    <template>
+        <div id="build_moves_data" class="d-none" {% if new_percentages|length > 0 %}data-new-percentages="{{ new_percentages|json_encode }}"{% endif %}></div>
+    </template>
+</turbo-stream>
