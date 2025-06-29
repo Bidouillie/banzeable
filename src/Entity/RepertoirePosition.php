@@ -22,6 +22,10 @@ class RepertoirePosition
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 9, options: ['default' => '0'])]
     private ?string $completion = null;
 
+    // greatest ply
+    #[ORM\Column(type: Types::SMALLINT, options: ['default' => 0])]
+    private ?int $gply = null;
+
     #[ORM\Id]
     #[ORM\ManyToOne(inversedBy: 'positions')]
     #[ORM\JoinColumn(nullable: false)]
@@ -85,6 +89,18 @@ class RepertoirePosition
         return $this;
     }
 
+    public function getGply(): ?int
+    {
+        return $this->gply;
+    }
+
+    public function setGply(?int $gply): static
+    {
+        $this->gply = $gply;
+
+        return $this;
+    }
+
     public function getCourse(): ?Course
     {
         return $this->course;
@@ -95,6 +111,11 @@ class RepertoirePosition
         $this->course = $course;
 
         return $this;
+    }
+
+    public function isMyTurn(): bool
+    {
+        return ($this->getCourse()->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($this->getFen())->turn;
     }
 
     /**
@@ -173,11 +194,6 @@ class RepertoirePosition
             $found = $found || ($move->getPositionFrom() !== null && $move->getPositionFrom()->isAncestorPosition($position));
         }
         return $found;
-    }
-
-    public function isMyTurn(): bool
-    {
-        return ($this->getCourse()->isBlackOrientation() ? 'b' : 'w') === FenToBoardFactory::create($this->getFen())->turn;
     }
 
     public function getPosition(): ?Position

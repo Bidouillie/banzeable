@@ -40,7 +40,7 @@ class RepertoirePositionRepository extends ServiceEntityRepository
     /**
      * @return array<string,RepertoirePosition>
      */
-    public function findGroupedByFen(Course $course, array $fens)
+    public function findByFenGrouped(Course $course, array $fens)
     {
         $qb = $this->createQueryBuilder('p')
             ->andWhere('p.course = :course')
@@ -49,6 +49,32 @@ class RepertoirePositionRepository extends ServiceEntityRepository
             ->setParameter('fens', $fens);
 
         $positions = $qb->getQuery()->getResult();
+
+        return array_reduce($positions, function ($carry, RepertoirePosition $position) {
+            $carry[$position->getFen()] = $position;
+            return $carry;
+        }, []);
+    }
+
+    /**
+     * @return array<string,RepertoirePosition>
+     */
+    public function findByFenGroupedOrdered(Course $course, array $fens)
+    {
+        $qb = $this->createQueryBuilder('p')
+            ->andWhere('p.course = :course')
+            ->andWhere('p.fen IN (:fens)')
+            ->setParameter('course', $course)
+            ->setParameter('fens', $fens);
+
+        /**
+         * @var array<RepertoirePosition> $positions
+         */
+        $positions = $qb->getQuery()->getResult();
+
+        usort($positions, function ($a, $b) use ($fens) {
+            return array_search($b->getFen(), $fens) <=> array_search($a->getFen(), $fens);
+        });
 
         return array_reduce($positions, function ($carry, RepertoirePosition $position) {
             $carry[$position->getFen()] = $position;

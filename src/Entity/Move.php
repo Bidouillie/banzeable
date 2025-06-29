@@ -22,7 +22,7 @@ class Move
     #[ORM\Column(length: 255)]
     private ?string $lan = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 9)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 5)]
     private ?string $selectedPercentage = null;
 
     #[ORM\Id]

@@ -3,8 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\Course;
+use App\Entity\Move;
 use App\Form\BuildLanMovesType;
-use App\Repository\MovePopularityRepository;
 use App\Service\MoveBuilderService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -26,7 +26,7 @@ class MoveController extends AbstractController
     }
 
     #[Route('/save-moves/{course}/{startingFen}', name: 'app_move_save_moves', requirements: ['course' => '\d+', 'startingFen' => '^([1-8pnbrqkPNBRQK]+\/){7}[1-8pnbrqkPNBRQK]+ [wb] (K?Q?k?q?|-)( ([a-h][1-8]|-))?$'])]
-    public function saveMoves(?Course $course, ?string $startingFen, Request $request, FormFactoryInterface $factory, MovePopularityRepository $mpRepo, EntityManagerInterface $em, MoveBuilderService $mbService): Response
+    public function saveMoves(?Course $course, ?string $startingFen, Request $request, FormFactoryInterface $factory, EntityManagerInterface $em, MoveBuilderService $mbService): Response
     {
         if ($request->getPreferredFormat() === TurboBundle::STREAM_FORMAT) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
@@ -41,75 +41,33 @@ class MoveController extends AbstractController
                 /**
                  * @var array<Move> $movesPlayed
                  */
-                $moves = $form->get('lanMoves')->getData();
+                $movesPlayed = $form->get('lanMoves')->getData();
 
-                $movesSavedByFen = $course->getRepertoireMovesByFen();
-                $positionsSavedByFen = $course->getPositionsByFen();
+                $movesPlayed = $mbService->populateMoves($course, $movesPlayed);
 
-                $mbService->populateMoves($course, $baseFen, $moves, $newMoves, $movePopularitiesByFenLan, $positions, $mergeKey);
+                $mergeKey = $mbService->setExpectedPercentage($movesPlayed);
 
                 /**
                  * Persist new positions and new moves
                  */
-                $movesByFen = $movesSavedByFen;
-                foreach ($newMoves as $move) {
-                    if (!isset($movesByFen[$move->getFenFrom()][$move->getFenTo()])) {
+                foreach ($movesPlayed as $move) {
 
-                        if (!isset($positionsSavedByFen[$move->getFenTo()])) {
-                            $em->persist($positions[$move->getFenTo()]);
-                        }
-
-                        $em->persist($move);
-
-                        $positions[$move->getFenFrom()]->addNextMove($move);
-                        $positions[$move->getFenTo()]->addPreviousMove($move);
-
-                        $movesByFen[$move->getFenFrom()][$move->getFenTo()] = $move;
-                    }
+                    $em->persist($move->getPositionTo());
+                    $em->persist($move);
                 }
 
                 /**
                  * Completion
                  */
-                $positionsByFenLan = $positionsSavedByFen;
-                foreach ($movesByFen as $fenFrom => $movesByFenTo) {
-                    foreach ($movesByFenTo as $fenTo => $move) {
-                        if (!isset($positionsByFenLan[$fenFrom])) {
-                            $positionsByFenLan[$fenFrom] = [
-                                'position' => $move->getPositionFrom(),
-                                'previousMoves' => [],
-                                'nextMoves' => [],
-                            ];
-                        }
-                        if (!isset($positionsByFenLan[$fenTo])) {
-                            $positionsByFenLan[$fenTo] = [
-                                'position' => $move->getPositionTo(),
-                                'previousMoves' => [],
-                                'nextMoves' => [],
-                            ];
-                        }
-                        if (isset($positionsByFenLan[$fenFrom]) && isset($positionsByFenLan[$fenTo])) {
-                            $positionsByFenLan[$fenFrom]['nextMoves'][$move->getLan()] = $move;
-                            $positionsByFenLan[$fenTo]['previousMoves'][$move->getLan()] = $move;
-                        }
-                    }
-                }
-
-                $fens = [];
-                foreach ($positionsByFenLan as $position) {
-                    $fens[$position['position']->getFen()] = $position['position']->getFen();
-                }
-                $movePopularitiesByFenLan = $mpRepo->findGroupedByFenLan($fens);
-
-                $mbService->updateCompletion($course, $positionsByFenLan, $movePopularitiesByFenLan, $positionsByFenLan[$baseFen]);
+                $mbService->updateCompletion($baseFen, $course->getTrueCoverage());
 
                 $em->flush();
 
                 if (isset($mergeKey)) {
-                    $newPercentages = array_map(function ($move) {
+                    $newPercentages = array_map(function (Move $move) {
                         $expectedPercentage = $move->getPositionTo()->getExpectedPercentage();
                         return isset($expectedPercentage) ? number_format($expectedPercentage, 9) : null;
-                    }, array_slice($newMoves, $mergeKey));
+                    }, array_slice($movesPlayed, $mergeKey));
                 }
 
                 return $this->render('move/save_moves.html.twig', [

@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Course;
 use App\Entity\Move;
+use App\Entity\RepertoirePosition;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -50,6 +51,49 @@ class MoveRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return array<string,array<string,Move>>
+     */
+    public function findGroupedByFenLan(Course $course, array $fens): array
+    {
+        $qb = $this->createQueryBuilder('move')
+            ->andWhere('move.course = :course')
+            ->andWhere('move.fenFrom IN (:fens)')
+            ->setParameter('course', $course)
+            ->setParameter('fens', $fens);
+
+        $moves = $qb->getQuery()->getResult();
+
+        $movesGrouped = array_reduce($moves, function ($carry, Move $move) {
+            if (!isset($carry[$move->getFenFrom()])) {
+                $carry[$move->getFenFrom()] = [];
+            }
+            $carry[$move->getFenFrom()][$move->getLan()] = $move;
+            return $carry;
+        }, []);
+
+        return $movesGrouped;
+    }
+
+    /**
+     * @return array<string,array<string,Move>>
+     */
+    public function findFromPositionGply(RepertoirePosition $position): array
+    {
+        $qb = $this->createQueryBuilder('move')
+            ->leftJoin('move.positionFrom', 'positionFrom')
+            ->leftJoin('move.positionTo', 'positionTo')
+            ->andWhere('move.course = :course')
+            ->andWhere('positionFrom.gply >= :gply OR positionTo.fen = :fen')
+            ->setParameter('course', $position->getCourse())
+            ->setParameter('gply', $position->getGply())
+            ->setParameter('fen', $position->getFen());
+
+        $moves = $qb->getQuery()->getResult();
+
+        return $moves;
+    }
+
+    /**
      * @return array<string,array<string,true>>
      */
     public function findSavedGroupedByFenLan(Course $course, array $fens): array
@@ -63,7 +107,7 @@ class MoveRepository extends ServiceEntityRepository
 
         $moves = $qb->getQuery()->getArrayResult();
 
-        $movesGrouped = array_reduce($moves, function ($carry, $move) {
+        $movesSavedGrouped = array_reduce($moves, function ($carry, $move) {
             if (!isset($carry[$move['fenFrom']])) {
                 $carry[$move['fenFrom']] = [];
             }
@@ -71,6 +115,6 @@ class MoveRepository extends ServiceEntityRepository
             return $carry;
         }, []);
 
-        return $movesGrouped;
+        return $movesSavedGrouped;
     }
 }

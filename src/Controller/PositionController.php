@@ -121,8 +121,8 @@ class PositionController extends AbstractController
                             if ($nbMovesSaved <= 0 && !empty($evalsNeeded)) {
                                 $evalFensToLoad = $evalMissingFens;
                             } else {
-                                $evalFensToLoad = array_filter($evalMissingFens, function ($fen) use ($candidateMoveStats) {
-                                    return $candidateMoveStats[$fen]->show;
+                                $evalFensToLoad = array_filter($evalMissingFens, function ($fenTo) use ($fen, $candidateMoveStats) {
+                                    return $fenTo === $fen || $candidateMoveStats[$fenTo]->show;
                                 });
                             }
                         }
@@ -135,8 +135,8 @@ class PositionController extends AbstractController
                         // Evals
                         if (count($evalMissingFens) > 0 && $popularityLoaded) {
 
-                            $evalFensToLoad = array_filter($evalMissingFens, function ($fen) use ($candidateMoveStats) {
-                                return $candidateMoveStats[$fen]->show;
+                            $evalFensToLoad = array_filter($evalMissingFens, function ($fenTo) use ($fen, $candidateMoveStats) {
+                                return $fenTo === $fen || $candidateMoveStats[$fenTo]->show;
                             });
                         }
                     }
