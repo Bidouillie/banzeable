@@ -60,7 +60,7 @@ final class LoadMovesHandler
 
             $mpSavedMasters = $this->mastersRepo->findSavedByFenGrouped($message->fens);
 
-            $fensLoaded;
+            $fensLoaded = 0;
             $fensFailed = [];
             foreach ($message->fens as $fen) {
 
