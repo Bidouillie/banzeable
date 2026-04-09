@@ -23,7 +23,7 @@ class LichessApiService
         LoggerInterface $lichessApiLogger,
     ) {
         $this->apiUrl = "https://lichess.org/api";
-        $this->explorerUrl = "https://explorer.lichess.ovh";
+        $this->explorerUrl = "https://explorer.lichess.org";
         $this->logger = $lichessApiLogger;
     }
 
@@ -43,6 +43,7 @@ class LichessApiService
 
         $response = $this->client->request('GET', $url, [
             'query' => $query,
+            'auth_bearer' => '',
         ]);
 
         if ($response->getStatusCode() === 200) {
@@ -81,6 +82,7 @@ class LichessApiService
 
         $response = $this->client->request('GET', $url, [
             'query' => $query,
+            'auth_bearer' => '',
         ]);
 
         if ($response->getStatusCode() === 200) {
@@ -112,6 +114,7 @@ class LichessApiService
 
         $response = $this->client->request('GET', $url, [
             'query' => $query,
+            'auth_bearer' => '',
         ]);
 
         $statusCode = $response->getStatusCode();
