@@ -1,4 +1,4 @@
-# Banzeable
+# Chess Opening Builder
 
 A web application to build and explore chess openings based on real game data.
 
@@ -54,8 +54,8 @@ It was inspired by tools like Chessbook and Chessable, with a focus on data-driv
 ## ⚙️ Installation
 
 ```bash
-git clone https://github.com/bidouillie/banzeable.git
-cd banzeable
+git clone https://github.com/nboulet-dev/chess-opening-builder.git
+cd chess-opening-builder
 composer install
 symfony server:start
 ```
